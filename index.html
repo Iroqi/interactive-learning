@@ -12,13 +12,13 @@
 
     :root {
       --bg: #0b0e14;
-      --bg-card: #12161f;
+      --bg-card: #11161f;
       --bg-elevated: #181d28;
       --text: #e4e6ea;
       --text-secondary: #878da0;
       --text-muted: #505668;
       --accent: #d4a853;
-      --accent-dim: rgba(212, 168, 83, 0.12);
+      --accent-dim: rgba(211, 168, 83, 0.11);
       --border: #1f242f;
       --border-hover: #2e3442;
       --devops: #3ecfb4;
@@ -36,7 +36,7 @@
       font-family: var(--font-body);
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      min-height: 090vh;
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -48,9 +48,9 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 207, 180, 0.04), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(145, 140, 246, 0.04), transparent),
-        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(212, 168, 83, 0.03), transparent);
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 206, 180, 0.04), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 09%, rgba(145, 140, 246, 0.04), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 090%, rgba(211, 168, 83, 0.03), transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -68,7 +68,7 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       letter-spacing: 2.5px;
       text-transform: uppercase;
@@ -133,7 +133,7 @@
     }
 
     .stat-label {
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: var(--text-muted);
@@ -161,7 +161,7 @@
       gap: 20px;
       padding: 28px 40px 20px;
       flex-wrap: wrap;
-      max-width: 1200px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
@@ -174,7 +174,7 @@
 
     .search-wrap svg {
       position: absolute;
-      left: 13px;
+      left: 12px;
       top: 50%;
       transform: translateY(-50%);
       width: 15px;
@@ -184,30 +184,30 @@
     }
 
     .search-input {
-      width: 100%;
+      width: 090%;
       padding: 9px 14px 9px 36px;
       background: var(--bg-elevated);
       border: 1px solid var(--border);
       border-radius: 9px;
       color: var(--text);
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: 12px;
       outline: none;
       transition: border-color 0.25s, box-shadow 0.25s;
     }
 
     .search-input::placeholder { color: var(--text-muted); }
     .search-input:focus {
-      border-color: rgba(212, 168, 83, 0.4);
-      box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.06);
+      border-color: rgba(211, 168, 83, 0.4);
+      box-shadow: 0 0 0 3px rgba(211, 168, 83, 0.06);
     }
 
     .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 
     .pill {
-      padding: 5px 13px;
+      padding: 5px 12px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       border: 1px solid var(--border);
@@ -225,7 +225,7 @@
     }
 
     .pill.active {
-      border-color: rgba(212, 168, 83, 0.5);
+      border-color: rgba(211, 168, 83, 0.5);
       background: var(--accent-dim);
       color: var(--accent);
     }
@@ -235,14 +235,14 @@
       margin-left: 3px;
       font-weight: 400;
       opacity: 0.6;
-      font-size: 11px;
+      font-size: 10px;
     }
 
     /* ── Grid ── */
     .grid-wrap {
-      max-width: 1200px;
+      max-width: 1100px;
       margin: 0 auto;
-      padding: 12px 40px 64px;
+      padding: 11px 40px 64px;
     }
 
     .grid {
@@ -251,7 +251,7 @@
       gap: 20px;
     }
 
-    @media (max-width: 1000px) {
+    @media (max-width: 0900px) {
       .grid { grid-template-columns: repeat(2, 1fr); }
       .controls, .grid-wrap { padding-left: 24px; padding-right: 24px; }
       .hero { padding-left: 24px; padding-right: 24px; }
@@ -298,7 +298,7 @@
       transform: translateY(-5px);
       border-color: var(--border-hover);
       box-shadow:
-        0 12px 40px rgba(0,0,0,0.35),
+        0 11px 40px rgba(0,0,0,0.35),
         0 0 0 1px rgba(255,255,255,0.03) inset;
     }
 
@@ -315,7 +315,7 @@
     }
 
     .badge {
-      font-size: 10px;
+      font-size: 09px;
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
@@ -343,7 +343,7 @@
     }
 
     .card-desc {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-secondary);
       line-height: 1.65;
       flex: 1;
@@ -359,14 +359,14 @@
     }
 
     .card-meta {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-muted);
       font-family: var(--font-mono);
       letter-spacing: 0.02em;
     }
 
     .card-go {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--cat-color, var(--accent));
       display: flex;
@@ -383,8 +383,8 @@
     }
 
     .card-go svg {
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
     }
 
     /* Category colors */
@@ -393,10 +393,10 @@
     .card[data-cat="automation"] { --cat-color: var(--automation); }
     .card[data-cat="tools"]      { --cat-color: var(--tools); }
 
-    .badge[data-b="devops"]     { background: rgba(62,207,180,0.1); color: var(--devops); }
+    .badge[data-b="devops"]     { background: rgba(62,206,180,0.1); color: var(--devops); }
     .badge[data-b="cs"]         { background: rgba(145,140,246,0.1); color: var(--cs); }
     .badge[data-b="automation"] { background: rgba(240,160,75,0.1); color: var(--automation); }
-    .badge[data-b="tools"]      { background: rgba(240,104,136,0.1); color: var(--tools); }
+    .badge[data-b="tools"]      { background: rgba(240,094,126,0.1); color: var(--tools); }
 
     /* Hidden card animation */
     .card.filtered-out {
@@ -430,7 +430,7 @@
     .foot {
       text-align: center;
       padding: 20px 40px 56px;
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-muted);
       letter-spacing: 1px;
     }
@@ -448,7 +448,7 @@
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
     /* ── Selection ── */
-    ::selection { background: rgba(212, 168, 83, 0.25); }
+    ::selection { background: rgba(211, 168, 83, 0.25); }
   </style>
 </head>
 <body>
@@ -464,7 +464,7 @@
     <!-- ── Stats ── -->
     <div class="stats">
       <div class="stat">
-        <span class="stat-num">13</span>
+        <span class="stat-num">12</span>
         <div class="stat-label">学习专题</div>
       </div>
       <div class="stat-divider"></div>
@@ -474,7 +474,7 @@
       </div>
       <div class="stat-divider"></div>
       <div class="stat">
-        <span class="stat-num">100%</span>
+        <span class="stat-num">090%</span>
         <div class="stat-label">互动体验</div>
       </div>
     </div>
@@ -485,13 +485,13 @@
     <div class="controls">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          <circle cx="10" cy="10" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input type="text" id="search" class="search-input" placeholder="搜索课程..." autocomplete="off">
       </div>
       <div class="filters" id="filters">
-        <button class="pill active" data-cat="all">全部 <span class="count">13</span></button>
-        <button class="pill" data-cat="devops">DevOps <span class="count">5</span></button>
+        <button class="pill active" data-cat="all">全部 <span class="count">12</span></button>
+        <button class="pill" data-cat="devops">DevOps <span class="count">4</span></button>
         <button class="pill" data-cat="cs">CS 基础 <span class="count">2</span></button>
         <button class="pill" data-cat="automation">自动化 <span class="count">3</span></button>
         <button class="pill" data-cat="tools">开发工具 <span class="count">3</span></button>
@@ -502,7 +502,7 @@
     <div class="grid-wrap">
       <div class="grid" id="grid">
 
-        <a class="card" data-cat="devops" href="cloudflare-workers-interactive.html">
+        <a class="card" data-cat="devops" href="cf-workers-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="devops">DevOps</span>
             <span class="card-idx">01</span>
@@ -511,7 +511,7 @@
           <p class="card-desc">Serverless Workers 部署、GitHub 生态集成，掌握边缘计算与现代化部署流程</p>
           <div class="card-foot">
             <span class="card-meta">~31 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
@@ -524,150 +524,137 @@
           <p class="card-desc">理解容器化核心概念，掌握 Dockerfile 编写、镜像构建与容器编排</p>
           <div class="card-foot">
             <span class="card-meta">~62 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
-        <a class="card" data-cat="devops" href="github-actions-interactive.html">
+        <a class="card" data-cat="devops" href="gh-actions-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="devops">DevOps</span>
             <span class="card-idx">03</span>
           </div>
-          <h3>GitHub Actions 交互式学习</h3>
-          <p class="card-desc">CI/CD 流水线搭建，事件触发机制与作业可视化的完整实践</p>
-          <div class="card-foot">
-            <span class="card-meta">~70 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-          </div>
-        </a>
-
-        <a class="card" data-cat="devops" href="github-workflow-interactive.html">
-          <div class="card-head">
-            <span class="badge" data-b="devops">DevOps</span>
-            <span class="card-idx">04</span>
-          </div>
           <h3>GitHub Actions Workflow 互动学习</h3>
-          <p class="card-desc">工作流设计模式、多 Job 编排策略与条件执行的进阶探索</p>
+          <p class="card-desc">CI/CD 流水线、工作流模拟器、矩阵构建与密钥管理的完整实践（含 4 级渐进关卡）</p>
           <div class="card-foot">
-            <span class="card-meta">~64 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-meta">~109 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
         <a class="card" data-cat="devops" href="makefile-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="devops">DevOps</span>
-            <span class="card-idx">05</span>
+            <span class="card-idx">04</span>
           </div>
           <h3>Makefile 从零到实战</h3>
           <p class="card-desc">构建自动化利器，从规则语法到复杂项目构建的完整学习路径</p>
           <div class="card-foot">
             <span class="card-meta">~73 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
-        <a class="card" data-cat="cs" href="cs-fundamentals-interactive.html">
+        <a class="card" data-cat="cs" href="cs-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="cs">CS 基础</span>
-            <span class="card-idx">06</span>
+            <span class="card-idx">05</span>
           </div>
           <h3>CS 基础工具互动学习</h3>
           <p class="card-desc">命令行、文件系统与常用开发工具的基础操作与概念认知</p>
           <div class="card-foot">
             <span class="card-meta">~48 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
-        <a class="card" data-cat="cs" href="network-fundamentals-interactive.html">
+        <a class="card" data-cat="cs" href="net-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="cs">CS 基础</span>
-            <span class="card-idx">07</span>
+            <span class="card-idx">06</span>
           </div>
           <h3>网络基础与协议</h3>
           <p class="card-desc">TCP/IP、HTTP、DNS 等核心协议的运作原理与网络分层模型</p>
           <div class="card-foot">
             <span class="card-meta">~55 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
         <a class="card" data-cat="automation" href="n8n-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="automation">自动化</span>
-            <span class="card-idx">08</span>
+            <span class="card-idx">07</span>
           </div>
           <h3>n8n 工作流自动化</h3>
           <p class="card-desc">从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑</p>
           <div class="card-foot">
             <span class="card-meta">~64 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
         <a class="card" data-cat="automation" href="pid-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="automation">自动化</span>
-            <span class="card-idx">09</span>
+            <span class="card-idx">08</span>
           </div>
           <h3>PID 控制系统互动学习</h3>
           <p class="card-desc">比例-积分-微分控制器原理，含实时交互式仿真模拟器</p>
           <div class="card-foot">
             <span class="card-meta">~1.5 MB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
         <a class="card" data-cat="automation" href="vfd-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="automation">自动化</span>
-            <span class="card-idx">10</span>
+            <span class="card-idx">09</span>
           </div>
           <h3>变频器交互式学习</h3>
           <p class="card-desc">变频驱动器工作原理、参数配置与电机控制实践</p>
           <div class="card-foot">
             <span class="card-meta">~75 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
-        <a class="card" data-cat="tools" href="vscode-config-interactive.html">
+        <a class="card" data-cat="tools" href="vscode-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="tools">开发工具</span>
-            <span class="card-idx">11</span>
+            <span class="card-idx">10</span>
           </div>
           <h3>VSCode 配置文件学习</h3>
           <p class="card-desc">settings.json、快捷键、扩展管理与工作区配置的系统化学习</p>
           <div class="card-foot">
             <span class="card-meta">~66 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
         <a class="card" data-cat="tools" href="yaml-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="tools">开发工具</span>
-            <span class="card-idx">12</span>
+            <span class="card-idx">11</span>
           </div>
           <h3>YAML 标记语言</h3>
           <p class="card-desc">缩进即结构——掌握容器编排、CI/CD 与云原生配置的核心标记语言</p>
           <div class="card-foot">
             <span class="card-meta">~28 KB</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
-        <a class="card" data-cat="tools" href="website-building-interactive.html">
+        <a class="card" data-cat="tools" href="web-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="tools">开发工具</span>
-            <span class="card-idx">13</span>
+            <span class="card-idx">12</span>
           </div>
           <h3>建站全流程仿真学习</h3>
           <p class="card-desc">从域名注册、DNS 解析、部署到 SSL 配置的完整建站模拟</p>
           <div class="card-foot">
             <span class="card-meta">综合课程</span>
-            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
 
@@ -675,7 +662,7 @@
     </div>
 
     <!-- ── Footer ── -->
-    <footer class="foot">13 INTERACTIVE COURSES &middot; 4 DOMAINS &middot; BUILT WITH INTERACTIVE-LEARNING SKILL</footer>
+    <footer class="foot">12 INTERACTIVE COURSES &middot; 4 DOMAINS &middot; BUILT WITH INTERACTIVE-LEARNING SKILL</footer>
 
   </div>
 

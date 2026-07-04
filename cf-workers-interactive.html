@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare Workers 入门 — 交互式学习</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --bg2: #1e293b;
+  --bg3: #334155;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --green: #4ade80;
+  --orange: #fb923c;
+  --pink: #f472b6;
+  --yellow: #fbbf24;
+  --border: #475569;
+  --success: #22c55e;
+  --error: #ef4444;
+}
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg2: #ffffff;
+  --bg3: #e2e8f0;
+  --text: #1e293b;
+  --text2: #64748b;
+  --accent: #0284c7;
+  --accent2: #6366f1;
+  --border: #cbd5e1;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  transition: background 0.3s, color 0.3s;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 40px 20px 30px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+.header h1 { font-size: 2em; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header p { color: var(--text2); font-size: 1.05em; }
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed; top: 15px; right: 15px; z-index: 100;
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--text); width: 42px; height: 42px; border-radius: 50%;
+  cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.theme-toggle:hover { background: var(--bg3); }
+
+/* Progress bar */
+.progress-bar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; margin: 0 -20px;
+}
+.progress-track {
+  height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+.progress-label { font-size: 0.85em; color: var(--text2); margin-top: 4px; text-align: center; }
+
+/* Section */
+.section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.section h2 {
+  font-size: 1.4em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section h2 .level-badge {
+  font-size: 0.65em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge-l1 { background: var(--green); color: #064e3b; }
+.badge-l2 { background: var(--accent); color: #0c4a6e; }
+.badge-l3 { background: var(--orange); color: #431407; }
+.badge-l4 { background: var(--pink); color: #50072d; }
+.badge-l5 { background: var(--yellow); color: #78350f; }
+
+/* Knowledge map */
+.knowledge-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.km-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s;
+  cursor: default;
+}
+.km-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.km-card .icon { font-size: 2em; margin-bottom: 8px; }
+.km-card h3 { font-size: 1em; margin-bottom: 6px; }
+.km-card p { font-size: 0.85em; color: var(--text2); }
+
+/* Concept grid */
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.concept-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.concept-card .concept-title {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+.concept-card p { font-size: 0.85em; color: var(--text2); }
+
+/* Code blocks */
+.code-block {
+  background: #0d1117;
+  color: #c9d1d9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
+  line-height: 1.6;
+  overflow-x: auto;
+  position: relative;
+}
+.code-comment { color: #8b949e; }
+.code-keyword { color: #ff7b72; }
+.code-string { color: #a5d6ff; }
+.code-func { color: #d2a8ff; }
+.code-todo { color: #f0883e; font-weight: bold; }
+.code-number { color: #79c0ff; }
+.code-property { color: #7ee787; }
+
+/* Sandbox */
+.sandbox {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+@media (max-width: 700px) { .sandbox { grid-template-columns: 1fr; } }
+.sandbox-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sandbox-panel h4 {
+  background: var(--bg3);
+  padding: 8px 14px;
+  font-size: 0.85em;
+  color: var(--text2);
+}
+.sandbox-editor {
+  width: 100%;
+  min-height: 180px;
+  background: #0d1117;
+  color: #c9d1d9;
+  border: none;
+  padding: 14px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.82em;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.sandbox-editor.short { min-height: 120px; }
+.sandbox-output {
+  min-height: 100px;
+  padding: 14px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.82em;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 250px;
+}
+.sandbox-actions {
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+.btn:hover { border-color: var(--accent); background: var(--border); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { opacity: 0.85; }
+
+/* Hint panel */
+.hint {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.hint summary {
+  padding: 10px 14px;
+  background: var(--bg3);
+  cursor: pointer;
+  font-size: 0.9em;
+  color: var(--text2);
+  user-select: none;
+}
+.hint summary:hover { color: var(--accent); }
+.hint-content { padding: 14px; }
+
+/* Test runner */
+.test-result {
+  padding: 8px 14px;
+  margin: 6px 0;
+  border-radius: 6px;
+  font-size: 0.88em;
+  font-family: monospace;
+}
+.test-pass { background: rgba(34,197,94,0.15); color: var(--success); border-left: 3px solid var(--success); }
+.test-fail { background: rgba(239,68,68,0.15); color: var(--error); border-left: 3px solid var(--error); }
+
+/* Checkbox for completion */
+.complete-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.complete-check input[type="checkbox"] {
+  width: 18px; height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.complete-check label { cursor: pointer; font-size: 0.92em; color: var(--text2); }
+.complete-check.checked { border-color: var(--green); background: rgba(74,222,128,0.08); }
+.complete-check.checked label { color: var(--green); text-decoration: line-through; }
+
+/* Summary */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.summary-item {
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+.summary-item h4 { margin-bottom: 6px; font-size: 0.95em; }
+.summary-item p { font-size: 0.85em; color: var(--text2); }
+
+/* Task list */
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.task-list li {
+  padding: 8px 14px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.9em;
+  color: var(--text2);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.task-list li::before { content: "☐"; flex-shrink: 0; margin-top: 1px; }
+.task-list li.done::before { content: "☑"; color: var(--green); }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.section { animation: fadeIn 0.4s ease; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" title="切换主题">&#9790;</button>
+
+<div class="progress-bar">
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">已完成 0 / 5 个层级</div>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Cloudflare Workers 入门</h1>
+    <p>从零构建 Serverless 边缘应用，掌握边缘计算的核心概念与工程实践</p>
+  </div>
+
+  <!-- ==================== KNOWLEDGE MAP ==================== -->
+  <div class="section">
+    <h2><span class="level-badge badge-l1">知识图谱</span> 你要学什么</h2>
+    <div class="knowledge-map">
+      <div class="km-card">
+        <div class="icon">⚡</div>
+        <h3>Workers 运行时</h3>
+        <p>V8 隔离环境，&lt;1ms 冷启动，全球 300+ 边缘节点就近响应</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🔄</div>
+        <h3>Fetch 事件</h3>
+        <p>通过 addEventListener("fetch") 拦截并处理 HTTP 请求</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🗺️</div>
+        <h3>路由与中间件</h3>
+        <p>请求分发、CORS 处理、日志拦截等中间件链模式</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">💾</div>
+        <h3>KV 存储</h3>
+        <p>Cloudflare 的分布式键值存储，全局低延迟读写</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🔐</div>
+        <h3>环境变量</h3>
+        <p>bindings / secrets / wrangler.toml 配置管理</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🚀</div>
+        <h3>部署与 Wrangler</h3>
+        <p>本地开发、预览部署、生产发布全流程</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CORE CONCEPTS ==================== -->
+  <div class="section">
+    <h2>核心概念</h2>
+    <div class="concept-grid">
+      <div class="concept-card">
+        <div class="concept-title">V8 隔离</div>
+        <p>每个 Worker 在独立的 V8 Isolate 中运行，冷启动 &lt; 1ms，资源隔离，无容器开销</p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title">全局共享</div>
+        <p>代码和常量在每个请求间复用，但变量不共享（除非用 Durable Objects / KV）</p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title">Fetch 事件</div>
+        <p>每个 HTTP 请求触发一次 fetch 事件，通过 event.respondWith() 返回 Response</p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title">Request / Response</div>
+        <p>基于 Web Standards 的 Fetch API，与浏览器中完全一致，无需重新学习</p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title">KV 绑定</div>
+        <p>分布式键值存储，通过 env.MY_KV.get(key) 读取，写操作最终一致</p>
+      </div>
+      <div class="concept-card">
+        <div class="concept-title">Secrets 绑定</div>
+        <p>通过 wrangler secret put 注入，代码中通过 env.MY_SECRET 读取，不暴露明文</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 1 ==================== -->
+  <div class="section" id="level1">
+    <h2>
+      <span class="level-badge badge-l1">Level 1 — 认识</span>
+      <span style="font-size:0.6em;color:var(--text2)">~25 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>理解 Worker 的请求-响应模型，能够读取 Request 对象并构造 Response。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 1：模拟一个 Cloudflare Worker</h3>
+    <p style="color:var(--text2);font-size:0.92em;">Cloudflare Worker 通过 <code>addEventListener("fetch")</code> 拦截请求，用 <code>event.respondWith()</code> 返回响应。下面用浏览器模拟这个流程。</p>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>编辑器 — 修改下面的代码</h4>
+        <textarea class="sandbox-editor" id="editor1">// 这是一个 Cloudflare Worker 的简化模拟
+// Worker 使用 addEventListener("fetch") 监听请求
+
+addEventListener("fetch", event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  const method = request.method;
+
+  // ─── 任务 A ───
+  // TODO: 将 /api/hello 的响应状态改为 201，消息改为 "已创建"
+  if (url.pathname === "/api/hello") {
+    return new Response(
+      JSON.stringify({ message: "你好, World!", status: 200 }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // ─── 任务 B ───
+  // TODO: 添加 /api/echo 端点，原样返回请求方法和路径
+  // 例如 GET /api/echo 应返回 { method: "GET", path: "/api/echo" }
+  // 提示：用 else if (url.pathname === "/api/echo") { ... }
+
+  return new Response(
+    JSON.stringify({ error: "未找到", path: url.pathname }),
+    { status: 404, headers: { "Content-Type": "application/json" } }
+  );
+}
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="runLevel1()">▶ 运行代码</button>
+          <button class="btn" onclick="resetLevel1()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>输出</h4>
+        <div class="sandbox-output" id="output1">点击 "运行代码" 查看结果...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint1">
+      <summary>💡 需要提示？点击查看</summary>
+      <div class="hint-content">
+        <div class="code-block"><span class="code-comment">// 任务 A：将 status 改为 201，message 改为 "已创建"</span>
+<span class="code-keyword">return new Response</span>(
+  <span class="code-func">JSON.stringify</span>({ message: <span class="code-string">"已创建"</span>, status: <span class="code-number">201</span> }),
+  { headers: { <span class="code-string">"Content-Type"</span>: <span class="code-string">"application/json"</span> } }
+);
+
+<span class="code-comment">// 任务 B：添加 echo 端点</span>
+<span class="code-keyword">else if</span> (url.pathname === <span class="code-string">"/api/echo"</span>) {
+  <span class="code-keyword">return new Response</span>(
+    <span class="code-func">JSON.stringify</span>({ method: method, path: url.pathname }),
+    { headers: { <span class="code-string">"Content-Type"</span>: <span class="code-string">"application/json"</span> } }
+  );
+}</div>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l1c1')">
+      <input type="checkbox" id="l1c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l1c1">我已成功让 Worker 返回了正确的 JSON 响应（任务 A + B）</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 2 ==================== -->
+  <div class="section" id="level2">
+    <h2>
+      <span class="level-badge badge-l2">Level 2 — 引导实践</span>
+      <span style="font-size:0.6em;color:var(--text2)">~30 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>理解 KV 存储的工作机制，能够在 Worker 中实现基本的读写缓存。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 2：模拟 KV 存储 — 实现一个计数器</h3>
+    <p style="color:var(--text2);font-size:0.92em;">Cloudflare KV 是一个全局分布式键值存储。我们用 JavaScript 对象模拟它的行为：</p>
+    <ul style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;">
+      <li><code>kv.get(key)</code> — 读取值，如果不存在返回 null</li>
+      <li><code>kv.put(key, value)</code> — 写入值（覆盖原有值）</li>
+      <li><code>kv.list()</code> — 列出所有 key</li>
+    </ul>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>编辑器</h4>
+        <textarea class="sandbox-editor short" id="editor2">// ─── 模拟 KV 存储 ───
+// Cloudflare KV 用全局分布式键值存储
+// 这里用普通对象模拟 KV 的行为
+
+const MOCK_KV = new Map();
+
+const kv = {
+  async get(key) {
+    const val = MOCK_KV.get(key);
+    if (val === undefined) return null;
+    return JSON.parse(val); // KV 返回的值是序列化后的
+  },
+  async put(key, value) {
+    MOCK_KV.set(key, JSON.stringify(value));
+  },
+  async list() {
+    const keys = [];
+    for (const [k, v] of MOCK_KV) {
+      keys.push({ name: k, value: JSON.parse(v) });
+    }
+    return keys;
+  }
+};
+
+// ─── 初始化计数器（如果不存在则设为 0）───
+// TODO: 在 Worker 启动时检查 "page_views" 是否存在，不存在则 put("page_views", 0)
+
+// ─── 任务 A：实现视图计数器 ───
+// 创建一个 /api/page-views 端点
+// 每次请求：读取计数器 → +1 → 写回 → 返回当前值
+
+// TODO: 实现 handleRequestKV(request) {
+//   if url.pathname === "/api/page-views":
+//     count = await kv.get("page_views")  // 读
+//     await kv.put("page_views", count+1) // 写
+//     return JSON响应
+//   return 404
+// }
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="runLevel2()">▶ 运行代码</button>
+          <button class="btn" onclick="resetLevel2()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>输出</h4>
+        <div class="sandbox-output" id="output2">点击 "运行代码" 测试你的 KV 实现...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint2a">
+      <summary>💡 任务 A 提示</summary>
+      <div class="hint-content">
+        <div class="code-block"><span class="code-keyword">async function</span> <span class="code-func">handleRequestKV</span>(request) {
+  <span class="code-keyword">const</span> url = <span class="code-keyword">new</span> <span class="code-func">URL</span>(request.url);
+
+  <span class="code-keyword">if</span> (url.pathname === <span class="code-string">"/api/page-views"</span>) {
+    <span class="code-keyword">let</span> count = <span class="code-keyword">await</span> <span class="code-func">kv.get</span>(<span class="code-string">"page_views"</span>);
+    <span class="code-keyword">if</span> (count === <span class="code-keyword">null</span>) count = <span class="code-number">0</span>;
+    count++;
+    <span class="code-keyword">await</span> <span class="code-func">kv.put</span>(<span class="code-string">"page_views"</span>, count);
+    <span class="code-keyword">return new Response</span>(
+      <span class="code-func">JSON.stringify</span>({ views: count }),
+      { headers: { <span class="code-string">"Content-Type"</span>: <span class="code-string">"application/json"</span> }}
+    );
+  }
+  <span class="code-keyword">return new Response</span>(<span class="code-string">"Not found"</span>, { status: <span class="code-number">404</span> });
+}</div>
+      </div>
+    </details>
+
+    <h3 style="margin:20px 0 8px;">📌 任务 3：构建 KV 计数器</h3>
+    <p style="color:var(--text2);font-size:0.92em;">完成后回答下面的问题来检验你的理解：</p>
+
+    <div style="margin:16px 0;">
+      <p style="color:var(--text2);font-size:0.92em;margin-bottom:8px;"><strong>Q1.</strong> Cloudflare KV 的读写一致性模型是？</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label style="cursor:pointer;"><input type="radio" name="kv-q1" value="a"> 强一致性</label>
+        <label style="cursor:pointer;"><input type="radio" name="kv-q1" value="b"> 最终一致性</label>
+        <label style="cursor:pointer;"><input type="radio" name="kv-q1" value="c"> 读写分离</label>
+      </div>
+
+      <p style="color:var(--text2);font-size:0.92em;margin:16px 0 8px;"><strong>Q2.</strong> 为什么 KV 写操作不适合需要强一致性的场景？</p>
+      <input type="text" id="kv-q2" placeholder="输入你的理解..." style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.92em;">
+
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="checkKV()">✓ 检查答案</button>
+      <div id="kvResults" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="complete-check" onclick="toggleComplete('l2c1')">
+      <input type="checkbox" id="l2c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l2c1">我已理解 KV 存储的读写模型并完成了计数器任务</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 3 ==================== -->
+  <div class="section" id="level3">
+    <h2>
+      <span class="level-badge badge-l3">Level 3 — 独立实现</span>
+      <span style="font-size:0.6em;color:var(--text2)">~35 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>从零构建一个带路由、CORS、中间件和 KV 缓存的完整 Worker。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 4：构建完整的 API Gateway</h3>
+    <p style="color:var(--text2);font-size:0.92em;">在上一级的基础上，现在你要添加以下功能：</p>
+    <ul class="task-list" id="task4-list">
+      <li>路由：<code>/api/users</code> 列表、<code>/api/users/:id</code> 单条、<code>/api/health</code> 健康检查</li>
+      <li>KV 缓存：GET <code>/api/users</code> 结果缓存 10 秒</li>
+      <li>CORS 中间件：所有端点自动添加 <code>Access-Control-Allow-Origin: *</code></li>
+      <li>日志中间件：记录每个请求的方法、路径和响应状态</li>
+    </ul>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>编辑器</h4>
+        <textarea class="sandbox-editor" id="editor3">// ─── API Gateway — 完整实现 ───
+
+// 用户数据
+const users = [
+  { id: 1, name: "张三", role: "开发者", avatar: "https://i.pravatar.cc/40?u=1" },
+  { id: 2, name: "李四", role: "设计师", avatar: "https://i.pravatar.cc/40?u=2" },
+  { id: 3, name: "王五", role: "产品经理", avatar: "https://i.pravatar.cc/40?u=3" },
+  { id: 4, name: "赵六", role: "运维工程师", avatar: "https://i.pravatar.cc/40?u=4" },
+  { id: 5, name: "孙七", role: "测试工程师", avatar: "https://i.pravatar.cc/40?u=5" }
+];
+
+// ─── 1. KV 缓存 ───
+const cache = {};
+
+// TODO: 实现 getCache(key) — 检查缓存是否有效（10秒 TTL）
+// TODO: 实现 setCache(key, data) — 写入缓存
+
+// ─── 2. 日志中间件 ───
+const logs = [];
+
+// TODO: 实现 logRequest(method, path, status) — 记录请求日志
+
+// ─── 3. CORS 中间件 ───
+// TODO: 实现 withCORS(response) — 为 Response 添加 CORS 头
+// 需要添加的响应头：
+//   Access-Control-Allow-Origin: *
+//   Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+//   Access-Control-Allow-Headers: Content-Type
+
+// ─── 4. 路由处理 ───
+// TODO: 实现 handleRoute(request)
+//   GET /api/health     → { status: "ok", timestamp: ... }
+//   GET /api/users      → 返回用户列表（优先从缓存读，缓存 miss 才读 users 数组）
+//   GET /api/users/1    → 返回 id=1 的用户（找不到返回 404）
+//   GET /api/logs       → 返回所有请求日志
+//   其他               → 404
+
+// ─── 5. 主处理函数 ───
+// TODO: 实现 handleRequest(request)
+//   处理链：日志开始 → CORS OPTIONS 拦截 → 路由 → CORS 包装 → 日志结束 → 返回
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="runLevel3()">▶ 运行代码</button>
+          <button class="btn" onclick="resetLevel3()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>输出</h4>
+        <div class="sandbox-output" id="output3">点击 "运行代码" 测试你的实现...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint3">
+      <summary>💡 需要提示？点击查看关键片段</summary>
+      <div class="hint-content">
+        <p style="font-size:0.9em;color:var(--text2);margin-bottom:8px;"><strong>CORS 中间件：</strong></p>
+        <div class="code-block"><span class="code-keyword">function</span> <span class="code-func">withCORS</span>(response) {
+  <span class="code-keyword">const</span> newHeaders = <span class="code-keyword">new</span> <span class="code-func">Headers</span>(response.headers);
+  newHeaders.<span class="code-func">set</span>(<span class="code-string">"Access-Control-Allow-Origin"</span>, <span class="code-string">"*"</span>);
+  newHeaders.<span class="code-func">set</span>(<span class="code-string">"Access-Control-Allow-Methods"</span>, <span class="code-string">"GET, POST, PUT, DELETE, OPTIONS"</span>);
+  <span class="code-keyword">return new Response</span>(response.body, {
+    ...response,
+    headers: newHeaders
+  });
+}</div>
+        <p style="font-size:0.9em;color:var(--text2);margin:16px 0 8px;"><strong>带缓存的 getUsers：</strong></p>
+        <div class="code-block"><span class="code-keyword">async function</span> <span class="code-func">getUsers</span>() {
+  <span class="code-keyword">const</span> cached = <span class="code-func">getCache</span>(<span class="code-string">"users_list"</span>);
+  <span class="code-keyword">if</span> (cached) <span class="code-keyword">return</span> cached;
+
+  <span class="code-keyword">const</span> result = users.<span class="code-func">map</span>(u => ({ id: u.id, name: u.name, role: u.role }));
+  <span class="code-func">setCache</span>(<span class="code-string">"users_list"</span>, result);
+  <span class="code-keyword">return</span> result;
+}</div>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l3c1')">
+      <input type="checkbox" id="l3c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l3c1">我的 API Gateway 实现了路由 + 缓存 + CORS + 日志四个功能</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 4 ==================== -->
+  <div class="section" id="level4">
+    <h2>
+      <span class="level-badge badge-l4">Level 4 — 进阶实践</span>
+      <span style="font-size:0.6em;color:var(--text2)">~30 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>理解环境变量、Secrets 和 Wrangler 配置管理，能够安全地部署 Worker。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 5：环境变量与 Secrets</h3>
+    <p style="color:var(--text2);font-size:0.92em;">实际项目中，API Key、数据库密码等敏感信息不能硬编码。Workers 提供两种配置机制：</p>
+
+    <table class="comparison-table">
+      <thead>
+        <tr><th>机制</th><th>用途</th><th>安全性</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>vars</strong></td><td>非敏感配置，如 API 地址、功能开关</td><td>明文可见于 dashboard</td></tr>
+        <tr><td><strong>secrets</strong></td><td>敏感信息，如数据库密码、第三方 API Key</td><td>加密存储，不可明文读取</td></tr>
+        <tr><td><strong>bindings</strong></td><td>KV / Durable Objects / R2 等服务绑定</td><td>由 Cloudflare 管理</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>wrangler.toml 配置示例</h4>
+        <textarea class="sandbox-editor short" id="editor4a" spellcheck="false" readonly style="opacity:0.85;"># wrangler.toml — Worker 项目配置文件
+name = "my-api-gateway"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# ─── 环境变量（非敏感）───
+[vars]
+API_BASE_URL = "https://api.example.com"
+FEATURE_FLAG_NEW_UI = "true"
+ENV = "production"
+
+# ─── KV 绑定 ───
+[[kv_namespaces]]
+binding = "CACHE"        # 代码中通过 env.CACHE 访问
+id = "abc123..."         # Cloudflare dashboard 中创建
+preview_id = "xyz789..."
+
+# ─── Secrets（通过 wrangler 命令注入）───
+# wrangler secret put API_KEY
+# wrangler secret put DATABASE_URL</textarea>
+      </div>
+    </div>
+
+    <h3 style="margin:20px 0 8px;">📌 任务 6：识别配置问题</h3>
+    <p style="color:var(--text2);font-size:0.92em;">下面的 Worker 代码存在多个安全问题，找出它们：</p>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>有问题的 Worker 代码</h4>
+        <textarea class="sandbox-editor short" id="editor4b" readonly style="opacity:0.85;">// ⚠️ 这段代码存在安全问题，你能找出几个？
+
+const DB_PASSWORD = "my_super_secret_password_123";  // 问题 1
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/api/users") {
+      // 问题 2: 未验证请求来源
+      const users = await fetch(
+        `${env.API_BASE_URL}/users?key=${DB_PASSWORD}`
+      );
+
+      // 问题 3: 未设置 CORS 头
+      return new Response(await users.text());
+    }
+
+    if (url.pathname === "/admin/delete-all") {
+      // 问题 4: 无权限校验
+      await env.DB.delete("users:*");
+      return new Response("deleted");
+    }
+
+    return new Response("Not found", { status: 404 });
+  }
+};</textarea>
+      </div>
+      <div class="sandbox-panel">
+        <h4>你的发现</h4>
+        <div style="padding:14px;font-size:0.88em;">
+          <p style="color:var(--text2);margin-bottom:8px;">列出你发现的问题：</p>
+          <textarea id="security-notes" rows="5" placeholder="例如：
+1. 密码硬编码在代码中
+2. ...
+3. ..." style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.88em;resize:vertical;font-family:inherit;"></textarea>
+          <button class="btn btn-primary" style="margin-top:10px;" onclick="checkSecurity()">✓ 检查</button>
+          <div id="securityResults" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint4">
+      <summary>💡 参考答案（4 个安全问题）</summary>
+      <div class="hint-content">
+        <ol style="color:var(--text2);font-size:0.88em;padding-left:20px;">
+          <li style="margin-bottom:6px;"><strong>密码硬编码</strong> — 使用 <code>wrangler secret put DB_PASSWORD</code> 注入</li>
+          <li style="margin-bottom:6px;"><strong>密码泄露在 URL 中</strong> — URL 参数会被日志记录，应放在请求 body 或 header 中</li>
+          <li style="margin-bottom:6px;"><strong>缺少 CORS</strong> — 所有响应都应添加 <code>Access-Control-Allow-Origin</code></li>
+          <li style="margin-bottom:6px;"><strong>无权限校验</strong> — <code>/admin/delete-all</code> 没有任何认证，任何人都可以调用</li>
+        </ol>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l4c1')">
+      <input type="checkbox" id="l4c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l4c1">我已理解环境变量 / Secrets / 安全编码的差异和用法</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 5 ==================== -->
+  <div class="section" id="level5">
+    <h2>
+      <span class="level-badge badge-l5">Level 5 — 实战部署</span>
+      <span style="font-size:0.6em;color:var(--text2)">~30 分钟+</span>
+    </h2>
+    <p><strong>目标：</strong>用 Wrangler CLI 从零创建、本地测试并部署一个真实 Worker。</p>
+
+    <h3 style="margin:16px 0 8px;">🚀 任务 7：部署你的第一个 Worker</h3>
+    <ol style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;line-height:2;">
+      <li>注册 <a href="https://dash.cloudflare.com/sign-up" target="_blank" style="color:var(--accent)">Cloudflare</a> 账号（免费）</li>
+      <li>安装 Wrangler：<code>npm install -g wrangler</code></li>
+      <li>登录：<code>wrangler login</code>（会打开浏览器授权）</li>
+      <li>创建项目：<code>wrangler init my-first-worker</code></li>
+      <li>本地预览：<code>cd my-first-worker && wrangler dev</code></li>
+      <li>部署到云端：<code>wrangler deploy</code></li>
+      <li>访问你的 Worker URL，确认它在全球边缘运行</li>
+    </ol>
+
+    <h3 style="margin:20px 0 8px;">🧠 思考题</h3>
+    <ul style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;line-height:2;">
+      <li>Workers 的冷启动时间 &lt;1ms，而 Lambda 通常需要数百毫秒。两者架构上的根本差异是什么？</li>
+      <li>Wrangler 的 <code>wrangler dev</code> 和 <code>wrangler deploy</code> 分别做了什么？</li>
+      <li>KV 是最终一致性——你在什么业务场景下可以接受这个限制？什么场景下不能？</li>
+      <li>如果要用 Workers 做一个 A/B 测试服务，你会怎么设计路由和变体分发？</li>
+    </ul>
+
+    <div class="complete-check" onclick="toggleComplete('l5c1')">
+      <input type="checkbox" id="l5c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l5c1">我已用 Wrangler 成功部署了一个 Worker 到 Cloudflare</label>
+    </div>
+  </div>
+
+  <!-- ==================== SUMMARY ==================== -->
+  <div class="section" id="summary">
+    <h2>总结</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <h4>⚡ Workers 运行时</h4>
+        <p>V8 隔离 + 全球边缘节点，&lt;1ms 冷启动，HTTP 请求通过 fetch 事件驱动处理</p>
+      </div>
+      <div class="summary-item">
+        <h4>🗺️ 路由与中间件</h4>
+        <p>通过路径匹配分发请求，CORS 和日志作为中间件横切所有端点</p>
+      </div>
+      <div class="summary-item">
+        <h4>💾 KV 存储</h4>
+        <p>分布式键值存储，适合缓存、会话、计数器等场景；注意最终一致性</p>
+      </div>
+      <div class="summary-item">
+        <h4>🔐 安全配置</h4>
+        <p>vars 放公开配置，secrets 放敏感信息，bindings 连接 Cloudflare 服务</p>
+      </div>
+      <div class="summary-item">
+        <h4>🚀 Wrangler CLI</h4>
+        <p>wrangler dev 本地开发，wrangler deploy 一键发布到全球边缘网络</p>
+      </div>
+      <div class="summary-item">
+        <h4>🏗️ Serverless 思维</h4>
+        <p>不管理服务器、按需付费、自动扩缩容。Workers 把开发者从运维中解放出来，专注业务逻辑</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Theme =====
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  html.setAttribute('data-theme', isLight ? '' : 'light');
+  document.querySelector('.theme-toggle').textContent = isLight ? '☼' : '☽';
+}
+
+// ===== Progress =====
+const checkpoints = ['l1c1', 'l2c1', 'l3c1', 'l4c1', 'l5c1'];
+function updateProgress() {
+  const done = checkpoints.filter(id => document.getElementById(id) && document.getElementById(id).checked).length;
+  const pct = (done / checkpoints.length) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = '已完成 ' + done + ' / ' + checkpoints.length + ' 个层级';
+  checkpoints.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const row = el.closest('.complete-check');
+    if (el.checked) row.classList.add('checked');
+    else row.classList.remove('checked');
+  });
+}
+
+// ===== Level 1: Worker Simulation =====
+const origEditor1 = document.getElementById('editor1').value;
+function resetLevel1() {
+  document.getElementById('editor1').value = origEditor1;
+  document.getElementById('output1').textContent = '代码已重置，点击 "运行代码" 查看结果...';
+}
+function runLevel1() {
+  const code = document.getElementById('editor1').value;
+  const output = document.getElementById('output1');
+  try {
+    eval(code);
+
+    const tests = [
+      { url: 'http://localhost/api/hello', method: 'GET' },
+      { url: 'http://localhost/api/notfound', method: 'GET' },
+    ];
+
+    let results = '';
+    for (const t of tests) {
+      const req = new Request(t.url, { method: t.method });
+      const resp = await handleRequest(req);
+      const body = await resp.json();
+      results += `[${resp.status}] ${t.url} => ${JSON.stringify(body)}\n`;
+    }
+
+    const echoReq = new Request('http://localhost/api/echo', { method: 'POST' });
+    try {
+      const echoResp = await handleRequest(echoReq);
+      const echoBody = await echoResp.json();
+      results += `\n[测试 /api/echo]\n[${echoResp.status}] POST /api/echo => ${JSON.stringify(echoBody)}`;
+    } catch(e) {
+      results += `\n\n[测试 /api/echo] 端点尚未实现`;
+    }
+
+    output.innerHTML = '<pre style="margin:0">' + results + '</pre>';
+  } catch(e) {
+    output.innerHTML = '<span style="color:#ef4444">错误: ' + e.message + '</span>';
+  }
+}
+
+// ===== Level 2: KV Quiz =====
+function resetLevel2() {
+  document.getElementById('editor2').value = document.getElementById('editor2').defaultValue || '';
+  document.getElementById('output2').textContent = '代码已重置，点击 "运行代码" 测试你的 KV 实现...';
+}
+async function runLevel2() {
+  const code = document.getElementById('editor2').value;
+  const output = document.getElementById('output2');
+
+  try {
+    eval(code);
+
+    let results = '';
+    const req1 = new Request('http://localhost/api/page-views');
+    let r1;
+    try { r1 = await handleRequestKV(req1); } catch(e) { r1 = null; }
+    if (r1) {
+      const b1 = await r1.json();
+      results += `请求 1 → ${JSON.stringify(b1)}\n`;
+    } else {
+      results += '请求 1 → 函数未实现或报错\n';
+    }
+
+    const req2 = new Request('http://localhost/api/page-views');
+    let r2;
+    try { r2 = await handleRequestKV(req2); } catch(e) { r2 = null; }
+    if (r2) {
+      const b2 = await r2.json();
+      results += `请求 2 → ${JSON.stringify(b2)}\n`;
+    } else {
+      results += '请求 2 → 函数未实现或报错\n';
+    }
+
+    const req3 = new Request('http://localhost/api/page-views');
+    let r3;
+    try { r3 = await handleRequestKV(req3); } catch(e) { r3 = null; }
+    if (r3) {
+      const b3 = await r3.json();
+      results += `请求 3 → ${JSON.stringify(b3)}\n`;
+    } else {
+      results += '请求 3 → 函数未实现或报错\n';
+    }
+
+    results += '\n预期：三次请求的 views 应该递增（1, 2, 3）';
+    output.textContent = results;
+  } catch(e) {
+    output.innerHTML = '<span style="color:#ef4444">错误: ' + e.message + '</span>';
+  }
+}
+function checkKV() {
+  const results = document.getElementById('kvResults');
+  let score = 0;
+  let html = '';
+
+  const q1 = document.querySelector('input[name="kv-q1"]:checked');
+  if (q1 && q1.value === 'b') {
+    score++;
+    html += '<div class="test-result test-pass">✓ Q1 正确！KV 写操作是最终一致的（写入后可能短暂读到旧值）</div>';
+  } else {
+    html += '<div class="test-result test-fail">✗ Q1：KV 是<b>最终一致性</b>，不是强一致</div>';
+  }
+
+  const q2Val = document.getElementById('kv-q2').value.trim().toLowerCase();
+  if (q2Val.length > 10 && (q2Val.includes('最终') || q2Val.includes('一致') || q2Val.includes('延迟') || q2Val.includes('多节点'))) {
+    score++;
+    html += '<div class="test-result test-pass">✓ Q2 理解到位</div>';
+  } else {
+    html += '<div class="test-result test-fail">✗ Q2 提示：写操作可能在一段时间内被旧值覆盖，因数据需要同步到多个边缘节点</div>';
+  }
+
+  html += `<div style="margin-top:10px;font-weight:bold;color:${score === 2 ? 'var(--green)' : 'var(--orange)'}">得分：${score}/2</div>`;
+  results.innerHTML = html;
+}
+
+// ===== Level 3: API Gateway =====
+const origEditor3 = document.getElementById('editor3').value;
+function resetLevel3() {
+  document.getElementById('editor3').value = origEditor3;
+  document.getElementById('output3').textContent = '点击 "运行代码" 测试你的实现...';
+}
+function runLevel3() {
+  const code = document.getElementById('editor3').value;
+  const output = document.getElementById('output3');
+
+  try {
+    const users = [
+      { id: 1, name: "张三", role: "开发者", avatar: "https://i.pravatar.cc/40?u=1" },
+      { id: 2, name: "李四", role: "设计师", avatar: "https://i.pravatar.cc/40?u=2" },
+      { id: 3, name: "王五", role: "产品经理", avatar: "https://i.pravatar.cc/40?u=3" },
+      { id: 4, name: "赵六", role: "运维工程师", avatar: "https://i.pravatar.cc/40?u=4" },
+      { id: 5, name: "孙七", role: "测试工程师", avatar: "https://i.pravatar.cc/40?u=5" }
+    ];
+    const cache = {};
+    const logs = [];
+
+    const sandboxCode = `
+      ${code}
+      const _getCache = typeof getCache === 'function' ? getCache : () => null;
+      const _setCache = typeof setCache === 'function' ? setCache : () => {};
+      const _logRequest = typeof logRequest === 'function' ? logRequest : () => {};
+      const _withCORS = typeof withCORS === 'function' ? withCORS : r => r;
+      const _handleRoute = typeof handleRoute === 'function' ? handleRoute : async () => new Response("Not found", { status: 404 });
+      const _handleRequest = typeof handleRequest === 'function' ? handleRequest : async () => new Response("Not found", { status: 404 });
+    `;
+    eval(sandboxCode);
+
+    let results = '';
+
+    // Static analysis
+    const checks = [
+      { name: 'getCache 函数', regex: /function\s+getCache\b|const\s+getCache\s*=/ },
+      { name: 'setCache 函数', regex: /function\s+setCache\b|const\s+setCache\s*=/ },
+      { name: 'logRequest 函数', regex: /function\s+logRequest\b|const\s+logRequest\s*=/ },
+      { name: 'withCORS 函数', regex: /function\s+withCORS\b|const\s+withCORS\s*=/ },
+      { name: 'handleRoute 函数', regex: /function\s+handleRoute\b|const\s+handleRoute\s*=/ },
+      { name: 'handleRequest 函数', regex: /function\s+handleRequest\b|const\s+handleRequest\s*=/ },
+      { name: '缓存对象 cache', regex: /(const|let)\s+cache\s*=/ },
+      { name: '日志数组 logs', regex: /(const|let)\s+logs\s*=/ },
+      { name: 'CORS 头设置', regex: /Access-Control/i },
+      { name: 'TTL 检查 (Date\.now)', regex: /Date\.now/ },
+    ];
+
+    results += '<strong>代码结构检查：</strong>\n';
+    checks.forEach(c => {
+      const found = c.regex.test(code);
+      results += (found ? '✓' : '✗') + ' ' + c.name + '\n';
+    });
+
+    results += '\n<strong>测试端点：</strong>\n';
+    const endpoints = [
+      '/api/health',
+      '/api/users',
+      '/api/users/1',
+      '/api/users/999',
+      '/api/logs'
+    ];
+    for (const ep of endpoints) {
+      results += '  ' + ep + '\n';
+    }
+    results += '\n提示：完整实现后，这些端点应该返回正确的结果和 CORS 头。';
+
+    output.textContent = results;
+  } catch(e) {
+    output.innerHTML = '<span style="color:#ef4444">错误: ' + e.message + '</span>';
+  }
+}
+
+// ===== Level 4: Security =====
+function checkSecurity() {
+  const results = document.getElementById('securityResults');
+  const val = document.getElementById('security-notes').value.trim();
+  let score = 0;
+  let html = '';
+
+  const checks = [
+    { keyword: '硬编码', desc: '密码硬编码在代码中' },
+    { keyword: 'url', desc: '密码泄露在 URL 参数（会被日志记录）' },
+    { keyword: 'cors', desc: '缺少 CORS 响应头' },
+    { keyword: '权限', desc: '管理员端点无权限校验' },
+    { keyword: 'wrangler secret', desc: '提到用 wrangler secret 管理敏感信息' },
+  ];
+
+  checks.forEach(c => {
+    if (val.toLowerCase().includes(c.keyword)) {
+      score++;
+      html += '<div class="test-result test-pass">✓ 发现：' + c.desc + '</div>';
+    }
+  });
+
+  if (score >= 3) {
+    html += '<div class="test-result test-pass" style="margin-top:10px;font-weight:bold;">很好！你找到了主要安全问题</div>';
+  } else if (score > 0) {
+    html += '<div class="test-result test-fail" style="margin-top:10px;">再仔细看看，至少还有 1-2 个问题</div>';
+  } else {
+    html += '<div class="test-result test-fail" style="margin-top:10px;">提示：看密码在哪里、请求头有没有、URL 里有没有、权限有没有</div>';
+  }
+
+  results.innerHTML = html;
+}
+
+// Init
+updateProgress();
+</script>
+</body>
+</html>
