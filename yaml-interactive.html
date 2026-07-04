@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAML 标记语言 — 交互式学习</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#faf8f1;
+  --bg-warm:#f4f1e8;
+  --ink:#1b1d23;
+  --ink-2:#4a4d57;
+  --ink-3:#7a7d88;
+  --indigo:#4a5fc1;
+  --indigo-light:rgba(74,95,193,0.08);
+  --amber:#e8a838;
+  --amber-bg:rgba(232,168,56,0.1);
+  --green:#2d8a5e;
+  --green-bg:rgba(45,138,94,0.08);
+  --red:#c94a4a;
+  --red-bg:rgba(201,74,74,0.08);
+  --border:#ddd8cb;
+  --border-strong:#c4bfae;
+  --font-display:'Cormorant Garamond',Georgia,'Noto Serif SC',serif;
+  --font-body:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  --font-mono:'Cascadia Code','Fira Code','SF Mono',Consolas,monospace;
+}
+
+html{font-size:15px;scroll-behavior:smooth}
+body{
+  font-family:var(--font-body);
+  background:var(--bg);
+  color:var(--ink);
+  line-height:1.7;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+/* ── Progress bar ── */
+.progress{
+  position:fixed;top:0;left:0;height:2px;
+  background:var(--indigo);z-index:100;
+  transition:width .6s cubic-bezier(.4,0,.2,1);
+}
+
+/* ═══════════════════════════════════════════
+   HERO — 直接让 aha 编辑器成为第一视觉
+   ═══════════════════════════════════════════ */
+.hero{
+  padding:4rem 1.5rem 3rem;
+  max-width:960px;margin:0 auto;
+}
+.hero h1{
+  font-family:var(--font-display);
+  font-size:clamp(2.4rem,5vw,3.6rem);
+  font-weight:600;
+  letter-spacing:-.02em;
+  line-height:1.1;
+  color:var(--ink);
+}
+.hero h1 em{
+  font-style:italic;
+  color:var(--indigo);
+  font-weight:500;
+}
+.hero-sub{
+  margin-top:.8rem;
+  color:var(--ink-2);
+  font-size:1rem;
+  max-width:520px;
+  line-height:1.6;
+}
+
+/* ═══════════════════════════════════════════
+   AHA EDITOR — 签名组件
+   ═══════════════════════════════════════════ */
+.aha{
+  margin-top:2.5rem;
+  border:1px solid var(--border-strong);
+  border-radius:12px;
+  overflow:hidden;
+}
+.aha-intro{
+  padding:1rem 1.2rem .8rem;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-warm);
+}
+.aha-intro p{
+  font-size:.88rem;
+  color:var(--ink-2);
+  line-height:1.65;
+}
+.aha-intro strong{color:var(--ink);font-weight:600}
+
+.aha-body{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  min-height:300px;
+}
+@media(max-width:720px){.aha-body{grid-template-columns:1fr}}
+
+.aha-pane{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+.aha-pane+.aha-pane{
+  border-left:1px solid var(--border);
+}
+
+.aha-label{
+  position:absolute;top:0;right:0;
+  font-size:.65rem;
+  font-weight:600;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--ink-3);
+  padding:6px 10px;
+  background:var(--bg-warm);
+  border-bottom-left-radius:6px;
+  z-index:2;
+}
+
+/* Editor pane */
+.aha-editor{
+  width:100%;
+  border:none;
+  outline:none;
+  padding:1.2rem 1.2rem 1.2rem 3.2rem;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-mono);
+  font-size:.82rem;
+  line-height:1.7;
+  resize:vertical;
+  min-height:300px;
+  tab-size:2;
+}
+.aha-editor:focus{background:#fff}
+
+/* Indent guides — the signature visual */
+.indent-guide{
+  position:absolute;
+  top:0;bottom:0;
+  width:2px;
+  background:var(--border);
+  opacity:.5;
+  pointer-events:none;
+  transition:background .3s,opacity .3s;
+}
+.indent-guide.highlight{
+  background:var(--indigo);
+  opacity:.35;
+}
+
+/* Tree pane */
+.aha-tree{
+  padding:1.2rem;
+  background:var(--bg-warm);
+  font-family:var(--font-mono);
+  font-size:.8rem;
+  line-height:1.7;
+  overflow:auto;
+  min-height:300px;
+  white-space:pre;
+}
+.aha-tree .tk{color:var(--indigo);font-weight:500}
+.aha-tree .tv{color:var(--ink-2)}
+.aha-tree .tn{color:var(--red)}
+.aha-tree .tb{color:var(--green)}
+.aha-tree .ts{color:#8a6d1b}
+.aha-tree .tbr{color:var(--ink-3)}
+
+/* ═══════════════════════════════════════════
+   CONCEPT SECTIONS
+   ═══════════════════════════════════════════ */
+.content{
+  max-width:960px;
+  margin:0 auto;
+  padding:3rem 1.5rem 2rem;
+}
+
+.step{
+  margin-bottom:3rem;
+  padding-left:1.5rem;
+  border-left:2px solid var(--border);
+  transition:border-color .3s;
+}
+.step:hover{border-left-color:var(--indigo)}
+.step-head{
+  display:flex;
+  align-items:baseline;
+  gap:.6rem;
+  margin-bottom:.5rem;
+}
+.step-tag{
+  font-family:var(--font-display);
+  font-size:1.1rem;
+  font-style:italic;
+  color:var(--indigo);
+  font-weight:500;
+}
+.step-title{
+  font-family:var(--font-display);
+  font-size:1.6rem;
+  font-weight:600;
+  letter-spacing:-.01em;
+}
+.step-desc{
+  color:var(--ink-2);
+  font-size:.9rem;
+  margin-bottom:1rem;
+  max-width:560px;
+}
+
+.concept-block{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:1.4rem 1.5rem;
+  margin-bottom:1.2rem;
+}
+.concept-block p{
+  color:var(--ink-2);
+  font-size:.88rem;
+  margin-bottom:.5rem;
+}
+.concept-block p:last-child{margin-bottom:0}
+.concept-block code{
+  background:var(--bg-warm);
+  padding:2px 7px;
+  border-radius:4px;
+  font-family:var(--font-mono);
+  font-size:.8rem;
+  color:var(--ink);
+}
+
+pre.code{
+  background:#1b1d23;
+  color:#d4d4d8;
+  padding:1.1rem 1.3rem;
+  border-radius:8px;
+  overflow-x:auto;
+  font-family:var(--font-mono);
+  font-size:.8rem;
+  line-height:1.7;
+  margin:.7rem 0;
+}
+pre.code .c{color:#6a6d77;font-style:italic}
+pre.code .k{color:var(--indigo)}
+pre.code .s{color:#e8a838}
+pre.code .v{color:#9ece6a}
+pre.code .n{color:#e06c75}
+
+.gotcha{
+  background:var(--amber-bg);
+  border-left:3px solid var(--amber);
+  padding:.6rem .9rem;
+  border-radius:0 7px 7px 0;
+  font-size:.83rem;
+  color:var(--ink-2);
+  margin-top:.8rem;
+  line-height:1.6;
+}
+.gotcha strong{color:#9a6d0a;font-weight:600}
+
+/* ═══════════════════════════════════════════
+   EXERCISES
+   ═══════════════════════════════════════════ */
+.exercise{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:1.4rem 1.5rem;
+  margin-bottom:1.2rem;
+}
+.exercise-title{
+  font-family:var(--font-display);
+  font-size:1.2rem;
+  font-weight:600;
+  margin-bottom:.4rem;
+}
+.exercise-task{
+  color:var(--ink-2);
+  font-size:.87rem;
+  margin-bottom:.8rem;
+  line-height:1.6;
+}
+
+.exercise textarea{
+  width:100%;
+  min-height:130px;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:7px;
+  padding:.9rem 1rem;
+  font-family:var(--font-mono);
+  font-size:.8rem;
+  color:var(--ink);
+  resize:vertical;
+  outline:none;
+  tab-size:2;
+  transition:border-color .2s;
+}
+.exercise textarea:focus{border-color:var(--indigo)}
+.exercise.challenge textarea{min-height:200px}
+
+.ex-actions{
+  display:flex;
+  gap:.6rem;
+  margin-top:.7rem;
+  flex-wrap:wrap;
+}
+
+.btn-hint{
+  background:none;
+  border:1px solid var(--border-strong);
+  color:var(--ink-3);
+  padding:.3rem .8rem;
+  border-radius:6px;
+  font-family:var(--font-body);
+  font-size:.78rem;
+  cursor:pointer;
+  transition:all .2s;
+}
+.btn-hint:hover{border-color:var(--indigo);color:var(--indigo)}
+
+.hint-reveal{
+  display:none;
+  margin-top:.6rem;
+  padding:.7rem .9rem;
+  background:var(--indigo-light);
+  border-radius:6px;
+  font-size:.8rem;
+  color:var(--ink-2);
+  line-height:1.6;
+}
+.hint-reveal.open{display:block}
+
+.btn-check{
+  background:var(--indigo);
+  color:#fff;
+  border:none;
+  padding:.45rem 1.1rem;
+  border-radius:7px;
+  font-family:var(--font-body);
+  font-size:.85rem;
+  font-weight:500;
+  cursor:pointer;
+  transition:all .2s;
+}
+.btn-check:hover{filter:brightness(1.15)}
+.btn-check:disabled{background:var(--border-strong);color:var(--ink-3);cursor:default}
+
+.result{
+  margin-top:.6rem;
+  padding:.6rem .9rem;
+  border-radius:6px;
+  font-size:.83rem;
+  line-height:1.6;
+  display:none;
+}
+.result.ok{display:block;background:var(--green-bg);border:1px solid var(--green);color:var(--green)}
+.result.err{display:block;background:var(--red-bg);border:1px solid var(--red);color:var(--red)}
+.result.info{display:block;background:var(--indigo-light);border:1px solid var(--indigo);color:var(--indigo)}
+
+.exercise.challenge{border-left:3px solid var(--indigo)}
+
+/* ═══════════════════════════════════════════
+   BOTTOM NAV
+   ═══════════════════════════════════════════ */
+.nav{
+  position:fixed;
+  bottom:0;left:0;right:0;
+  background:rgba(250,248,241,.92);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+  z-index:50;
+  transition:transform .3s ease;
+}
+.nav-inner{
+  max-width:960px;
+  margin:0 auto;
+  display:flex;
+  justify-content:space-between;
+  padding:0 1.5rem;
+}
+.nav-btn{
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  padding:.55rem .2rem;
+  border:none;
+  background:none;
+  color:var(--ink-3);
+  font-family:var(--font-body);
+  font-size:.75rem;
+  font-weight:500;
+  cursor:pointer;
+  transition:color .2s;
+  white-space:nowrap;
+}
+.nav-btn:hover{color:var(--indigo)}
+.nav-btn svg{width:14px;height:14px;transition:transform .2s}
+.nav-btn:hover svg{transform:translateX(2px)}
+.nav-btn:first-child:hover svg{transform:translateX(-2px)}
+.nav-btn.hidden-nav{visibility:hidden}
+
+/* ═══════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════ */
+.toast{
+  position:fixed;
+  bottom:4rem;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--ink);
+  color:var(--bg);
+  padding:.7rem 1.3rem;
+  border-radius:8px;
+  font-size:.88rem;
+  font-weight:500;
+  opacity:0;
+  transition:all .4s cubic-bezier(.4,0,.2,1);
+  z-index:200;
+  pointer-events:none;
+  white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ═══════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════ */
+.footer{
+  text-align:center;
+  padding:5rem 1.5rem 4rem;
+  color:var(--ink-3);
+  font-size:.78rem;
+  letter-spacing:.5px;
+}
+
+/* ═══════════════════════════════════════════
+   REVEAL ANIMATION
+   ═══════════════════════════════════════════ */
+.step,.aha,.concept-block,.exercise{
+  opacity:0;
+  transform:translateY(16px);
+  transition:opacity .6s ease,transform .6s ease;
+}
+.step.visible,.aha.visible,.concept-block.visible,.exercise.visible{
+  opacity:1;
+  transform:translateY(0);
+}
+
+@media(prefers-reduced-motion:reduce){
+  .step,.aha,.concept-block,.exercise{transition:none;opacity:1;transform:none}
+  .progress{transition:none}
+}
+
+/* Bottom nav spacing on mobile */
+@media(max-width:600px){
+  body{padding-bottom:3rem}
+  .hero{padding:2.5rem 1rem 2rem}
+  .content{padding:2rem 1rem}
+  .step{padding-left:1rem}
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- ═══ HERO + AHA ═══ -->
+<div class="hero">
+  <h1>YAML 标记语言 <em>交互式学习</em></h1>
+  <p class="hero-sub">掌握云原生时代最核心的配置语言——从缩进理解结构，从结构理解一切。</p>
+
+  <!-- ── AHA 编辑器 ── -->
+  <div class="aha">
+    <div class="aha-intro">
+      <p><strong>试试看：</strong>在左侧修改 YAML 的缩进、空格、层级，右侧结构树会实时变化。先预测结果，再观察——空白如何决定结构，这是理解 YAML 的第一把钥匙。</p>
+    </div>
+    <div class="aha-body">
+      <div class="aha-pane">
+        <span class="aha-label">编辑器</span>
+        <div id="indentGuides"></div>
+        <textarea class="aha-editor" id="ahaInput" spellcheck="false">name: 张三
+age: 28
+skills:
+  - Python
+  - Docker
+  - Kubernetes
+address:
+  city: 北京
+  district: 海淀
+  zip: 100000</textarea>
+      </div>
+      <div class="aha-pane">
+        <span class="aha-label">结构解析</span>
+        <div class="aha-tree" id="treeView"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONTENT ═══ -->
+<div class="content">
+
+  <!-- Observation -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">观察</span>
+      <h2 class="step-title">你看到了什么</h2>
+    </div>
+    <p class="step-desc">YAML 没有花括号、没有标签——结构完全由空白决定。</p>
+
+    <div class="concept-block">
+      <p>试着做以下实验，每次只改一处：</p>
+      <ul style="color:var(--ink-2);font-size:.87rem;margin-left:1.2rem;margin-top:.3rem;line-height:1.8">
+        <li>把 <code>skills</code> 下的某项多缩进一层——注意结构树的变化</li>
+        <li>让 <code>district</code> 和 <code>city</code> 缩进不同——看看层级如何断裂</li>
+        <li>删除冒号后的空格——观察解析结果</li>
+      </ul>
+      <p style="margin-top:.8rem">你现在看到的，就是 YAML 全部的语法——<strong>空白字符就是结构。</strong></p>
+    </div>
+  </div>
+
+  <!-- Concept 1 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">概念</span>
+      <h2 class="step-title">缩进即结构</h2>
+    </div>
+    <p class="step-desc">YAML 用空格缩进表达层级。同一层级对齐，子级比父级多缩进（标准为 2 个空格）。Tab 字符在 YAML 中是非法的。</p>
+
+    <div class="concept-block">
+      <p>同一层级的键必须在同一列。子内容向右缩进一个层级。</p>
+      <pre class="code"><span class="c"># 正确 — 2 空格缩进</span>
+person:
+  name: 李四
+  job:
+    title: 工程师
+    company: ABC公司
+
+<span class="c"># 错误 — 混用了 Tab</span>
+person:
+	name: 李四    <span class="c">← Tab 非法！</span></pre>
+      <div class="gotcha"><strong>常见误解：</strong>"缩进只是风格问题。"——不是。缩进就是语法。错误的缩进会改变解析结果，甚至直接报错。</div>
+    </div>
+  </div>
+
+  <!-- Concept 2 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">概念</span>
+      <h2 class="step-title">键值对映射</h2>
+    </div>
+    <p class="step-desc">YAML 的基础数据单元是 <code>key: value</code>。冒号后必须有空格。无需引号包裹普通字符串。</p>
+
+    <div class="concept-block">
+      <pre class="code"><span class="c"># 基本类型</span>
+name: 张三              <span class="c"># 字符串</span>
+age: <span class="n">28</span>                 <span class="c"># 整数</span>
+height: <span class="n">1.75</span>            <span class="c"># 浮点数</span>
+is_student: <span class="v">false</span>       <span class="c"># 布尔值（小写）</span>
+favorite_color: <span class="s">"红色"</span>  <span class="c"># 含特殊字符需引号</span>
+empty_value: <span class="v">null</span>       <span class="c"># null</span>
+
+<span class="c"># 冒号本身在值中时，值必须加引号</span>
+url: <span class="s">"https://example.com:8080/path"</span></pre>
+      <div class="gotcha"><strong>常见误解：</strong>"YAML 像 JSON 一样需要引号。"——错。简单字符串直接写，只有含冒号、#、引号、方括号时才需要引号。</div>
+    </div>
+  </div>
+
+  <!-- Concept 3 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">概念</span>
+      <h2 class="step-title">复合数据结构</h2>
+    </div>
+    <p class="step-desc">通过缩进嵌套，YAML 可以在映射内部嵌入列表和子映射——这是 YAML 表达复杂结构的方式。</p>
+
+    <div class="concept-block">
+      <pre class="code"><span class="c"># 列表（连字符 + 缩进）</span>
+fruits:
+  - apple
+  - banana
+  - cherry
+
+<span class="c"># 嵌套映射</span>
+server:
+  host: <span class="s">192.168.1.1</span>
+  ports:
+    http: <span class="n">8080</span>
+    https: <span class="n">8443</span>
+
+<span class="c"># 混合使用</span>
+database:
+  primary:
+    host: <span class="s">db1.example.com</span>
+    ports: [<span class="n">5432</span>, <span class="n">5433</span>]  <span class="c"># 流式内联列表</span></pre>
+    </div>
+  </div>
+
+  <!-- Concept 4 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">概念</span>
+      <h2 class="step-title">特殊语法</h2>
+    </div>
+    <p class="step-desc">锚点、别名和多行字符串——让重复配置更精炼，让长文本更可控。</p>
+
+    <div class="concept-block">
+      <pre class="code"><span class="c"># 锚点（&amp;）定义，别名（*）引用</span>
+defaults: <span class="k">&amp;defaults</span>
+  timeout: <span class="n">30</span>
+  retries: <span class="n">3</span>
+
+production:
+  <span class="k">&lt;&lt;: *defaults</span>   <span class="c"># 合并</span>
+  debug: <span class="v">true</span>    <span class="c"># 覆盖</span>
+
+<span class="c"># | 保留换行</span>
+readme: |
+  第一行
+  第二行
+  第三行
+
+<span class="c"># &gt; 折叠为单行</span>
+note: &gt;-
+  这是一段
+  很长的文字</pre>
+      <div class="gotcha"><strong>最难的点：</strong><code>&amp;</code> 和 <code>*</code> 在 HTML 中会与实体编码冲突。写 YAML 文件时用原生字符，写 HTML 中展示时转义为 <code>&amp;amp;</code>。</div>
+    </div>
+  </div>
+
+  <!-- Exercise 1 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">练习</span>
+      <h2 class="step-title">编写一个应用配置</h2>
+    </div>
+    <p class="step-desc">编写一个 YAML 配置文件，包含应用名称、端口、环境变量映射和日志级别。</p>
+
+    <div class="exercise">
+      <div class="exercise-title">练习 1：应用配置</div>
+      <p class="exercise-task">包含：name（字符串）、port（数字）、env 映射（DB_HOST, DB_PORT）、debug（布尔值）。</p>
+      <textarea id="ex1" placeholder="在此输入你的 YAML..."></textarea>
+      <div class="ex-actions">
+        <button class="btn-hint" data-hint="ex1">提示</button>
+        <button class="btn-check" data-ex="ex1" data-answer="app:\n  name: myapp\n  port: 3000\n  env:\n    DB_HOST: localhost\n    DB_PORT: 5432\n  debug: false">验证</button>
+      </div>
+      <div class="hint-reveal" id="hint-ex1">结构：app 下嵌套 name、port、env 映射、debug。env 内部是 DB_HOST 和 DB_PORT 两个键。</div>
+      <div class="result" id="result-ex1"></div>
+    </div>
+  </div>
+
+  <!-- Exercise 2 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">练习</span>
+      <h2 class="step-title">定义服务列表</h2>
+    </div>
+    <p class="step-desc">用 YAML 列表语法定义三个微服务，每个包含 name 和 port。</p>
+
+    <div class="exercise">
+      <div class="exercise-title">练习 2：微服务列表</div>
+      <p class="exercise-task">三个服务：api-gateway:8080、user-service:8081、order-service:8082。</p>
+      <textarea id="ex2" placeholder="在此输入你的 YAML..."></textarea>
+      <div class="ex-actions">
+        <button class="btn-hint" data-hint="ex2">提示</button>
+        <button class="btn-check" data-ex="ex2" data-answer="services:\n  - name: api-gateway\n    port: 8080\n  - name: user-service\n    port: 8081\n  - name: order-service\n    port: 8082">验证</button>
+      </div>
+      <div class="hint-reveal" id="hint-ex2">services 是一个列表，每个元素是含 name 和 port 的映射。注意列表项（-）和键值对的缩进关系。</div>
+      <div class="result" id="result-ex2"></div>
+    </div>
+  </div>
+
+  <!-- Exercise 3 -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">练习</span>
+      <h2 class="step-title">多行字符串</h2>
+    </div>
+    <p class="step-desc">分别使用 <code>|</code>（保留换行）和 <code>&gt;</code>（折叠块）定义多行文本。</p>
+
+    <div class="exercise">
+      <div class="exercise-title">练习 3：多行字符串</div>
+      <p class="exercise-task">定义一个 readme 用 |，定义一个 notification 用 &gt;。</p>
+      <textarea id="ex3" placeholder="在此输入你的 YAML..."></textarea>
+      <div class="ex-actions">
+        <button class="btn-hint" data-hint="ex3">提示</button>
+        <button class="btn-check" data-ex="ex3" data-check="multi">验证</button>
+      </div>
+      <div class="hint-reveal" id="hint-ex3">readme 字段后跟 |，写多行内容；notification 字段后跟 &gt;，写多行内容。两个字段各自用缩进嵌套在同一个父键下。</div>
+      <div class="result" id="result-ex3"></div>
+    </div>
+  </div>
+
+  <!-- Challenge -->
+  <div class="step">
+    <div class="step-head">
+      <span class="step-tag">实战</span>
+      <h2 class="step-title">Kubernetes Deployment 配置</h2>
+    </div>
+    <p class="step-desc">综合运用所有概念，编写一个可用的 K8s 配置文件。</p>
+
+    <div class="exercise challenge">
+      <div class="exercise-title">实战任务</div>
+      <p class="exercise-task">编写 <code>deployment.yaml</code>，包含：apiVersion、kind、metadata（name + labels）、replicas、selector、template（含 containers 列表）、container 的 image/port/resources/env，并使用锚点定义容器默认值。</p>
+      <textarea id="ex4" placeholder="编写完整的 deployment.yaml..."></textarea>
+      <div class="ex-actions">
+        <button class="btn-hint" data-hint="ex4">提示</button>
+        <button class="btn-check" data-ex="ex4" data-check="challenge">验证</button>
+      </div>
+      <div class="hint-reveal" id="hint-ex4">先写 apiVersion、kind、metadata、spec 四个顶层键。spec 下是 replicas、selector、template。containers 是列表，每个元素含 name、image、ports、resources。锚点 &containerDefaults 放一个默认配置，用 &lt;&lt; 合并。</div>
+      <div class="result" id="result-ex4"></div>
+    </div>
+
+    <div class="concept-block" style="margin-top:1.2rem">
+      <p style="font-size:.85rem;font-weight:600;margin-bottom:.6rem">参考示例</p>
+      <pre class="code" style="margin:0">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  labels:
+    app: web
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25
+          ports:
+            - containerPort: <span class="n">80</span></pre>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span style="font-size:.7rem;color:var(--ink-3);align-self:center" id="navLabel"></span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="footer">YAML 交互式学习 · 四个核心概念已覆盖</div>
+
+<script>
+// ═══════════════════════════════════════════
+// YAML Parser (lightweight, self-contained)
+// ═══════════════════════════════════════════
+function parseYAML(text) {
+  const lines = text.split('\n');
+  const root = { type: 'root', children: [] };
+  const stack = [{ node: root, indent: -1 }];
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const indent = lines[i].search(/\S/);
+    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
+    const parent = stack[stack.length - 1].node;
+
+    if (trimmed.startsWith('- ')) {
+      const content = trimmed.slice(2).trim();
+      let listNode = parent.children.length > 0 && parent.children[parent.children.length - 1].type === 'list'
+        ? parent.children[parent.children.length - 1] : null;
+      if (!listNode) { listNode = { type: 'list', children: [] }; parent.children.push(listNode); }
+      const item = parseValue(content, indent);
+      item.indent = indent;
+      listNode.children.push(item);
+      stack.push({ node: item, indent });
+    } else if (trimmed.includes(':')) {
+      const ci = trimmed.indexOf(':');
+      const key = trimmed.slice(0, ci).trim();
+      const valStr = trimmed.slice(ci + 1).trim();
+      const node = { type: 'mapping', key, value: null, children: [], indent };
+      if (valStr) { node.value = parseScalar(valStr); }
+      else { parent.children.push(node); stack.push({ node, indent }); continue; }
+      parent.children.push(node);
+      stack.push({ node, indent });
+    }
+  }
+  return root;
+}
+
+function parseValue(content, pi) {
+  if (content.startsWith('- ')) {
+    const ln = { type: 'list', children: [] };
+    ln.children.push(parseScalar(content.slice(2).trim()));
+    return ln;
+  }
+  if (content.includes(':')) {
+    const ci = content.indexOf(':');
+    return { type: 'mapping', key: content.slice(0,ci).trim(), value: parseScalar(content.slice(ci+1).trim()), children: [], indent: pi };
+  }
+  return parseScalar(content);
+}
+
+function parseScalar(s) {
+  if (s === 'true' || s === 'false') return { type: 'bool', value: s };
+  if (s === 'null' || s === '~') return { type: 'null', value: 'null' };
+  if (/^-?\d+(\.\d+)?$/.test(s)) return { type: 'number', value: s };
+  if (/^".*"$/.test(s) || /^'.*'$/.test(s)) return { type: 'string', value: s.slice(1, -1) };
+  if (s.startsWith('&') || s.startsWith('*')) return { type: 'ref', value: s };
+  return { type: 'string', value: s };
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderTree(node, d) {
+  const p = '  '.repeat(d);
+  if (node.type === 'root') return node.children.map(c => renderTree(c, d)).join('');
+  if (node.type === 'mapping') {
+    const vc = node.value ? (node.value.type === 'string' ? 'tv' : node.value.type === 'number' ? 'tn' : node.value.type === 'bool' ? 'tb' : 'tv') : '';
+    const vd = node.value ? `: <span class="${vc}">${esc(node.value.value)}</span>` : '';
+    let r = `${p}<span class="tbr">{</span> <span class="tk">${esc(node.key)}</span>${vd}\n`;
+    if (node.children.length && !node.value) node.children.forEach(c => { r += renderTree(c, d + 1); });
+    r += `${p}<span class="tbr">}</span>\n`;
+    return r;
+  }
+  if (node.type === 'list') {
+    return node.children.map(c => {
+      if (c.type === 'mapping') return renderTree(c, d);
+      const cls = c.type === 'number' ? 'tn' : c.type === 'bool' ? 'tb' : 'tv';
+      return `${p}<span class="tbr">-</span> <span class="${cls}">${esc(c.value || c.key || '')}</span>\n`;
+    }).join('');
+  }
+  return '';
+}
+
+function updateTree() {
+  const input = document.getElementById('ahaInput').value;
+  try {
+    document.getElementById('treeView').innerHTML = renderTree(parseYAML(input));
+  } catch (e) {
+    document.getElementById('treeView').innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Indent guides — 缩进引导线
+// ═══════════════════════════════════════════
+function updateGuides() {
+  const ta = document.getElementById('ahaInput');
+  const container = document.getElementById('indentGuides');
+  const lineHeight = parseFloat(getComputedStyle(ta).lineHeight);
+  const maxCols = 8;
+  container.innerHTML = '';
+  container.style.cssText = 'position:absolute;top:0;left:0;width:2.4rem;pointer-events:none;';
+
+  const lines = ta.value.split('\n');
+  for (let i = 0; i < Math.min(lines.length, ta.scrollHeight / lineHeight + 5); i++) {
+    const indent = lines[i].search(/\S/);
+    if (indent <= 0) continue;
+    const level = Math.min(Math.floor(indent / 2), maxCols);
+    for (let j = 1; j <= level; j++) {
+      const g = document.createElement('div');
+      g.className = 'indent-guide';
+      const x = (j / (maxCols + 1)) * 100;
+      g.style.cssText = `position:absolute;left:${x}%;top:${i * lineHeight + 12}px;height:${lineHeight}px;`;
+      container.appendChild(g);
+    }
+  }
+}
+
+document.getElementById('ahaInput').addEventListener('input', () => {
+  updateTree();
+  updateGuides();
+});
+document.getElementById('ahaInput').addEventListener('scroll', () => {
+  document.getElementById('treeView').scrollTop = document.getElementById('ahaInput').scrollTop;
+});
+updateTree();
+updateGuides();
+
+// ═══════════════════════════════════════════
+// Scroll reveal
+// ═══════════════════════════════════════════
+const revealEls = document.querySelectorAll('.step,.aha,.concept-block,.exercise');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.12 });
+revealEls.forEach(el => observer.observe(el));
+
+// ═══════════════════════════════════════════
+// Bottom navigation
+// ═══════════════════════════════════════════
+const steps = document.querySelectorAll('.step');
+const navPrev = document.getElementById('navPrev');
+const navNext = document.getElementById('navNext');
+const navLabel = document.getElementById('navLabel');
+const totalSteps = steps.length;
+let currentStep = 0;
+
+function showNav() {
+  navPrev.classList.toggle('hidden-nav', currentStep === 0);
+  navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+  navLabel.textContent = `${currentStep + 1} / ${totalSteps}`;
+}
+
+function scrollToStep(idx) {
+  if (idx < 0 || idx >= totalSteps) return;
+  currentStep = idx;
+  showNav();
+  steps[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+navPrev.addEventListener('click', () => scrollToStep(currentStep - 1));
+navNext.addEventListener('click', () => scrollToStep(currentStep + 1));
+
+// Scroll spy
+let scrollTimeout;
+window.addEventListener('scroll', () => {
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    const scrollMid = window.scrollY + window.innerHeight * 0.4;
+    steps.forEach((s, i) => {
+      if (s.offsetTop <= scrollMid) currentStep = i;
+    });
+    showNav();
+  }, 60);
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+});
+
+showNav();
+
+// ═══════════════════════════════════════════
+// Progress
+// ═══════════════════════════════════════════
+let completed = new Set();
+
+function updateProgress() {
+  const pct = completed.size / 4 * 100;
+  document.getElementById('progress').style.width = pct + '%';
+}
+
+// ═══════════════════════════════════════════
+// Exercises
+// ═══════════════════════════════════════════
+document.querySelectorAll('.btn-hint').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const id = 'hint-' + btn.dataset.hint;
+    document.getElementById(id).classList.toggle('open');
+  });
+});
+
+document.querySelectorAll('.btn-check').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const exId = btn.dataset.ex;
+    const editor = document.getElementById(exId);
+    const result = document.getElementById('result-' + exId);
+    const val = editor.value.trim();
+
+    if (!val) { showResult(result, 'err', '请先在编辑器中输入内容。'); return; }
+
+    try { parseYAML(val); } catch (e) { showResult(result, 'err', '语法错误：' + e.message); return; }
+
+    if (btn.dataset.check === 'multi') {
+      const hasPipe = /(?:\|)\.?$|^\s*\S+:\s*\|/m.test(val);
+      const hasFold = val.includes('>') && !val.includes('>>');
+      if (hasPipe && hasFold) { showResult(result, 'ok', '正确。你同时使用了 |（保留换行）和 >（折叠块）。'); completed.add(2); }
+      else if (hasPipe) showResult(result, 'info', '用了 |，还需要一个 > 折叠块。');
+      else if (hasFold) showResult(result, 'info', '用了 >，还需要一个 | 字面块。');
+      else showResult(result, 'err', '需要同时使用 | 和 > 两种多行字符串语法。');
+    } else if (btn.dataset.check === 'challenge') {
+      const checks = [
+        /apiVersion:/.test(val),
+        /kind:/.test(val),
+        /replicas:/.test(val),
+        /containers:/.test(val),
+        /image:/.test(val),
+        /resources:/.test(val),
+        /&/.test(val)
+      ];
+      const names = ['apiVersion','kind','replicas','containers','image','resources','锚点'];
+      const ok = checks.filter(Boolean).length;
+      let msg = checks.map((c,i) => c ? `✅ ${names[i]}` : `❌ 缺少 ${names[i]}`).join(' | ');
+      if (ok >= 6) {
+        showResult(result, 'ok', msg + ' | 出色。');
+        completed.add(3);
+      } else {
+        showResult(result, 'info', msg + ` | 还需要 ${6 - ok} 个关键字段。`);
+      }
+    } else {
+      const norm = s => s.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').replace(/^\s+/gm, m => ' '.repeat(Math.floor(m.length / 2) * 2)).trim();
+      if (norm(val) === norm(btn.dataset.answer)) {
+        showResult(result, 'ok', '正确。缩进和结构都对了。');
+        completed.add(1);
+      } else {
+        showResult(result, 'err', '检查缩进层级和键名是否完全匹配。');
+      }
+    }
+    updateProgress();
+    if (completed.size >= 4) showToast('完成全部练习，YAML 结构已内化。');
+  });
+});
+
+function showResult(el, type, msg) {
+  el.className = 'result ' + type;
+  el.textContent = msg;
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Tab key in textareas
+document.querySelectorAll('textarea').forEach(ta => {
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = ta.selectionStart, end = ta.selectionEnd;
+      ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(end);
+      ta.selectionStart = ta.selectionEnd = s + 2;
+      ta.dispatchEvent(new Event('input'));
+    }
+  });
+});
+
+updateProgress();
+</script>
+</body>
+</html>
