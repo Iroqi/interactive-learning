@@ -10,12 +10,12 @@
 .
 ├── index.html                         ← 导航目录页（唯一需要维护的结构性文件）
 ├── {topic}-interactive.html           ← 各学习模块（自包含，互不依赖）
-├── index-legacy.html                  ← 建站仿真课程（旧 index，保留不动）
+├── website-building-interactive.html  ← 建站仿真课程
 ├── .gitignore
 └── .github/workflows/deploy.yml       ← CI/CD 双部署流水线
 ```
 
-**上下文规则：** 各 `*-interactive.html` 和 `index-legacy.html` 是已完成产物，体积 30KB–1.5MB，**不要加载进上下文**。只在需要修改导航页或添加新模块时读取相关文件。
+**上下文规则：** 各 `*-interactive.html` 是已完成产物，体积 30KB–1.5MB，**不要加载进上下文**。只在需要修改导航页或添加新模块时读取相关文件。
 
 ## 导航页 index.html
 
