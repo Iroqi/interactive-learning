@@ -176,30 +176,157 @@ section { margin: 56px 0; }
 .node-orange { border-left: 3px solid var(--amber); }
 .node-teal { border-left: 3px solid #39bae6; }
 
-/* ========== Image Gallery ========== */
-/* ========== Diagram SVG ========== */
-.diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
-@media (max-width: 640px) { .diag-grid { grid-template-columns: 1fr; } }
-.diag-card {
+/* ========== Signal Flow Diagram ========== */
+.sf-wrap {
   background: var(--bg-grid);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius);
-  padding: 28px 24px;
+  padding: 24px 20px 16px;
+  margin-top: 16px;
 }
-.diag-card svg { width: 100%; height: auto; display: block; }
-.diag-card .diag-cap {
+.sf-flow {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0;
+}
+.sf-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; flex-wrap: nowrap;
+}
+.sf-node {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--surface-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  white-space: nowrap;
+}
+.sf-node:hover { border-color: var(--surface-border-hi); background: var(--surface-hover); }
+.sf-node.active { border-color: var(--green); background: var(--green-dim); }
+.sf-node .sf-icon {
+  font-size: 0.85rem; flex-shrink: 0;
+}
+.sf-node .sf-label {
+  font-family: var(--mono-cn); font-weight: 600; font-size: 0.82rem;
+}
+.sf-node .sf-sub {
+  font-family: var(--mono); font-size: 0.68rem; color: var(--text-muted);
+}
+.sf-node.sp-node { border-left: 3px solid var(--amber); }
+.sf-node.pid-node { border-left: 3px solid var(--green); }
+.sf-node.plant-node { border-left: 3px solid var(--amber); }
+.sf-node.pv-node { border-left: 3px solid var(--green); }
+.sf-node.cmp-node { border-left: 3px solid var(--red); }
+
+/* PID sub-blocks */
+.sf-pids {
+  display: flex; gap: 6px; margin-left: 4px;
+}
+.sf-pid {
+  padding: 5px 10px;
+  border-radius: 4px; cursor: pointer;
+  font-family: var(--mono); font-weight: 700; font-size: 0.75rem;
+  transition: all 0.2s; border: 1.5px solid transparent;
+}
+.sf-pid:hover { transform: translateY(-1px); }
+.sf-pid.p-block { background: #2d1111; color: #ff5c57; border-color: #ff5c5766; }
+.sf-pid.i-block { background: #0d2d1e; color: #00e5a0; border-color: #00e5a066; }
+.sf-pid.d-block { background: #111d2d; color: #6cb6ff; border-color: #6cb6ff66; }
+.sf-pid.active { transform: translateY(-2px); }
+.sf-pid.p-block.active { border-color: #ff5c57; box-shadow: 0 0 10px #ff5c5733; }
+.sf-pid.i-block.active { border-color: #00e5a0; box-shadow: 0 0 10px #00e5a033; }
+.sf-pid.d-block.active { border-color: #6cb6ff; box-shadow: 0 0 10px #6cb6ff33; }
+
+/* Arrows between nodes */
+.sf-arrow {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); font-size: 0.7rem;
+  font-family: var(--mono);
+  padding: 2px 2px;
+  position: relative;
+}
+.sf-arrow::before {
+  content: '';
+  position: absolute;
+  width: 2px; height: 100%;
+  background: var(--surface-border);
+}
+.sf-arrow.right::before { width: 100%; height: 2px; top: 50%; left: 0; }
+.sf-arrow.down::before { width: 2px; height: 100%; top: 0; left: 50%; }
+
+/* Animated signal dot */
+.sf-arrow .sf-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  position: relative; z-index: 1;
+  opacity: 0;
+  box-shadow: 0 0 6px var(--green);
+}
+.sf-arrow.running .sf-dot {
+  opacity: 1;
+  animation: sfPulse 1.2s ease-in-out infinite;
+}
+.sf-arrow.running .sf-dot:nth-child(2) { animation-delay: 0.2s; }
+.sf-arrow.running .sf-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes sfPulse {
+  0% { transform: scale(0.5); opacity: 0.3; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.5); opacity: 0.3; }
+}
+
+/* Feedback path */
+.sf-feedback {
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  padding: 2px 0;
+}
+.sf-feedback-line {
+  width: 2px; height: 100%;
+  background: var(--surface-border);
+  position: relative;
+}
+.sf-feedback-label {
+  position: absolute;
+  font-family: var(--mono); font-size: 0.68rem;
+  color: var(--green); font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Detail panel */
+.sf-detail {
+  display: none;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px dashed var(--surface-border-hi);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.sf-detail.show { display: block; }
+.sf-detail strong { color: var(--text); }
+.sf-detail .sf-detail-title {
+  font-family: var(--mono-cn); font-weight: 700; font-size: 0.88rem;
+  margin-bottom: 6px;
+}
+
+/* Diagram captions */
+.diag-cap {
   text-align: center; font-family: var(--mono); font-size: 0.78rem;
-  color: var(--text-muted); margin-top: 8px; letter-spacing: 0.05em;
+  color: var(--text-muted); margin-top: 10px; letter-spacing: 0.06em;
 }
-.diag-block { fill: var(--surface); stroke: var(--surface-border-hi); stroke-width: 1.5; rx: 4; }
-.diag-arrow { fill: none; stroke: var(--surface-border-hi); stroke-width: 1.5; }
-.diag-text { fill: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-.diag-sum { fill: none; stroke: var(--green); stroke-width: 1.5; }
-.diag-line-glow { fill: none; stroke: var(--green); stroke-width: 2; opacity: 0.6; }
-@keyframes flowPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
-.diag-flow { animation: flowPulse 2s ease-in-out infinite; }
-.diag-flow-d { animation: flowPulse 2s ease-in-out 0.5s infinite; }
-.diag-flow-i { animation: flowPulse 2s ease-in-out 1s infinite; }
+
+/* Legend */
+.sf-legend {
+  display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.7rem; color: var(--text-muted);
+}
+.sf-legend-item { display: flex; align-items: center; gap: 5px; }
+.sf-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
 
 /* ========== Simulator ========== */
 .sim-container {
@@ -579,96 +706,70 @@ section { margin: 56px 0; }
       <h4 style="font-family:var(--mono-cn);margin-bottom:8px;">核心洞察</h4>
       <p style="font-size:0.88rem;color:var(--text-muted);">PID 控制系统的核心是<strong style="color:var(--text);">负反馈</strong>：测量被调量的实际值，与期望值比较产生偏差，控制器根据偏差计算输出，驱动执行器改变被调量。P/I/D 三个环节分别处理偏差的不同特征。</p>
     </div>
-    <div class="diag-grid" style="margin-top:16px;">
-      <div class="diag-card">
-        <svg viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-          <!-- SP label -->
-          <text x="50" y="50" class="diag-text" style="fill:#ffb454;font-size:20px;font-weight:700;">SP</text>
-          <!-- Arrow SP to comparator -->
-          <line x1="85" y1="38" x2="160" y2="38" class="diag-arrow" marker-end="url(#arr3)"/>
-          <!-- Comparator circle -->
-          <circle cx="185" cy="38" r="24" class="diag-sum" style="stroke-width:2.5;"/>
-          <text x="185" y="46" text-anchor="middle" class="diag-text" style="font-size:24px;">&minus;</text>
-          <!-- PV feedback line -->
-          <path d="M 185 82 Q 185 120 185 140 Q 185 160 160 160 L 110 160 Q 85 160 85 135 Q 85 110 85 65" class="diag-arrow" marker-end="url(#arr3)" style="stroke-width:2.5;"/>
-          <text x="50" y="185" class="diag-text" style="fill:#00e5a0;font-size:15px;">PV</text>
-          <!-- Arrow comparator to PID -->
-          <line x1="209" y1="38" x2="300" y2="38" class="diag-arrow diag-flow" marker-end="url(#arr3)" style="stroke-width:2.5;"/>
-          <!-- PID Controller block -->
-          <rect x="300" y="10" width="200" height="56" class="diag-block" style="stroke-width:2.5;rx:8;"/>
-          <text x="400" y="42" text-anchor="middle" class="diag-text" style="fill:#00e5a0;font-size:22px;font-weight:700;">PID</text>
-          <!-- P/I/D breakdown inside -->
-          <line x1="340" y1="66" x2="340" y2="88" class="diag-arrow" style="stroke-width:2.5;"/>
-          <line x1="400" y1="66" x2="400" y2="88" class="diag-arrow" style="stroke-width:2.5;"/>
-          <line x1="460" y1="66" x2="460" y2="88" class="diag-arrow" style="stroke-width:2.5;"/>
-          <rect x="318" y="88" width="44" height="34" class="diag-block" style="fill:#2d1111;stroke:#ff5c57;stroke-width:2.5;rx:6;"/>
-          <text x="340" y="110" text-anchor="middle" class="diag-text" style="fill:#ff5c57;font-size:18px;font-weight:700;">P</text>
-          <rect x="378" y="88" width="44" height="34" class="diag-block" style="fill:#0d2d1e;stroke:#00e5a0;stroke-width:2.5;rx:6;"/>
-          <text x="400" y="110" text-anchor="middle" class="diag-text" style="fill:#00e5a0;font-size:18px;font-weight:700;">I</text>
-          <rect x="438" y="88" width="44" height="34" class="diag-block" style="fill:#111d2d;stroke:#6cb6ff;stroke-width:2.5;rx:6;"/>
-          <text x="460" y="110" text-anchor="middle" class="diag-text" style="fill:#6cb6ff;font-size:18px;font-weight:700;">D</text>
-          <!-- Arrow PID to Plant -->
-          <line x1="500" y1="38" x2="590" y2="38" class="diag-arrow diag-flow-i" marker-end="url(#arr3)" style="stroke-width:2.5;"/>
-          <!-- Plant block -->
-          <rect x="590" y="10" width="165" height="56" class="diag-block" style="stroke:#ffb454;stroke-width:2.5;rx:8;"/>
-          <text x="672" y="42" text-anchor="middle" class="diag-text" style="fill:#ffb454;font-size:22px;font-weight:700;">Plant</text>
-          <!-- Arrow Plant to PV output -->
-          <line x1="755" y1="38" x2="860" y2="38" class="diag-arrow" marker-end="url(#arr3)" style="stroke-width:2.5;"/>
-          <text x="885" y="44" class="diag-text" style="fill:#00e5a0;font-size:18px;font-weight:700;">PV</text>
-          <!-- Arrow to actuator -->
-          <line x1="860" y1="38" x2="960" y2="38" class="diag-arrow" style="stroke-width:2.5;"/>
-          <!-- Actuator triangle -->
-          <polygon points="960,14 992,38 960,62" fill="var(--surface-border-hi)" stroke="var(--surface-border-hi)" stroke-width="2.5"/>
-          <!-- Marker defs -->
-          <defs>
-            <marker id="arr3" markerWidth="16" markerHeight="12" refX="12" refY="6" orient="auto">
-              <polygon points="0 0, 16 6, 0 12" fill="var(--surface-border-hi)"/>
-            </marker>
-          </defs>
-        </svg>
-        <div class="diag-cap" style="font-size:0.82rem;">FIG.01 &mdash; 负反馈控制回路</div>
+    <div class="sf-wrap">
+      <div class="sf-flow" id="sfFlow">
+        <!-- Row 1: Signal path -->
+        <div class="sf-row">
+          <div class="sf-node sp-node" onclick="sfShowDetail(this,'sp')" data-key="sp">
+            <span class="sf-icon">&#9632;</span>
+            <div><div class="sf-label">SP 设定值</div><div class="sf-sub">Set Point</div></div>
+          </div>
+          <div class="sf-arrow right running"><span class="sf-dot"></span><span class="sf-dot"></span><span class="sf-dot"></span></div>
+          <div class="sf-node cmp-node" onclick="sfShowDetail(this,'cmp')" data-key="cmp">
+            <span class="sf-icon">&#8722;</span>
+            <div><div class="sf-label">偏差比较</div><div class="sf-sub">e = SP &minus; PV</div></div>
+          </div>
+          <div class="sf-arrow right running"><span class="sf-dot"></span><span class="sf-dot"></span><span class="sf-dot"></span></div>
+          <div class="sf-node pid-node" onclick="sfShowDetail(this,'pid')" data-key="pid">
+            <span class="sf-icon">&#9881;</span>
+            <div><div class="sf-label">PID 控制器</div><div class="sf-sub">u = P + I + D</div></div>
+          </div>
+        </div>
+        <!-- PID sub-blocks -->
+        <div class="sf-row" style="margin-top:10px;">
+          <div></div>
+          <div class="sf-pid p-block" onclick="sfShowDetail(this,'p')" data-key="p">P 比例</div>
+          <div class="sf-pid i-block" onclick="sfShowDetail(this,'i')" data-key="i">I 积分</div>
+          <div class="sf-pid d-block" onclick="sfShowDetail(this,'d')" data-key="d">D 微分</div>
+          <div></div>
+        </div>
+        <!-- Row 2: Plant & output -->
+        <div class="sf-row" style="margin-top:10px;">
+          <div></div>
+          <div class="sf-arrow right running"><span class="sf-dot"></span><span class="sf-dot"></span><span class="sf-dot"></span></div>
+          <div class="sf-node plant-node" onclick="sfShowDetail(this,'plant')" data-key="plant">
+            <span class="sf-icon">&#9881;</span>
+            <div><div class="sf-label">Plant 被控对象</div><div class="sf-sub">惯性 / 延迟 / 自平衡</div></div>
+          </div>
+          <div class="sf-arrow right running"><span class="sf-dot"></span><span class="sf-dot"></span><span class="sf-dot"></span></div>
+          <div class="sf-node pv-node" onclick="sfShowDetail(this,'pv')" data-key="pv">
+            <span class="sf-icon">&#9632;</span>
+            <div><div class="sf-label">PV 被调量</div><div class="sf-sub">Process Variable</div></div>
+          </div>
+        </div>
+        <!-- Feedback path -->
+        <div class="sf-feedback">
+          <div class="sf-feedback-line"></div>
+          <div class="sf-feedback-label" style="left:8px;top:50%;transform:translateY(-50%) rotate(-90deg);">PV 反馈</div>
+        </div>
       </div>
-      <div class="diag-card">
-        <svg viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-          <defs>
-            <marker id="arr4" markerWidth="16" markerHeight="12" refX="12" refY="6" orient="auto">
-              <polygon points="0 0, 16 6, 0 12" fill="var(--surface-border-hi)"/>
-            </marker>
-          </defs>
-          <!-- Input signal line -->
-          <line x1="50" y1="38" x2="190" y2="38" class="diag-arrow diag-flow" marker-end="url(#arr4)" style="stroke-width:2.5;"/>
-          <!-- P block -->
-          <rect x="190" y="10" width="220" height="56" class="diag-block" style="fill:#2d1111;stroke:#ff5c57;stroke-width:2.5;rx:8;"/>
-          <text x="300" y="38" text-anchor="middle" class="diag-text" style="fill:#ff5c57;font-size:20px;font-weight:700;">比例</text>
-          <text x="300" y="58" text-anchor="middle" class="diag-text" style="fill:#ff5c5788;font-size:15px;">Proportional</text>
-          <!-- Arrow P to I -->
-          <line x1="410" y1="38" x2="470" y2="38" class="diag-arrow diag-flow-d" marker-end="url(#arr4)" style="stroke-width:2.5;"/>
-          <!-- I block -->
-          <rect x="470" y="10" width="220" height="56" class="diag-block" style="fill:#0d2d1e;stroke:#00e5a0;stroke-width:2.5;rx:8;"/>
-          <text x="580" y="38" text-anchor="middle" class="diag-text" style="fill:#00e5a0;font-size:20px;font-weight:700;">积分</text>
-          <text x="580" y="58" text-anchor="middle" class="diag-text" style="fill:#00e5a088;font-size:15px;">Integral</text>
-          <!-- Arrow I to D -->
-          <line x1="690" y1="38" x2="750" y2="38" class="diag-arrow diag-flow" marker-end="url(#arr4)" style="stroke-width:2.5;"/>
-          <!-- D block -->
-          <rect x="750" y="10" width="220" height="56" class="diag-block" style="fill:#111d2d;stroke:#6cb6ff;stroke-width:2.5;rx:8;"/>
-          <text x="860" y="38" text-anchor="middle" class="diag-text" style="fill:#6cb6ff;font-size:20px;font-weight:700;">微分</text>
-          <text x="860" y="58" text-anchor="middle" class="diag-text" style="fill:#6cb6ff88;font-size:15px;">Derivative</text>
-          <!-- Arrow D to output -->
-          <line x1="970" y1="38" x2="1040" y2="38" class="diag-arrow" marker-end="url(#arr4)" style="stroke-width:2.5;"/>
-          <!-- Output label -->
-          <text x="1060" y="46" class="diag-text" style="fill:var(--text-muted);font-size:16px;">输出</text>
-          <!-- Summation circle below -->
-          <circle cx="580" cy="190" r="36" class="diag-sum" style="stroke-width:2.5;"/>
-          <text x="580" y="202" text-anchor="middle" class="diag-text" style="font-size:30px;">&Sigma;</text>
-          <text x="580" y="248" text-anchor="middle" class="diag-text" style="fill:var(--text-muted);font-size:13px;">各环节叠加</text>
-          <!-- Lines from blocks to sum -->
-          <line x1="300" y1="66" x2="300" y2="154" class="diag-arrow" style="stroke:#ff5c5744;stroke-width:2;"/>
-          <line x1="580" y1="66" x2="580" y2="154" class="diag-arrow" style="stroke:#00e5a044;stroke-width:2;"/>
-          <line x1="860" y1="66" x2="860" y2="154" class="diag-arrow" style="stroke:#6cb6ff44;stroke-width:2;"/>
-        </svg>
-        <div class="diag-cap" style="font-size:0.82rem;">FIG.02 &mdash; PID 三环节结构</div>
+
+      <!-- Detail panel -->
+      <div class="sf-detail" id="sfDetail">
+        <div class="sf-detail-title" id="sfDetailTitle"></div>
+        <div id="sfDetailBody"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="sf-legend">
+        <div class="sf-legend-item"><span class="sf-legend-dot" style="background:#ffb454;"></span> 设定值 / 被控对象</div>
+        <div class="sf-legend-item"><span class="sf-legend-dot" style="background:#00e5a0;"></span> 被调量 / 控制器</div>
+        <div class="sf-legend-item"><span class="sf-legend-dot" style="background:#ff5c57;"></span> 比较器</div>
+        <div class="sf-legend-item"><span class="sf-legend-dot" style="background:var(--green);"></span> 信号流动</div>
       </div>
     </div>
+
+    <div class="diag-cap" style="margin-top:12px;">FIG.01 &mdash; 负反馈控制回路 &mdash; 点击各节点查看详情</div>
   </section>
 
   <!-- ===== SEC 3: SIMULATOR ===== -->
@@ -848,7 +949,28 @@ section { margin: 56px 0; }
 </div>
 
 <script>
-// ========== Theme ==========
+// ========== Signal Flow Diagram Interaction ==========
+const sfData = {
+  sp: { title: 'SP 设定值 (Set Point)', body: '人们期望被调量达到的目标值。控制器的任务就是让被调量 PV 尽可能接近 SP。改变 SP 会触发系统的阶跃响应。' },
+  cmp: { title: '偏差比较器', body: '计算 <strong>e = SP &minus; PV</strong>，即"我们想要的值"减"实际值"。e 为正说明被调量偏低，控制器会增大输出；e 为负则相反。负反馈控制的核心就是不断减小这个偏差。' },
+  pid: { title: 'PID 控制器', body: '接收偏差 e，通过三个环节计算输出 u：<br><br><strong>P</strong>：u_P = Kp &times; e（反应当前偏差）<br><strong>I</strong>：u_I = Ki &times; &int;e dt（累积历史偏差）<br><strong>D</strong>：u_D = Kd &times; de/dt（预测变化趋势）<br><br>三路输出叠加为总控制量 u = u_P + u_I + u_D。' },
+  p: { title: 'P 比例作用 (Proportional)', body: '输出 = 偏差 &times; 比例增益 Kp。<br><br>&#9656; 被调量变化多少，输出就变化多少<br>&#9656; 波形与被调量完全相似<br>&#9656; <strong style="color:#ff5c57;">单独 P 不能消除静态偏差</strong><br>&#9656; 增益越大反应越快，但越容易震荡' },
+  i: { title: 'I 积分作用 (Integral)', body: '只要偏差不为零，输出就持续累加。<br><br>&#9656; 相当于"斜率发生器"<br>&#9656; <strong style="color:#00e5a0;">积分能消除静态偏差</strong><br>&#9656; 过强会导致超调和震荡<br>&#9656; 输出到达顶点时，偏差必然为零' },
+  d: { title: 'D 微分作用 (Derivative)', body: '输出与偏差的变化速率成正比。<br><br>&#9656; 被调量不动，输出不动；一动就跳<br>&#9656; <strong style="color:#6cb6ff;">超前调节，抑制震荡</strong><br>&#9656; 对噪声敏感<br>&#9656; 简单系统（如水位控制）可取消' },
+  plant: { title: 'Plant 被控对象', body: '实际被控制的物理过程。不同对象有不同的动态特性：<br><br>&#9656; <strong>惯性</strong>：如温度控制，升温需要时间<br>&#9656; <strong>延迟</strong>：如锅炉汽温，响应滞后<br>&#9656; <strong>自平衡</strong>：如水库水位，有自然平衡点<br><br>对象的特性决定了 PID 参数需要如何侧重。' },
+  pv: { title: 'PV 被调量 (Process Variable)', body: '反映被调节对象实际状态的量值，如水位、温度、压力、转速。<br><br>控制器的目标就是让 PV 尽可能接近 SP，同时保持响应快速、稳定、无静差。' }
+};
+function sfShowDetail(el, key) {
+  document.querySelectorAll('.sf-node, .sf-pid').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  const d = sfData[key];
+  if (!d) return;
+  const panel = document.getElementById('sfDetail');
+  document.getElementById('sfDetailTitle').textContent = d.title;
+  document.getElementById('sfDetailBody').innerHTML = d.body;
+  panel.classList.add('show');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 function toggleTheme() {
   const h = document.documentElement;
   const dark = h.dataset.theme !== 'dark';
