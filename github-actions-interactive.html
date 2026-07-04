@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Actions 交互式学习</title>
+  <style>
+    :root {
+      --primary: #2da44e; --primary-light: #57ab5a; --primary-bg: #dafbe1;
+      --secondary: #6366f1; --secondary-light: #818cf8; --secondary-bg: #eef2ff;
+      --bg: #0d1117; --surface: #161b22; --surface-hover: #1c2128;
+      --border: #30363d; --border-light: #484f58;
+      --text: #e6edf3; --text-muted: #8b949e; --text-dim: #6e7681;
+      --accent: #f59e0b; --success: #3fb950; --error: #f85149;
+      --info: #58a6ff; --warning: #d29922;
+      --radius: 12px; --shadow: 0 4px 24px rgba(0,0,0,0.3);
+      --transition: 0.3s cubic-bezier(0.4,0,0.2,1);
+      --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.75; font-size: 17px;
+      padding: 0 16px; transition: background var(--transition);
+    }
+    /* Progress */
+    .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--info)); z-index: 1000; transition: width 0.2s; }
+    /* Header */
+    header { text-align: center; padding: 70px 20px 40px; max-width: 880px; margin: 0 auto; }
+    header h1 { font-size: 2.3em; margin-bottom: 8px; }
+    header h1 .gh-icon { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -4px; margin-right: 6px; }
+    header h1 .actions { background: linear-gradient(135deg, var(--primary), var(--info)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    header p { color: var(--text-muted); font-size: 1.1em; max-width: 620px; margin: 0 auto; }
+    /* Nav */
+    nav { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 16px; max-width: 880px; margin: 0 auto; }
+    nav a { padding: 8px 16px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: var(--text); font-size: 0.88em; font-weight: 500; transition: all var(--transition); }
+    nav a:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: translateY(-2px); }
+    /* Section */
+    .section-title { font-size: 1.5em; margin: 52px 0 10px; padding-bottom: 10px; border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .section-title .icon { font-size: 1.2em; }
+    .section-desc { color: var(--text-muted); margin-bottom: 22px; font-size: 0.98em; }
+    .content-wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+    /* =================== CONCEPT TREE =================== */
+    .concept-node {
+      background: var(--surface); border-radius: var(--radius); padding: 18px 22px;
+      margin: 12px 0; border: 1px solid var(--border); cursor: pointer;
+      transition: all var(--transition);
+    }
+    .concept-node:hover { border-color: var(--primary-light); transform: translateX(4px); }
+    .concept-node .node-title { font-weight: 600; font-size: 1.05em; display: flex; justify-content: space-between; align-items: center; }
+    .concept-node .node-title::after { content: '▼'; font-size: 0.65em; color: var(--text-muted); transition: transform var(--transition); }
+    .concept-node.expanded .node-title::after { transform: rotate(180deg); }
+    .concept-node .node-detail { max-height: 0; overflow: hidden; transition: max-height 0.5s ease, padding 0.3s; color: var(--text-muted); font-size: 0.94em; line-height: 1.8; }
+    .concept-node.expanded .node-detail { max-height: 900px; padding-top: 14px; }
+    .concept-node .node-detail h4 { color: var(--text); margin: 10px 0 5px; font-size: 0.98em; }
+    .concept-node .node-detail ul { padding-left: 20px; margin: 4px 0; }
+    .concept-node .node-detail li { margin: 3px 0; }
+    .sub-nodes { margin-left: 22px; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.75em; font-weight: 600; margin-left: 8px; }
+    .badge.core { background: #1f3a2a; color: var(--primary-light); }
+    .badge.config { background: #1e1b4b; color: var(--secondary-light); }
+    .badge.advanced { background: #3b1d0e; color: var(--accent); }
+    code { background: rgba(110,118,129,0.15); padding: 2px 7px; border-radius: 5px; font-size: 0.88em; font-family: var(--font-mono); color: var(--info); }
+
+    /* =================== WORKFLOW SIMULATOR =================== */
+    .wf-sim { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .wf-sim-header { padding: 14px 20px; background: var(--surface-hover); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    .wf-sim-header .repo-icon { font-size: 1.1em; }
+    .wf-sim-header .repo-name { font-weight: 600; font-size: 0.95em; }
+    .wf-sim-header .branch { font-size: 0.82em; color: var(--text-muted); background: rgba(110,118,129,0.15); padding: 2px 10px; border-radius: 12px; }
+    .wf-sim-header .run-btn { margin-left: auto; padding: 7px 18px; border-radius: 8px; background: var(--primary); color: #fff; border: none; font-size: 0.88em; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+    .wf-sim-header .run-btn:hover { filter: brightness(1.15); }
+    .wf-sim-header .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .wf-event-bar { padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; }
+    .wf-event-btn { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.82em; cursor: pointer; transition: all var(--transition); font-family: inherit; }
+    .wf-event-btn:hover { border-color: var(--primary); color: var(--text); }
+    .wf-event-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .wf-jobs-area { padding: 20px; min-height: 200px; }
+    .wf-job { margin-bottom: 20px; }
+    .wf-job-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .wf-job-status { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.6em; transition: all var(--transition); }
+    .wf-job-status.pending { border-color: var(--border); }
+    .wf-job-status.running { border-color: var(--info); animation: spin 1s linear infinite; border-top-color: transparent; }
+    .wf-job-status.success { border-color: var(--success); background: var(--success); }
+    .wf-job-status.success::after { content: '✓'; color: #fff; font-size: 1.6em; font-weight: bold; }
+    .wf-job-status.fail { border-color: var(--error); background: var(--error); }
+    .wf-job-status.fail::after { content: '✕'; color: #fff; font-size: 1.4em; font-weight: bold; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .wf-job-name { font-weight: 600; font-size: 0.95em; }
+    .wf-job-runner { font-size: 0.78em; color: var(--text-dim); margin-left: auto; }
+    .wf-job-time { font-size: 0.78em; color: var(--text-dim); }
+
+    .wf-steps { margin-left: 30px; border-left: 2px solid var(--border); padding-left: 16px; }
+    .wf-step { padding: 6px 0; display: flex; align-items: center; gap: 8px; font-size: 0.9em; opacity: 0.5; transition: all var(--transition); }
+    .wf-step.active { opacity: 1; }
+    .wf-step.done { opacity: 0.85; }
+    .wf-step-icon { width: 16px; text-align: center; font-size: 0.85em; flex-shrink: 0; }
+    .wf-step-name { flex: 1; }
+    .wf-step-duration { font-size: 0.82em; color: var(--text-dim); }
+    .wf-step-log { margin: 4px 0 4px 24px; background: #0d1117; border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-size: 0.82em; color: var(--text-muted); max-height: 0; overflow: hidden; white-space: pre; transition: max-height 0.45s ease; }
+    .wf-step-log.show { overflow-y: auto; }
+    .wf-step-log-inner { padding: 14px 18px; line-height: 1.7; }
+    .wf-step-log .log-ok { color: var(--success); }
+    .wf-step-log .log-warn { color: var(--warning); }
+    .wf-step-log .log-err { color: var(--error); }
+
+    .wf-summary { padding: 14px 20px; border-top: 1px solid var(--border); font-size: 0.88em; color: var(--text-muted); min-height: 44px; display: flex; align-items: center; gap: 8px; }
+
+    /* =================== YAML EXPLORER =================== */
+    .yaml-explorer { display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    @media (max-width: 700px) { .yaml-explorer { grid-template-columns: 1fr; } }
+    .yaml-code { padding: 18px; font-family: var(--font-mono); font-size: 0.82em; line-height: 1.85; overflow-x: auto; background: #0d1117; border-right: 1px solid var(--border); counter-reset: line; }
+    @media (max-width: 700px) { .yaml-code { border-right: none; border-bottom: 1px solid var(--border); } }
+    .yaml-line { display: flex; padding: 1px 0; cursor: pointer; border-radius: 4px; transition: background 0.15s; }
+    .yaml-line:hover { background: rgba(88,166,255,0.08); }
+    .yaml-line.highlighted { background: rgba(88,166,255,0.15); }
+    .yaml-line .ln { width: 28px; text-align: right; color: var(--text-dim); margin-right: 12px; flex-shrink: 0; user-select: none; font-size: 0.9em; }
+    .yaml-line .code { flex: 1; white-space: pre; }
+    .y-key { color: #7ee787; }
+    .y-str { color: #a5d6ff; }
+    .y-bool { color: #ff7b72; }
+    .y-comment { color: var(--text-dim); font-style: italic; }
+    .y-event { color: var(--warning); }
+
+    .yaml-info { padding: 22px; display: flex; flex-direction: column; justify-content: center; }
+    .yaml-info-title { font-weight: 700; font-size: 1.1em; margin-bottom: 8px; color: var(--info); }
+    .yaml-info-body { color: var(--text-muted); font-size: 0.94em; line-height: 1.8; }
+    .yaml-info-body strong { color: var(--text); }
+    .yaml-info-hint { margin-top: 14px; font-size: 0.85em; color: var(--text-dim); padding: 10px 14px; background: rgba(88,166,255,0.06); border-radius: 8px; border-left: 3px solid var(--info); }
+
+    /* =================== MATRIX BUILDER =================== */
+    .matrix-builder { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .matrix-header { padding: 14px 20px; background: var(--surface-hover); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95em; }
+    .matrix-config { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 600px) { .matrix-config { grid-template-columns: 1fr; } }
+    .matrix-field label { display: block; font-size: 0.85em; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .matrix-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .matrix-chip { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.82em; cursor: pointer; transition: all var(--transition); font-family: inherit; }
+    .matrix-chip:hover { border-color: var(--info); color: var(--text); }
+    .matrix-chip.selected { background: var(--info); color: #fff; border-color: var(--info); }
+    .matrix-results { padding: 20px; border-top: 1px solid var(--border); }
+    .matrix-results-title { font-size: 0.88em; font-weight: 600; margin-bottom: 12px; color: var(--text-muted); }
+    .matrix-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .matrix-card { background: #0d1117; border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-family: var(--font-mono); font-size: 0.8em; min-width: 180px; flex: 1; transition: all var(--transition); }
+    .matrix-card:hover { border-color: var(--info); transform: translateY(-2px); }
+    .matrix-card .mc-title { font-weight: 600; color: var(--info); margin-bottom: 4px; font-size: 0.95em; }
+    .matrix-card .mc-detail { color: var(--text-muted); font-size: 0.9em; }
+    .matrix-count { font-size: 0.9em; color: var(--accent); font-weight: 700; margin-bottom: 12px; }
+    .matrix-yaml-out { margin-top: 16px; background: #0d1117; border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; font-family: var(--font-mono); font-size: 0.8em; color: var(--text-muted); white-space: pre; overflow-x: auto; }
+
+    /* =================== TRIGGERS =================== */
+    .trigger-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 20px 0; }
+    .trigger-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: all var(--transition); }
+    .trigger-card:hover { border-color: var(--primary-light); transform: translateY(-3px); }
+    .trigger-card.selected { border-color: var(--primary); background: rgba(45,164,78,0.08); }
+    .trigger-card .tc-icon { font-size: 1.5em; margin-bottom: 8px; }
+    .trigger-card .tc-name { font-weight: 600; font-size: 0.95em; margin-bottom: 4px; }
+    .trigger-card .tc-desc { font-size: 0.82em; color: var(--text-muted); }
+    .trigger-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 14px; display: none; animation: fadeSlide 0.3s ease; }
+    .trigger-detail.show { display: block; }
+    .trigger-detail h4 { margin-bottom: 8px; color: var(--info); }
+    .trigger-detail p { color: var(--text-muted); font-size: 0.94em; line-height: 1.8; }
+    .trigger-detail .td-yaml { margin-top: 10px; background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: var(--font-mono); font-size: 0.82em; color: var(--text-muted); white-space: pre; overflow-x: auto; }
+
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* =================== SECRETS DEMO =================== */
+    .secrets-demo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 20px 0; overflow: hidden; }
+    .secrets-header { padding: 14px 20px; background: var(--surface-hover); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95em; }
+    .secrets-body { padding: 20px; }
+    .secret-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; margin: 8px 0; transition: all var(--transition); }
+    .secret-row:hover { border-color: var(--info); }
+    .secret-icon { font-size: 1.2em; }
+    .secret-name { font-family: var(--font-mono); font-size: 0.88em; font-weight: 600; flex: 1; }
+    .secret-value { font-family: var(--font-mono); font-size: 0.85em; color: var(--text-dim); padding: 3px 10px; border-radius: 6px; background: rgba(110,118,129,0.1); cursor: pointer; transition: all var(--transition); }
+    .secret-value:hover { color: var(--warning); }
+    .secret-value.revealed { color: var(--accent); }
+    .secret-hint { margin-top: 12px; font-size: 0.85em; color: var(--text-dim); padding: 10px 14px; background: rgba(210,153,34,0.08); border-radius: 8px; border-left: 3px solid var(--warning); }
+
+    /* =================== GLOSSARY =================== */
+    .glossary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin: 20px 0; }
+    .glossary-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: help; transition: all var(--transition); }
+    .glossary-item:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+    .glossary-term { font-weight: 700; font-size: 0.95em; color: var(--primary-light); margin-bottom: 4px; }
+    .glossary-def { font-size: 0.84em; color: var(--text-muted); line-height: 1.6; }
+
+    /* =================== QUIZ =================== */
+    .quiz-progress { display: flex; gap: 6px; margin-bottom: 18px; align-items: center; flex-wrap: wrap; }
+    .quiz-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--border); transition: all var(--transition); }
+    .quiz-dot.active { background: var(--info); transform: scale(1.3); }
+    .quiz-dot.correct { background: var(--success); }
+    .quiz-dot.wrong { background: var(--error); }
+    .quiz-score-label { margin-left: auto; font-size: 0.88em; color: var(--text-muted); font-weight: 600; }
+
+    .quiz-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; margin: 16px 0; display: none; }
+    .quiz-card.active { display: block; animation: fadeSlide 0.4s ease; }
+    .quiz-card .q-text { font-weight: 600; font-size: 1.05em; margin-bottom: 16px; }
+    .quiz-option { display: block; width: 100%; text-align: left; padding: 13px 17px; margin: 8px 0; border: 1px solid var(--border); border-radius: 10px; background: transparent; cursor: pointer; font-size: 0.95em; font-family: inherit; color: var(--text); transition: all var(--transition); }
+    .quiz-option:hover:not(:disabled) { border-color: var(--info); background: rgba(88,166,255,0.06); }
+    .quiz-option.correct { border-color: var(--success); background: rgba(63,185,80,0.1); }
+    .quiz-option.wrong { border-color: var(--error); background: rgba(248,81,73,0.08); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-feedback { margin-top: 14px; padding: 14px; border-radius: 10px; font-size: 0.93em; display: none; line-height: 1.7; }
+    .quiz-feedback.show { display: block; animation: fadeSlide 0.3s; }
+    .quiz-next { margin-top: 16px; padding: 10px 22px; border-radius: 20px; background: var(--primary); color: #fff; border: none; font-size: 0.92em; font-weight: 600; cursor: pointer; display: none; transition: all var(--transition); }
+    .quiz-next.show { display: inline-block; }
+    .quiz-next:hover { filter: brightness(1.15); }
+
+    .quiz-result { text-align: center; padding: 36px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: none; }
+    .quiz-result.show { display: block; animation: fadeSlide 0.5s; }
+    .quiz-result .score-big { font-size: 2.8em; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--info)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .quiz-result .score-msg { color: var(--text-muted); margin: 8px 0 20px; font-size: 1.05em; }
+    .btn-retry { padding: 11px 26px; border-radius: 22px; background: var(--primary); color: #fff; border: none; font-size: 0.95em; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+    .btn-retry:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+    /* Summary */
+    .summary { padding: 28px; background: linear-gradient(135deg, rgba(45,164,78,0.08), rgba(88,166,255,0.08)); border: 1px solid var(--border); border-radius: var(--radius); margin: 40px 0 80px; }
+    .summary h3 { font-size: 1.25em; margin-bottom: 12px; }
+    .summary p { color: var(--text-muted); font-size: 0.96em; line-height: 1.8; }
+
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+    @media (max-width: 600px) { header h1 { font-size: 1.6em; } .trigger-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar" style="width:0%"></div>
+
+<header>
+  <h1>
+    <svg class="gh-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span class="actions">GitHub Actions</span> 交互式学习
+  </h1>
+  <p>深入理解 CI/CD 自动化的核心引擎 — 从 Workflow 语法到管线执行，一步步掌握 GitHub Actions 的完整工作流程</p>
+</header>
+
+<nav>
+  <a href="#concepts">核心概念</a>
+  <a href="#simulator">工作流模拟</a>
+  <a href="#yaml-explorer">YAML 解析</a>
+  <a href="#triggers">触发事件</a>
+  <a href="#matrix">矩阵构建</a>
+  <a href="#secrets">密钥管理</a>
+  <a href="#glossary">术语表</a>
+  <a href="#quiz">自测测验</a>
+</nav>
+
+<!-- =================== CORE CONCEPTS =================== -->
+<section class="content-wrap" id="concepts">
+  <h2 class="section-title"><span class="icon">🧩</span> 核心概念</h2>
+  <p class="section-desc">GitHub Actions 的架构由三层组成：Workflow → Job → Step。点击展开了解每一层。</p>
+
+  <div class="concept-node" onclick="toggleNode(this)">
+    <div class="node-title">Workflow（工作流） <span class="badge core">核心</span></div>
+    <div class="node-detail">
+      <p>Workflow 是 GitHub Actions 的顶层概念，定义在仓库的 <code>.github/workflows/</code> 目录下的 YAML 文件中。一个仓库可以有多个 Workflow。</p>
+      <h4>关键属性</h4>
+      <ul>
+        <li><strong>name</strong>：工作流名称，显示在 Actions 标签页中</li>
+        <li><strong>on</strong>：触发条件（事件类型、分支过滤、定时 cron 等）</li>
+        <li><strong>jobs</strong>：包含一个或多个 Job 的集合</li>
+        <li><strong>env</strong>：所有 Job 共享的环境变量</li>
+        <li><strong>permissions</strong>：GITHUB_TOKEN 的权限范围</li>
+      </ul>
+      <h4>一个仓库可以有多个 Workflow 文件</h4>
+      <p>例如：<code>ci.yml</code>（持续集成）、<code>deploy.yml</code>（部署）、<code>nightly.yml</code>（定时任务）各自独立运行。</p>
+    </div>
+  </div>
+
+  <div class="sub-nodes">
+    <div class="concept-node" onclick="toggleNode(this)">
+      <div class="node-title">Job（作业） <span class="badge core">核心</span></div>
+      <div class="node-detail">
+        <p>Job 是 Workflow 中的独立执行单元，每个 Job 在独立的 Runner（虚拟机）上运行。多个 Job 默认并行执行。</p>
+        <h4>关键属性</h4>
+        <ul>
+          <li><strong>runs-on</strong>：指定运行环境（<code>ubuntu-latest</code>、<code>windows-latest</code>、<code>macos-latest</code>）</li>
+          <li><strong>needs</strong>：声明 Job 间的依赖关系，被依赖的 Job 成功后才执行</li>
+          <li><strong>steps</strong>：Job 内的有序步骤列表</li>
+          <li><strong>strategy.matrix</strong>：矩阵策略，在多个参数组合上并行运行</li>
+          <li><strong>if</strong>：条件表达式，控制 Job 是否执行</li>
+          <li><strong>timeout-minutes</strong>：超时时间（默认 360 分钟）</li>
+          <li><strong>services</strong>：Job 可用的服务容器（如 Redis、PostgreSQL）</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="concept-node" onclick="toggleNode(this)">
+      <div class="node-title">Step（步骤） <span class="badge core">核心</span></div>
+      <div class="node-detail">
+        <p>Step 是 Job 内的最小执行单元。每个 Step 要么运行一段 Shell 命令（<code>run</code>），要么调用一个预构建的 Action（<code>uses</code>）。</p>
+        <h4>两种 Step 类型</h4>
+        <ul>
+          <li><strong>run</strong>：执行 Shell 命令，如 <code>run: npm test</code>、<code>run: echo "Hello"</code></li>
+          <li><strong>uses</strong>：引用一个 Action，如 <code>uses: actions/checkout@v4</code></li>
+        </ul>
+        <h4>常用属性</h4>
+        <ul>
+          <li><strong>name</strong>：步骤名称（显示在日志中）</li>
+          <li><strong>with</strong>：传递给 Action 的参数</li>
+          <li><strong>env</strong>：该步骤的环境变量</li>
+          <li><strong>if</strong>：条件执行</li>
+          <li><strong>continue-on-error</strong>：即使失败也继续执行后续步骤</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="concept-node" onclick="toggleNode(this)">
+      <div class="node-title">Runner（运行器） <span class="badge config">配置</span></div>
+      <div class="node-detail">
+        <p>Runner 是执行 Job 的服务器。GitHub 提供托管 Runner，也可以自建。</p>
+        <h4>GitHub-hosted Runners</h4>
+        <ul>
+          <li><code>ubuntu-latest</code>（Ubuntu 22.04/24.04，最常用，最快启动）</li>
+          <li><code>windows-latest</code>（Windows Server 2022）</li>
+          <li><code>macos-latest</code>（macOS 14/15）</li>
+        </ul>
+        <h4>Self-hosted Runners</h4>
+        <p>部署在自己的服务器/容器中，适合需要特殊硬件、软件或网络环境的场景。通过 <code>runs-on: self-hosted</code> 指定。</p>
+      </div>
+    </div>
+
+    <div class="concept-node" onclick="toggleNode(this)">
+      <div class="node-title">Actions（动作/插件） <span class="badge advanced">进阶</span></div>
+      <div class="node-detail">
+        <p>Action 是 GitHub 生态中可复用的自动化单元，发布在 GitHub Marketplace 上。通过 <code>uses</code> 引用。</p>
+        <h4>引用方式</h4>
+        <ul>
+          <li><strong>官方 Action</strong>：<code>actions/checkout@v4</code>、<code>actions/setup-node@v4</code></li>
+          <li><strong>社区 Action</strong>：<code>docker/build-push-action@v5</code></li>
+          <li><strong>本地 Action</strong>：<code>uses: ./.github/actions/my-action</code></li>
+          <li><strong>版本锁定</strong>：<code>@v4</code>（标签）或 <code>@sha256:abc123</code>（SHA，更安全）</li>
+        </ul>
+        <h4>三种 Action 类型</h4>
+        <ul>
+          <li><strong>Docker Action</strong>：用 Dockerfile 定义，灵活但较慢</li>
+          <li><strong>JavaScript Action</strong>：直接在 Runner 上运行 Node.js，快速</li>
+          <li><strong>Composite Action</strong>：组合多个 Step 为一个 Action</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== WORKFLOW SIMULATOR =================== -->
+<section class="content-wrap" id="simulator">
+  <h2 class="section-title"><span class="icon">▶️</span> 工作流执行模拟</h2>
+  <p class="section-desc">选择一个触发事件，然后点击 "Run workflow" 观察工作流如何被触发和执行。点击每个 Step 可以展开查看日志。</p>
+
+  <div class="wf-sim">
+    <div class="wf-sim-header">
+      <span class="repo-icon">📦</span>
+      <span class="repo-name">my-awesome-app</span>
+      <span class="branch">main</span>
+      <button class="run-btn" id="wfRunBtn" onclick="runWorkflow()">▶ Run workflow</button>
+    </div>
+    <div class="wf-event-bar" id="eventBar">
+      <button class="wf-event-btn active" data-event="push" onclick="selectEvent(this)">push</button>
+      <button class="wf-event-btn" data-event="pull_request" onclick="selectEvent(this)">pull_request</button>
+      <button class="wf-event-btn" data-event="workflow_dispatch" onclick="selectEvent(this)">workflow_dispatch</button>
+      <button class="wf-event-btn" data-event="schedule" onclick="selectEvent(this)">schedule</button>
+      <button class="wf-event-btn" data-event="release" onclick="selectEvent(this)">release</button>
+    </div>
+    <div class="wf-jobs-area" id="wfJobsArea"></div>
+    <div class="wf-summary" id="wfSummary">选择事件并点击 "Run workflow" 开始模拟</div>
+  </div>
+</section>
+
+<!-- =================== YAML EXPLORER =================== -->
+<section class="content-wrap" id="yaml-explorer">
+  <h2 class="section-title"><span class="icon">📄</span> YAML 语法解析器</h2>
+  <p class="section-desc">点击左侧 YAML 代码中的任意一行，右侧会显示详细解释。这是理解 Workflow 文件最直观的方式。</p>
+
+  <div class="yaml-explorer">
+    <div class="yaml-code" id="yamlCode"></div>
+    <div class="yaml-info">
+      <div class="yaml-info-title" id="yamlInfoTitle">← 点击代码行查看说明</div>
+      <div class="yaml-info-body" id="yamlInfoBody">这个交互式解析器帮助你理解 GitHub Actions Workflow YAML 文件的每一行含义。点击左侧任意一行代码，这里就会显示对应的详细解释。</div>
+      <div class="yaml-info-hint" id="yamlInfoHint">💡 Workflow YAML 文件必须放在仓库的 .github/workflows/ 目录下</div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== TRIGGERS =================== -->
+<section class="content-wrap" id="triggers">
+  <h2 class="section-title"><span class="icon">⚡</span> 触发事件详解</h2>
+  <p class="section-desc">GitHub Actions 支持 30+ 种事件触发器。点击卡片了解每种事件的用法和配置方式。</p>
+
+  <div class="trigger-grid" id="triggerGrid"></div>
+  <div class="trigger-detail" id="triggerDetail"></div>
+</section>
+
+<!-- =================== MATRIX BUILDER =================== -->
+<section class="content-wrap" id="matrix">
+  <h2 class="section-title"><span class="icon">🔢</span> 矩阵构建配置器</h2>
+  <p class="section-desc">矩阵策略（Matrix Strategy）让你在一个 Job 定义中同时在多个参数组合上运行。选择参数，实时查看生成的构建组合和对应的 YAML。</p>
+
+  <div class="matrix-builder">
+    <div class="matrix-header">Matrix Strategy 配置器</div>
+    <div class="matrix-config">
+      <div class="matrix-field">
+        <label>Node.js 版本</label>
+        <div class="matrix-chips" id="nodeChips"></div>
+      </div>
+      <div class="matrix-field">
+        <label>操作系统</label>
+        <div class="matrix-chips" id="osChips"></div>
+      </div>
+    </div>
+    <div class="matrix-results">
+      <div class="matrix-count" id="matrixCount">构建组合: 0</div>
+      <div class="matrix-grid" id="matrixGrid"></div>
+      <div class="matrix-yaml-out" id="matrixYaml"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== SECRETS =================== -->
+<section class="content-wrap" id="secrets">
+  <h2 class="section-title"><span class="icon">🔐</span> Secrets 与变量管理</h2>
+  <p class="section-desc">Secrets 是加密的敏感数据，在日志中自动遮蔽。点击值区域模拟"查看"行为，了解安全最佳实践。</p>
+
+  <div class="secrets-demo">
+    <div class="secrets-header">Repository Secrets 管理面板</div>
+    <div class="secrets-body">
+      <div class="secret-row" onclick="toggleSecret(this)">
+        <span class="secret-icon">🔑</span>
+        <span class="secret-name">DOCKER_PASSWORD</span>
+        <span class="secret-value" data-secret="dckr_pat_xK9m2...REDACTED">••••••••••</span>
+      </div>
+      <div class="secret-row" onclick="toggleSecret(this)">
+        <span class="secret-icon">🔑</span>
+        <span class="secret-name">AWS_ACCESS_KEY_ID</span>
+        <span class="secret-value" data-secret="AKIA5EXAMPLE...REDACTED">••••••••••</span>
+      </div>
+      <div class="secret-row" onclick="toggleSecret(this)">
+        <span class="secret-icon">🔑</span>
+        <span class="secret-name">NPM_TOKEN</span>
+        <span class="secret-value" data-secret="npm_a1b2c3d4...REDACTED">••••••••••</span>
+      </div>
+      <div class="secret-row" onclick="toggleSecret(this)">
+        <span class="secret-icon">🌐</span>
+        <span class="secret-name">DEPLOY_URL</span>
+        <span class="secret-value" data-secret="https://staging.example.com">••••••••••</span>
+      </div>
+      <div class="secret-hint">
+        ⚠️ 在真实环境中，Secrets 永远不会以明文显示。这里只是模拟展示。在 Workflow 中通过 <code>${{ secrets.NAME }}</code> 引用。GitHub 会自动在日志中遮蔽 Secret 值。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =================== GLOSSARY =================== -->
+<section class="content-wrap" id="glossary">
+  <h2 class="section-title"><span class="icon">📚</span> 关键术语</h2>
+  <div class="glossary-grid">
+    <div class="glossary-item"><div class="glossary-term">Workflow</div><div class="glossary-def">定义在 .github/workflows/ 下的自动化流程，由一个或多个 Job 组成。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Job</div><div class="glossary-def">Workflow 中的独立执行单元，在独立的 Runner 上运行。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Step</div><div class="glossary-def">Job 内的最小执行单元，执行一条命令或调用一个 Action。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Runner</div><div class="glossary-def">执行 Job 的服务器，GitHub 托管或自行部署。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Action</div><div class="glossary-def">可复用的自动化插件，通过 uses 引用。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Event / Trigger</div><div class="glossary-def">触发 Workflow 的事件，如 push、pull_request、schedule 等。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Artifact</div><div class="glossary-def">Job 产出的文件，通过 upload/download-artifact 在不同 Job 间传递。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Secrets</div><div class="glossary-def">加密存储的敏感数据（密码、Token），在日志中自动遮蔽。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Matrix Strategy</div><div class="glossary-def">在一个 Job 定义中指定多个参数组合，实现并行构建。</div></div>
+    <div class="glossary-item"><div class="glossary-term">needs</div><div class="glossary-def">声明 Job 间的依赖关系，被依赖 Job 成功后才执行。</div></div>
+    <div class="glossary-item"><div class="glossary-term">GITHUB_TOKEN</div><div class="glossary-def">GitHub 自动为每个 Workflow Run 生成的临时 Token，用于 API 调用。</div></div>
+    <div class="glossary-item"><div class="glossary-term">Composite Action</div><div class="glossary-def">将多个 Step 组合为一个可复用 Action，通过 action.yml 定义。</div></div>
+  </div>
+</section>
+
+<!-- =================== QUIZ =================== -->
+<section class="content-wrap" id="quiz">
+  <h2 class="section-title"><span class="icon">🎯</span> 自测测验</h2>
+  <p class="section-desc">检验你对 GitHub Actions 核心概念的理解，10 道题目，即时反馈。</p>
+  <div class="quiz-progress" id="quizProgress"></div>
+  <div id="quizContainer"></div>
+  <div class="quiz-result" id="quizResult">
+    <div class="score-big" id="finalScore">0%</div>
+    <div class="score-msg" id="scoreMsg"></div>
+    <button class="btn-retry" onclick="resetQuiz()">🔄 重新测试</button>
+  </div>
+</section>
+
+<!-- =================== SUMMARY =================== -->
+<section class="content-wrap" id="summary">
+  <div class="summary">
+    <h3>总结</h3>
+    <p>GitHub Actions 是深度集成在 GitHub 生态中的 CI/CD 平台。它的核心架构是 <strong>Workflow → Job → Step</strong> 三层结构，通过 YAML 文件声明式定义。丰富的触发事件（30+）覆盖了从代码提交到 Issue 创建的几乎所有 GitHub 场景。</p>
+    <p style="margin-top:10px;">掌握 GitHub Actions 的关键在于：理解 YAML 语法结构、善用 Marketplace 上的现成 Action、利用矩阵策略提升并行效率、通过 Secrets 安全管理敏感信息、以及用 <code>needs</code> 编排多 Job 的依赖关系。这个交互式页面涵盖了从基础到进阶的核心知识，随时可以回顾。</p>
+  </div>
+</section>
+
+<script>
+// ==================== UTILS ====================
+function toggleNode(el) { el.classList.toggle('expanded'); }
+window.addEventListener('scroll', () => {
+  const t = document.documentElement.scrollTop, h = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('progressBar').style.width = (h > 0 ? (t / h) * 100 : 0) + '%';
+});
+
+// ==================== WORKFLOW SIMULATOR ====================
+const workflowDefs = {
+  push: {
+    jobs: [
+      { name: 'build', runner: 'ubuntu-latest', steps: [
+        { name: 'Checkout code', icon: '📥', log: '$ actions/checkout@v4\n<span class="log-ok">Syncing repository: my-awesome-app</span>\n<span class="log-ok">Completed checkout in 1.2s</span>', dur: '1s' },
+        { name: 'Setup Node.js', icon: '⚙️', log: '$ actions/setup-node@v4\n<span class="log-ok">Resolved Node.js 18.19.0</span>\n<span class="log-ok">Added node to PATH</span>', dur: '3s' },
+        { name: 'Install dependencies', icon: '📦', log: '$ npm ci\nadded 847 packages in 12s\n<span class="log-ok">npm notice</span>\n<span class="log-ok">found 0 vulnerabilities</span>', dur: '12s' },
+        { name: 'Run linter', icon: '🔍', log: '$ npm run lint\n<span class="log-ok">✓ 142 files checked, 0 errors, 2 warnings</span>', dur: '4s' },
+        { name: 'Run tests', icon: '🧪', log: '$ npm test\nPASS  src/utils.test.js (12 tests)\nPASS  src/api.test.js (8 tests)\nPASS  src/components.test.js (15 tests)\n\n<span class="log-ok">Tests:  35 passed, 35 total</span>\n<span class="log-ok">Time:   6.4s</span>', dur: '7s' },
+        { name: 'Build', icon: '🔨', log: '$ npm run build\n<span class="log-ok">vite v5.2.0 building for production...</span>\n✓ 847 modules transformed.\ndist/index.html    0.46 kB\ndist/assets/index.js  142.38 kB\n<span class="log-ok">✓ built in 3.2s</span>', dur: '4s' },
+        { name: 'Upload artifact', icon: '⬆️', log: '$ actions/upload-artifact@v4\n<span class="log-ok">Uploaded \'dist\' (3 files, 145 KB)</span>', dur: '2s' }
+      ]},
+      { name: 'deploy-staging', runner: 'ubuntu-latest', needs: 'build', steps: [
+        { name: 'Download artifact', icon: '⬇️', log: '$ actions/download-artifact@v4\n<span class="log-ok">Downloaded \'dist\' to ./dist</span>', dur: '1s' },
+        { name: 'Deploy to Staging', icon: '🚀', log: '$ Deploying to staging environment...\n<span class="log-ok">Uploading to S3 bucket: staging-assets</span>\n<span class="log-ok">Invalidating CloudFront distribution</span>\n<span class="log-ok">Deploy complete: https://staging.example.com</span>', dur: '8s' },
+        { name: 'Run smoke tests', icon: '💨', log: '$ curl -s https://staging.example.com/health\n<span class="log-ok">{ "status": "ok", "version": "1.4.2" }</span>', dur: '3s' }
+      ]}
+    ]
+  },
+  pull_request: {
+    jobs: [
+      { name: 'pr-checks', runner: 'ubuntu-latest', steps: [
+        { name: 'Checkout code', icon: '📥', log: '$ actions/checkout@v4\n<span class="log-ok">Syncing repository (PR #42)</span>', dur: '1s' },
+        { name: 'Setup Node.js', icon: '⚙️', log: '$ actions/setup-node@v4\n<span class="log-ok">Node.js 18.19.0 ready</span>', dur: '2s' },
+        { name: 'Install & Test', icon: '🧪', log: '$ npm ci && npm test\n<span class="log-ok">35 tests passed</span>', dur: '18s' },
+        { name: 'Check coverage', icon: '📊', log: '$ npm run test:coverage\n<span class="log-ok">Statements: 87.3% | Branches: 82.1%</span>\n<span class="log-ok">✓ Coverage threshold met (≥80%)</span>', dur: '5s' },
+        { name: 'Build check', icon: '🔨', log: '$ npm run build\n<span class="log-ok">Build successful</span>', dur: '4s' }
+      ]}
+    ]
+  },
+  workflow_dispatch: {
+    jobs: [
+      { name: 'manual-deploy', runner: 'ubuntu-latest', steps: [
+        { name: 'Checkout code', icon: '📥', log: '<span class="log-ok">Checkout complete</span>', dur: '1s' },
+        { name: 'Select environment', icon: '🎯', log: 'Input: environment = <span class="log-ok">production</span>\nInput: dry_run = <span class="log-ok">false</span>', dur: '0s' },
+        { name: 'Build release', icon: '🔨', log: '$ npm run build -- --mode production\n<span class="log-ok">Production build complete</span>', dur: '6s' },
+        { name: 'Deploy to Production', icon: '🌐', log: '$ Deploying to production...\n<span class="log-warn">⚠ Rolling update in progress</span>\n<span class="log-ok">All 3 replicas updated</span>\n<span class="log-ok">Health checks passing</span>', dur: '15s' },
+        { name: 'Create release tag', icon: '🏷️', log: '$ git tag v1.4.2\n<span class="log-ok">Tag v1.4.2 created and pushed</span>', dur: '2s' }
+      ]}
+    ]
+  },
+  schedule: {
+    jobs: [
+      { name: 'nightly-build', runner: 'ubuntu-latest', steps: [
+        { name: 'Checkout code', icon: '📥', log: '<span class="log-ok">Scheduled run triggered (cron: 0 2 * * *)</span>', dur: '1s' },
+        { name: 'Full test suite', icon: '🧪', log: '$ npm run test:full\nRunning unit + integration + e2e tests...\n<span class="log-ok">128 tests passed, 0 failed</span>', dur: '45s' },
+        { name: 'Dependency audit', icon: '🔍', log: '$ npm audit\n<span class="log-warn">2 moderate vulnerabilities found</span>\n<span class="log-ok">Report saved to audit-report.json</span>', dur: '8s' },
+        { name: 'Generate report', icon: '📊', log: '<span class="log-ok">Nightly report generated</span>\n<span class="log-ok">Notification sent to #dev-alerts</span>', dur: '3s' }
+      ]}
+    ]
+  },
+  release: {
+    jobs: [
+      { name: 'publish', runner: 'ubuntu-latest', steps: [
+        { name: 'Checkout code', icon: '📥', log: '<span class="log-ok">Release v1.4.2 created</span>', dur: '1s' },
+        { name: 'Build package', icon: '📦', log: '$ npm run build\n<span class="log-ok">Package built: my-awesome-app@1.4.2</span>', dur: '5s' },
+        { name: 'Publish to NPM', icon: '🚀', log: '$ npm publish\n<span class="log-ok">+ my-awesome-app@1.4.2</span>\n<span class="log-ok">Published to registry.npmjs.org</span>', dur: '8s' },
+        { name: 'Build Docker image', icon: '🐳', log: '$ docker build -t my-app:1.4.2 .\n<span class="log-ok">Image built and pushed to ghcr.io</span>', dur: '20s' },
+        { name: 'Update docs', icon: '📝', log: '<span class="log-ok">Documentation site rebuilt</span>', dur: '10s' }
+      ]}
+    ]
+  }
+};
+
+let currentEvent = 'push';
+let wfRunning = false;
+
+function selectEvent(btn) {
+  if (wfRunning) return;
+  document.querySelectorAll('.wf-event-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentEvent = btn.dataset.event;
+  renderWorkflowIdle(currentEvent);
+  document.getElementById('wfSummary').textContent = '选择事件并点击 "Run workflow" 开始模拟';
+}
+
+function renderWorkflowIdle(eventType) {
+  const def = workflowDefs[eventType];
+  const area = document.getElementById('wfJobsArea');
+  let html = '';
+  def.jobs.forEach(job => {
+    html += `<div class="wf-job"><div class="wf-job-header">
+      <div class="wf-job-status pending"></div>
+      <span class="wf-job-name">${job.name}</span>
+      <span class="wf-job-runner">${job.runner}</span>
+    </div><div class="wf-steps">`;
+    job.steps.forEach(step => {
+      html += `<div class="wf-step"><span class="wf-step-icon">${step.icon}</span><span class="wf-step-name">${step.name}</span><span class="wf-step-duration"></span></div>
+        <div class="wf-step-log"><div class="wf-step-log-inner">${step.log}</div></div>`;
+    });
+    html += '</div></div>';
+  });
+  area.innerHTML = html;
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function runWorkflow() {
+  if (wfRunning) return;
+  wfRunning = true;
+  document.getElementById('wfRunBtn').disabled = true;
+  const summary = document.getElementById('wfSummary');
+  summary.textContent = `⏳ 触发事件: ${currentEvent}，工作流启动中...`;
+
+  const def = workflowDefs[currentEvent];
+  const area = document.getElementById('wfJobsArea');
+
+  // Reset to fresh state before running
+  renderWorkflowIdle(currentEvent);
+  await sleep(100);
+
+  for (let j = 0; j < def.jobs.length; j++) {
+    const job = def.jobs[j];
+    const jobEl = area.querySelectorAll('.wf-job')[j];
+    const statusEl = jobEl.querySelector('.wf-job-status');
+    const steps = jobEl.querySelectorAll('.wf-step');
+    const logs = jobEl.querySelectorAll('.wf-step-log');
+    const durEls = jobEl.querySelectorAll('.wf-step-duration');
+
+    statusEl.className = 'wf-job-status running';
+
+    for (let s = 0; s < steps.length; s++) {
+      steps[s].classList.add('active');
+      durEls[s].textContent = '...';
+      await sleep(500 + Math.random() * 600);
+      steps[s].classList.remove('active');
+      steps[s].classList.add('done');
+      durEls[s].textContent = job.steps[s].dur;
+      const logEl = logs[s];
+      logEl.classList.add('show');
+      logEl.style.maxHeight = logEl.scrollHeight + 'px';
+      await sleep(300);
+    }
+
+    statusEl.className = 'wf-job-status success';
+  }
+
+  const totalSteps = def.jobs.reduce((a, j) => a + j.steps.length, 0);
+  summary.innerHTML = `✅ <strong>${def.jobs.length} job(s)</strong> 完成，共 <strong>${totalSteps} steps</strong> 全部通过 — 触发事件: <strong>${currentEvent}</strong>`;
+  document.getElementById('wfRunBtn').disabled = false;
+  wfRunning = false;
+}
+
+renderWorkflowIdle('push');
+
+// ==================== YAML EXPLORER ====================
+const yamlLines = [
+  { code: '<span class="y-key">name</span>: <span class="y-str">CI Pipeline</span>', info: { title: 'name: CI Pipeline', body: '定义工作流的名称。这个名字会显示在仓库的 <strong>Actions</strong> 标签页中。建议使用简洁有意义的名称，如 "CI Pipeline"、"Deploy to Production"。', hint: '如果不指定 name，GitHub 会使用文件名作为显示名。' }},
+  { code: '', info: null },
+  { code: '<span class="y-key">on</span>:', info: { title: 'on: (触发条件)', body: '<strong>on</strong> 定义了触发工作流的事件。可以指定单个或多个事件，还可以添加过滤条件（分支、路径、标签等）。', hint: '💡 这是 Workflow 中最重要的配置之一。' }},
+  { code: '  <span class="y-key">push</span>:', info: { title: 'push 事件', body: '当代码被推送到仓库时触发。可以配合 <strong>branches</strong> 和 <strong>paths</strong> 过滤，只在特定分支或文件变更时触发。', hint: '💡 push 到 fork 仓库不会触发原始仓库的 Workflow。' }},
+  { code: '    <span class="y-key">branches</span>: [<span class="y-str">main</span>, <span class="y-str">develop</span>]', info: { title: 'branches 过滤', body: '只在指定分支的 push 事件时触发。这里配置了 <strong>main</strong> 和 <strong>develop</strong> 两个分支。也可以使用通配符：<code>branches: [\'release/*\']</code>', hint: '💡 支持 glob 模式：feature/**, release/*, 等。' }},
+  { code: '  <span class="y-key">pull_request</span>:', info: { title: 'pull_request 事件', body: '当 PR 被创建、更新（push 新提交）时触发。PR 事件中 Workflow 运行在合并后的代码上，确保 PR 代码能通过检查。', hint: '💡 来自 fork 的 PR 默认只有只读权限（无法访问 Secrets）。' }},
+  { code: '    <span class="y-key">branches</span>: [<span class="y-str">main</span>]', info: { title: 'PR 目标分支过滤', body: '只在 PR 的目标分支是 <strong>main</strong> 时触发。也就是说，只有合入 main 的 PR 才会触发这个工作流。', hint: '' }},
+  { code: '  <span class="y-key">schedule</span>:', info: { title: 'schedule 定时触发', body: '使用 <strong>cron 表达式</strong>定时触发工作流。适合夜间构建、定期报告、依赖更新检查等场景。', hint: '💡 GitHub 使用 UTC 时间。定时任务可能有几分钟延迟。' }},
+  { code: '    - <span class="y-key">cron</span>: <span class="y-str">\'0 2 * * 1-5\'</span>', info: { title: 'Cron: 0 2 * * 1-5', body: '每个工作日（周一到周五）UTC 2:00 执行。换算为北京时间是每天上午 10:00。<br><br>Cron 格式：分 时 日 月 周几。<code>*</code> 表示"每个"，<code>1-5</code> 表示周一到周五。', hint: '💡 可以配置多个 schedule 条目来实现不同的定时策略。' }},
+  { code: '', info: null },
+  { code: '<span class="y-key">jobs</span>:', info: { title: 'jobs: (作业定义)', body: 'jobs 下面定义工作流中的所有作业。每个 Job 在独立的 Runner 上运行，默认并行执行。通过 <strong>needs</strong> 可以声明依赖关系。', hint: '💡 一个 Workflow 最多 256 个 Job。' }},
+  { code: '  <span class="y-key">build</span>:', info: { title: 'build Job', body: '定义了一个名为 <strong>build</strong> 的作业。Job ID（这里的 build）是内部标识符，用于 needs 引用和日志显示。', hint: '' }},
+  { code: '    <span class="y-key">runs-on</span>: <span class="y-str">ubuntu-latest</span>', info: { title: 'runs-on: ubuntu-latest', body: '指定 Job 运行在 <strong>GitHub 托管的 Ubuntu Runner</strong> 上。ubuntu-latest 目前指向 Ubuntu 22.04 或 24.04，启动最快（约 10-15 秒）。<br><br>其他选项：<code>windows-latest</code>、<code>macos-latest</code>、<code>self-hosted</code>。', hint: '💡 ubuntu-latest 是最经济的选择，Windows 和 macOS Runner 消耗更多分钟数。' }},
+  { code: '    <span class="y-key">steps</span>:', info: { title: 'steps: (步骤列表)', body: 'steps 定义了 Job 中按顺序执行的步骤。每个 Step 要么用 <strong>run</strong> 执行 Shell 命令，要么用 <strong>uses</strong> 调用一个 Action。Step 之间共享同一个工作目录和环境变量。', hint: '💡 每个 Step 默认在前一个 Step 成功后才执行。' }},
+  { code: '      - <span class="y-key">uses</span>: <span class="y-str">actions/checkout@v4</span>', info: { title: 'actions/checkout@v4', body: '这是几乎所有 Workflow 的第一步：<strong>将仓库代码检出到 Runner 上</strong>。没有这一步，Runner 上没有你的代码。<br><br><code>@v4</code> 表示使用 v4 版本的 Action。也可以用 SHA 锁定版本以获得更好的安全性。', hint: '💡 checkout 默认检出触发事件的 commit。可以用 with.ref 指定其他分支/tag。' }},
+  { code: '      - <span class="y-key">uses</span>: <span class="y-str">actions/setup-node@v4</span>', info: { title: 'actions/setup-node@v4', body: '在 Runner 上安装指定版本的 <strong>Node.js</strong>。会自动配置 npm registry 和缓存。', hint: '' }},
+  { code: '        <span class="y-key">with</span>:', info: { title: 'with: (Action 参数)', body: '<strong>with</strong> 用于向 Action 传递输入参数。每个 Action 定义了不同的输入参数，可以在 Action 的 README 中查看。', hint: '💡 with 的参数是字符串类型，数字和布尔值也会被转为字符串。' }},
+  { code: '          <span class="y-key">node-version</span>: <span class="y-str">\'18\'</span>', info: { title: 'node-version: \'18\'', body: '安装 <strong>Node.js 18</strong>（LTS 版本）。也可以指定精确版本如 <code>18.19.0</code>，或使用 <code>lts/*</code> 表示最新的 LTS。', hint: '' }},
+  { code: '          <span class="y-key">cache</span>: <span class="y-str">\'npm\'</span>', info: { title: 'cache: \'npm\'', body: '自动启用 <strong>npm 缓存</strong>。GitHub Actions 会缓存 ~/.npm 目录，后续运行时跳过已缓存的包下载，大幅加速 install 过程。', hint: '💡 也支持 pnpm 和 yarn 的缓存。' }},
+  { code: '      - <span class="y-key">run</span>: <span class="y-str">npm ci</span>', info: { title: 'run: npm ci', body: '执行 <strong>npm ci</strong>（clean install），严格按照 package-lock.json 安装依赖。比 <code>npm install</code> 更快、更可重现，是 CI 环境的推荐选择。', hint: '💡 npm ci 会删除现有 node_modules，确保干净的依赖树。' }},
+  { code: '      - <span class="y-key">run</span>: <span class="y-str">npm test</span>', info: { title: 'run: npm test', body: '运行项目的测试套件。如果测试失败（exit code != 0），后续步骤默认不会执行，整个 Job 标记为失败。', hint: '' }},
+  { code: '      - <span class="y-key">run</span>: <span class="y-str">npm run build</span>', info: { title: 'run: npm run build', body: '构建项目。生成的产物可以通过 <code>actions/upload-artifact</code> 上传，供其他 Job 或后续步骤使用。', hint: '' }},
+  { code: '', info: null },
+  { code: '  <span class="y-key">deploy</span>:', info: { title: 'deploy Job', body: '第二个 Job：<strong>deploy</strong>。通过 <code>needs: build</code> 声明依赖，只有在 build Job 成功后才会执行。', hint: '' }},
+  { code: '    <span class="y-key">needs</span>: <span class="y-str">build</span>', info: { title: 'needs: build', body: '<strong>声明 Job 依赖</strong>。deploy Job 必须等待 build Job 成功完成后才开始执行。可以指定多个依赖：<code>needs: [build, test]</code>。<br><br>如果依赖的 Job 失败，当前 Job 默认会跳过（除非使用 if: always()）。', hint: '💡 needs 是控制 Job 执行顺序的核心机制。' }},
+  { code: '    <span class="y-key">runs-on</span>: <span class="y-str">ubuntu-latest</span>', info: { title: 'Runner 环境', body: 'deploy Job 同样运行在 ubuntu-latest 上。每个 Job 运行在独立的虚拟机中，不共享文件系统 —— 因此需要通过 <strong>Artifacts</strong> 传递文件。', hint: '' }},
+  { code: '    <span class="y-key">environment</span>: <span class="y-str">production</span>', info: { title: 'environment: production', body: '指定部署环境为 <strong>production</strong>。这会：<br>1. 在 GitHub 仓库的 Environments 页面记录部署历史<br>2. 可以配置<strong>保护规则</strong>（如需要审批人、等待时间）<br>3. 加载该环境专属的 Secrets 和变量', hint: '💡 Environment 保护规则是实现人工审批的关键机制。' }},
+  { code: '    <span class="y-key">steps</span>:', info: { title: 'deploy 的 Steps', body: '部署 Job 的步骤通常包括：下载构建产物、登录目标服务、执行部署命令、验证部署结果。', hint: '' }},
+  { code: '      - <span class="y-key">uses</span>: <span class="y-str">actions/download-artifact@v4</span>', info: { title: 'download-artifact@v4', body: '从 build Job 上传的 Artifact 中下载构建产物。这是在多 Job 间传递文件的标准方式。', hint: '💡 Artifact 默认保留 90 天，可以在仓库设置中调整。' }},
+  { code: '      - <span class="y-key">run</span>: <span class="y-str">./deploy.sh</span>', info: { title: 'run: ./deploy.sh', body: '执行部署脚本。实际项目中可能是：<br>• <code>aws s3 sync</code> 上传到 S3<br>• <code>kubectl apply</code> 部署到 K8s<br>• <code>vercel deploy</code> 部署到 Vercel', hint: '💡 部署步骤中的 Secrets 通过 ${{ secrets.XXX }} 引用。' }},
+];
+
+function renderYaml() {
+  const codeEl = document.getElementById('yamlCode');
+  let html = '';
+  yamlLines.forEach((line, i) => {
+    const clickable = line.info ? ' onclick="highlightYaml(' + i + ')"' : '';
+    html += `<div class="yaml-line" data-idx="${i}"${clickable}><span class="ln">${i + 1}</span><span class="code">${line.code || ' '}</span></div>`;
+  });
+  codeEl.innerHTML = html;
+}
+
+function highlightYaml(idx) {
+  document.querySelectorAll('.yaml-line').forEach(l => l.classList.remove('highlighted'));
+  const line = document.querySelector(`.yaml-line[data-idx="${idx}"]`);
+  if (line) line.classList.add('highlighted');
+  const info = yamlLines[idx].info;
+  if (info) {
+    document.getElementById('yamlInfoTitle').textContent = info.title;
+    document.getElementById('yamlInfoBody').innerHTML = info.body;
+    document.getElementById('yamlInfoHint').innerHTML = info.hint || '';
+    document.getElementById('yamlInfoHint').style.display = info.hint ? 'block' : 'none';
+  }
+}
+
+renderYaml();
+
+// ==================== TRIGGERS ====================
+const triggers = [
+  { icon: '📤', name: 'push', desc: '代码推送时触发', detail: { title: 'push 事件', body: '当代码被推送到仓库时触发。最常用的 CI 触发器，支持分支和路径过滤。', yaml: 'on:\n  push:\n    branches: [main, develop]\n    paths:\n      - \'src/**\'\n      - \'!docs/**\'' }},
+  { icon: '🔀', name: 'pull_request', desc: 'PR 创建/更新时触发', detail: { title: 'pull_request 事件', body: '当 PR 被创建、同步（新 commit push）或重新打开时触发。运行在 base 分支上，对 Secrets 有只读限制（来自 fork 的 PR）。', yaml: 'on:\n  pull_request:\n    branches: [main]\n    types: [opened, synchronize, reopened]' }},
+  { icon: '🖱️', name: 'workflow_dispatch', desc: '手动触发', detail: { title: 'workflow_dispatch 事件', body: '允许从 GitHub UI 或 API 手动触发工作流。可以定义输入参数（inputs），在 UI 中填写后运行。非常适合手动部署、调试等场景。', yaml: 'on:\n  workflow_dispatch:\n    inputs:\n      environment:\n        description: \'Deploy environment\'\n        required: true\n        default: \'staging\'\n        type: choice\n        options: [staging, production]' }},
+  { icon: '⏰', name: 'schedule', desc: '定时触发（Cron）', detail: { title: 'schedule 事件', body: '使用 POSIX cron 语法定时触发。适合夜间构建、依赖更新检查、定期报告等。注意：GitHub 使用 UTC 时间，高负载时段可能有延迟。', yaml: 'on:\n  schedule:\n    - cron: \'0 2 * * 1-5\'  # 工作日 UTC 2:00\n    - cron: \'30 8 1 * *\'   # 每月 1 号' }},
+  { icon: '🏷️', name: 'release', desc: 'Release 创建/编辑时', detail: { title: 'release 事件', body: '当 Release 被创建、编辑、发布时触发。常用于自动发布 npm 包、构建 Docker 镜像、部署文档等。', yaml: 'on:\n  release:\n    types: [published, created]' }},
+  { icon: '📋', name: 'issues', desc: 'Issue 操作时触发', detail: { title: 'issues 事件', body: '当 Issue 被打开、关闭、标记、分配等操作时触发。可用于自动分类 Issue、发送通知、自动添加标签等。', yaml: 'on:\n  issues:\n    types: [opened, labeled, assigned]' }},
+  { icon: '💬', name: 'issue_comment', desc: 'Issue/PR 评论时触发', detail: { title: 'issue_comment 事件', body: '当 Issue 或 PR 上发表评论时触发。可以配合 PR 实现 "/deploy" 命令、自动回复机器人等。', yaml: 'on:\n  issue_comment:\n    types: [created]\n\n# 在 step 中判断评论内容:\n# if: contains(github.event.comment.body, \'/deploy\')' }},
+  { icon: '🔔', name: 'workflow_call', desc: '被其他 Workflow 调用', detail: { title: 'workflow_call (可复用工作流)', body: '允许一个 Workflow 被其他 Workflow 作为 Job 调用，实现可复用的工作流模板。可以定义 inputs 和 secrets。', yaml: '# 被调用的 Workflow:\non:\n  workflow_call:\n    inputs:\n      node-version:\n        type: string\n        required: true\n\n# 调用方:\njobs:\n  call-ci:\n    uses: ./.github/workflows/ci.yml\n    with:\n      node-version: \'18\'' }},
+  { icon: '🪝', name: 'repository_dispatch', desc: '外部 API 触发', detail: { title: 'repository_dispatch', body: '通过 GitHub REST API 从外部系统触发工作流。适合跨仓库联动、CI 系统集成、自定义事件驱动等场景。', yaml: 'on:\n  repository_dispatch:\n    types: [deploy-request]\n\n# 通过 API 触发:\n# POST /repos/{owner}/{repo}/dispatches\n# { "event_type": "deploy-request",\n#   "client_payload": { "env": "staging" } }' }},
+];
+
+function renderTriggers() {
+  const grid = document.getElementById('triggerGrid');
+  grid.innerHTML = triggers.map((t, i) =>
+    `<div class="trigger-card" onclick="selectTrigger(${i}, this)"><div class="tc-icon">${t.icon}</div><div class="tc-name">${t.name}</div><div class="tc-desc">${t.desc}</div></div>`
+  ).join('');
+}
+
+function selectTrigger(idx, el) {
+  document.querySelectorAll('.trigger-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const t = triggers[idx];
+  const detail = document.getElementById('triggerDetail');
+  detail.innerHTML = `<h4>${t.detail.title}</h4><p>${t.detail.body}</p><div class="td-yaml">${escapeHtml(t.detail.yaml)}</div>`;
+  detail.className = 'trigger-detail show';
+}
+
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+renderTriggers();
+
+// ==================== MATRIX BUILDER ====================
+const nodeVersions = ['16', '18', '20', '22'];
+const osOptions = ['ubuntu-latest', 'windows-latest', 'macos-latest'];
+let selectedNodes = ['18', '20'];
+let selectedOs = ['ubuntu-latest'];
+
+function renderMatrixChips() {
+  const nc = document.getElementById('nodeChips');
+  const oc = document.getElementById('osChips');
+  nc.innerHTML = nodeVersions.map(v =>
+    `<button class="matrix-chip ${selectedNodes.includes(v) ? 'selected' : ''}" onclick="toggleMatrix('node','${v}',this)">Node ${v}</button>`
+  ).join('');
+  oc.innerHTML = osOptions.map(o =>
+    `<button class="matrix-chip ${selectedOs.includes(o) ? 'selected' : ''}" onclick="toggleMatrix('os','${o}',this)">${o}</button>`
+  ).join('');
+}
+
+function toggleMatrix(type, val, btn) {
+  const arr = type === 'node' ? selectedNodes : selectedOs;
+  const idx = arr.indexOf(val);
+  if (idx > -1) { if (arr.length > 1) arr.splice(idx, 1); }
+  else arr.push(val);
+  renderMatrixChips();
+  renderMatrixResults();
+}
+
+function renderMatrixResults() {
+  const grid = document.getElementById('matrixGrid');
+  const count = document.getElementById('matrixCount');
+  const yamlOut = document.getElementById('matrixYaml');
+  const combos = [];
+  selectedOs.forEach(os => selectedNodes.forEach(node => combos.push({ os, node })));
+  count.textContent = `构建组合: ${combos.length} 个并行 Job`;
+  grid.innerHTML = combos.map((c, i) =>
+    `<div class="matrix-card"><div class="mc-title">Job ${i + 1}</div><div class="mc-detail">OS: ${c.os}<br>Node: ${c.node}</div></div>`
+  ).join('');
+  const nv = selectedNodes.map(v => `'${v}'`).join(', ');
+  const ov = selectedOs.map(v => `'${v}'`).join(', ');
+  yamlOut.textContent = `strategy:\n  matrix:\n    node-version: [${nv}]\n    os: [${ov}]\n  # → ${combos.length} parallel jobs`;
+}
+
+renderMatrixChips();
+renderMatrixResults();
+
+// ==================== SECRETS ====================
+function toggleSecret(row) {
+  const val = row.querySelector('.secret-value');
+  const secret = val.dataset.secret;
+  if (val.classList.contains('revealed')) {
+    val.textContent = '••••••••••';
+    val.classList.remove('revealed');
+  } else {
+    val.textContent = secret;
+    val.classList.add('revealed');
+  }
+}
+
+// ==================== QUIZ ====================
+const quizData = [
+  { q: 'GitHub Actions 的 Workflow 文件应该放在仓库的哪个目录下？', options: ['.actions/', '.github/workflows/', 'ci/', 'workflows/'], answer: 1, explain: 'Workflow YAML 文件必须放在仓库的 <strong>.github/workflows/</strong> 目录下，GitHub 会自动扫描和加载。' },
+  { q: '以下哪个不是合法的 Step 类型？', options: ['run: 执行 Shell 命令', 'uses: 引用一个 Action', 'exec: 执行脚本文件', '两者都是合法的'], answer: 2, explain: 'Step 只有两种类型：<strong>run</strong>（执行 Shell 命令）和 <strong>uses</strong>（引用 Action）。没有 exec 类型。' },
+  { q: '多个 Job 默认的执行方式是？', options: ['按定义顺序串行执行', '并行执行', '随机顺序执行', '需要手动触发每个 Job'], answer: 1, explain: '多个 Job 默认<strong>并行执行</strong>。如需串行，需要通过 <strong>needs</strong> 声明依赖关系。' },
+  { q: '如何让 deploy Job 在 build Job 成功后才执行？', options: ['在 deploy 中使用 if: build.success', '在 deploy 中使用 needs: build', '将两个 Job 合并为一个', '使用 schedule 延迟执行'], answer: 1, explain: '<strong>needs</strong> 关键字声明 Job 间的依赖关系。<code>needs: build</code> 表示 deploy 在 build 成功后才执行。' },
+  { q: 'workflow_dispatch 的主要用途是什么？', options: ['代码推送时自动触发', '允许从 GitHub UI 或 API 手动触发工作流', '定时执行任务', '响应 Issue 评论'], answer: 1, explain: '<strong>workflow_dispatch</strong> 允许手动触发工作流，还支持定义 inputs 参数，在 GitHub UI 中填写后运行。' },
+  { q: '在 Workflow 中引用 Secret 的正确语法是？', options: ['${ secrets.NAME }', '${{ secrets.NAME }}', 'process.env.NAME', 'secrets.NAME'], answer: 1, explain: '使用 <strong>${{ secrets.NAME }}</strong> 表达式语法引用 Secret。GitHub 会自动在日志中遮蔽 Secret 的值。' },
+  { q: 'Matrix Strategy 的作用是什么？', options: ['加密敏感数据', '在一个 Job 定义中同时在多个参数组合上运行', '控制 Job 的执行顺序', '定义工作流的触发条件'], answer: 1, explain: '<strong>Matrix Strategy</strong> 让你在单个 Job 定义中指定多个参数组合（如不同 Node 版本 × 不同 OS），GitHub Actions 会为每个组合创建一个并行 Job。' },
+  { q: 'actions/checkout 这个 Action 的作用是？', options: ['检查代码质量', '将仓库代码检出到 Runner 上', '检查 Workflow 语法', '验证 Git 提交信息'], answer: 1, explain: '<strong>actions/checkout</strong> 将仓库的代码检出（clone）到 Runner 上。没有这一步，Runner 上没有你的代码文件，后续命令无法执行。' },
+  { q: '如何在多个 Job 之间传递文件？', options: ['Job 之间自动共享文件系统', '使用 Artifacts（upload/download-artifact）', '通过环境变量传递', '使用 Git commit 传递'], answer: 1, explain: '每个 Job 在独立的 Runner 上运行，不共享文件系统。需要通过 <strong>actions/upload-artifact</strong> 上传文件，然后在下游 Job 中用 <strong>actions/download-artifact</strong> 下载。' },
+  { q: 'GITHUB_TOKEN 是什么？', options: ['用户手动配置的个人访问令牌', 'GitHub 自动为每个 Workflow Run 生成的临时 Token', '仓库管理员设置的固定密钥', 'npm 的发布 Token'], answer: 1, explain: '<strong>GITHUB_TOKEN</strong> 是 GitHub 自动为每次 Workflow Run 生成的临时 Token，可用于调用 GitHub API、创建 Release 等。运行结束后自动失效。' },
+];
+
+let currentQ = 0, score = 0, answered = false;
+
+function renderQuiz() {
+  const container = document.getElementById('quizContainer');
+  const progress = document.getElementById('quizProgress');
+  let dots = '';
+  for (let i = 0; i < quizData.length; i++) dots += `<div class="quiz-dot ${i === currentQ ? 'active' : ''}" id="dot-${i}"></div>`;
+  dots += `<span class="quiz-score-label">得分: ${score} / ${quizData.length}</span>`;
+  progress.innerHTML = dots;
+  if (currentQ >= quizData.length) { container.innerHTML = ''; showResult(); return; }
+  const q = quizData[currentQ];
+  container.innerHTML = `<div class="quiz-card active">
+    <div class="q-text">Q${currentQ+1}: ${q.q}</div>
+    ${q.options.map((o,i) => `<button class="quiz-option" onclick="answerQuiz(${i})">${o}</button>`).join('')}
+    <div class="quiz-feedback" id="feedback"></div>
+    <button class="quiz-next" id="nextBtn" onclick="nextQuestion()">下一题 →</button>
+  </div>`;
+  answered = false;
+}
+
+function answerQuiz(idx) {
+  if (answered) return;
+  answered = true;
+  const q = quizData[currentQ], opts = document.querySelectorAll('.quiz-option');
+  const fb = document.getElementById('feedback'), nb = document.getElementById('nextBtn'), dot = document.getElementById('dot-' + currentQ);
+  opts.forEach((o,i) => { o.disabled = true; o.style.opacity = '0.5'; if (i === q.answer) { o.classList.add('correct'); o.style.opacity = '1'; }});
+  if (idx === q.answer) {
+    score++; opts[idx].style.opacity = '1';
+    fb.innerHTML = `✅ <strong>正确！</strong> ${q.explain}`;
+    fb.style.background = 'rgba(63,185,80,0.1)'; fb.style.color = '#3fb950'; dot.classList.add('correct');
+  } else {
+    opts[idx].classList.add('wrong'); opts[idx].style.opacity = '1';
+    fb.innerHTML = `❌ <strong>不正确。</strong> ${q.explain}`;
+    fb.style.background = 'rgba(248,81,73,0.08)'; fb.style.color = '#f85149'; dot.classList.add('wrong');
+  }
+  fb.classList.add('show'); nb.classList.add('show');
+}
+
+function nextQuestion() { currentQ++; renderQuiz(); }
+
+function showResult() {
+  const r = document.getElementById('quizResult'), pct = Math.round(score / quizData.length * 100);
+  document.getElementById('finalScore').textContent = pct + '%';
+  let msg = pct >= 90 ? '你对 GitHub Actions 的理解非常扎实！' : pct >= 70 ? '很不错！大部分概念已经掌握。' : pct >= 50 ? '还不错，回顾一下各概念的详解吧。' : '继续学习！多看 YAML 解析器和模拟器的示例。';
+  document.getElementById('scoreMsg').textContent = msg;
+  r.classList.add('show');
+}
+
+function resetQuiz() { currentQ = 0; score = 0; answered = false; document.getElementById('quizResult').classList.remove('show'); renderQuiz(); }
+
+renderQuiz();
+</script>
+
+</body>
+</html>

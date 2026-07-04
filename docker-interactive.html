@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker 入门：从镜像到容器</title>
+<style>
+:root {
+  --primary: #6366f1; --primary-light: #818cf8; --primary-bg: #eef2ff;
+  --bg: #f8fafc; --surface: #ffffff; --surface-alt: #f1f5f9;
+  --text: #0f172a; --text-muted: #475569; --text-dim: #94a3b8;
+  --success: #22c55e; --error: #ef4444; --warning: #f59e0b; --info: #3b82f6;
+  --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --radius: 10px; --transition: 0.3s ease;
+  --font: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+[data-theme="dark"] {
+  --bg: #0f172a; --surface: #1e293b; --surface-alt: #334155;
+  --text: #f1f5f9; --text-muted: #94a3b8; --text-dim: #64748b;
+  --border: #334155; --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --primary-bg: #1e1b4b;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; transition: background var(--transition), color var(--transition); }
+.container { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+@media (max-width: 640px) { .container { padding: 0 12px; } .hero h1 { font-size: 1.5rem !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+a { color: var(--primary); }
+h2 { margin-top: 48px; margin-bottom: 16px; font-size: 1.4rem; }
+h3 { margin-bottom: 8px; font-size: 1.1rem; }
+p { margin-bottom: 12px; }
+code { font-family: var(--font-mono); background: var(--surface-alt); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: var(--primary); }
+#progressBar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg, var(--primary), var(--primary-light)); z-index: 1000; transition: width 0.1s; }
+#themeToggle { position: fixed; top: 16px; right: 16px; z-index: 999; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 1.2rem; box-shadow: var(--shadow); transition: background var(--transition); }
+.sticky-nav { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 0.82rem; }
+.sticky-nav a { color: var(--text-muted); text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: all 0.2s; }
+.sticky-nav a:hover, .sticky-nav a.active { color: var(--primary); background: var(--primary-bg); }
+.hero { text-align: center; padding: 48px 20px 24px; }
+.hero h1 { font-size: 2rem; margin-bottom: 8px; }
+.hero p { color: var(--text-muted); font-size: 1.05rem; }
+.level-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.level-badge { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.badge-cognition { background: #dbeafe; color: #1e40af; }
+.badge-guided { background: #fef3c7; color: #92400e; }
+.badge-independent { background: #dcfce7; color: #166534; }
+.badge-challenge { background: #fee2e2; color: #991b1b; }
+[data-theme="dark"] .badge-cognition { background: #1e3a5f; color: #93c5fd; }
+[data-theme="dark"] .badge-guided { background: #422006; color: #fde68a; }
+[data-theme="dark"] .badge-independent { background: #052e16; color: #86efac; }
+[data-theme="dark"] .badge-challenge { background: #450a0a; color: #fca5a5; }
+.level-meta { display: flex; gap: 20px; color: var(--text-muted); font-size: 0.85rem; margin: 8px 0 12px; flex-wrap: wrap; }
+.level-task { margin-bottom: 16px; }
+.level-outcome { padding: 10px 14px; background: var(--surface-alt); border-radius: var(--radius); margin: 12px 0; font-size: 0.9rem; }
+.level-reflect { color: var(--text-muted); font-size: 0.85rem; margin-top: 16px; }
+section { padding: 20px 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+.arch-diagram { display: flex; flex-direction: column; gap: 20px; margin: 20px 0; }
+.arch-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; align-items: center; }
+.arch-box { padding: 12px 20px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); text-align: center; transition: all 0.3s; min-width: 120px; }
+.arch-box .label { font-weight: 600; font-size: 0.9rem; }
+.arch-box .sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+.arch-box.highlight { border-color: var(--primary); background: var(--primary-bg); transform: scale(1.03); }
+.arch-box:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.arch-arrow { color: var(--primary); font-size: 1.5rem; }
+@media (max-width: 640px) { .arch-arrow { transform: rotate(90deg); } }
+.concept-tree { padding-left: 0; list-style: none; }
+.concept-tree ul { padding-left: 24px; list-style: none; border-left: 2px solid var(--border); margin-left: 8px; }
+.concept-tree li { padding: 6px 0 6px 12px; position: relative; }
+.concept-tree li::before { content: ''; position: absolute; left: -2px; top: 14px; width: 12px; height: 0; border-top: 2px solid var(--border); }
+.concept-tree .node { display: inline-block; padding: 4px 12px; border-radius: 6px; background: var(--surface-alt); cursor: pointer; transition: background 0.2s; font-size: 0.88rem; }
+.concept-tree .node:hover, .concept-tree .node:focus-visible { background: var(--primary-bg); outline: none; }
+.concept-tree .node.current { background: var(--primary-bg); border: 2px solid var(--primary); }
+.explorer { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
+.explorer-code { background: #0f172a; padding: 0; }
+.explorer-info { background: var(--surface); padding: 20px; }
+.code-line { padding: 6px 14px; font-family: var(--font-mono); font-size: 0.85rem; color: #e2e8f0; cursor: pointer; transition: background 0.2s; border-left: 3px solid transparent; }
+.code-line:hover, .code-line.active { background: #1e293b; border-left-color: var(--primary); }
+.code-line:focus-visible { outline: none; background: #1e293b; border-left-color: var(--primary); }
+.explorer-info h4 { color: var(--primary); margin-bottom: 8px; }
+.explorer-info p { font-size: 0.88rem; color: var(--text-muted); }
+.explorer-info .hint { margin-top: 10px; padding: 8px 12px; background: var(--primary-bg); border-radius: 6px; font-size: 0.82rem; color: var(--text); }
+@media (max-width: 640px) { .explorer { grid-template-columns: 1fr; } }
+.cache-sim { margin: 20px 0; }
+.cache-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.cache-controls label { font-size: 0.88rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.cache-controls input[type="radio"] { cursor: pointer; }
+.cache-layers { display: flex; flex-direction: column; gap: 6px; }
+.cache-layer { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 2px solid var(--border); background: var(--surface); transition: all 0.3s; }
+.cache-layer.cached { border-color: var(--success); background: #dcfce7; }
+.cache-layer.rebuilt { border-color: var(--error); background: #fee2e2; }
+.cache-layer .layer-icon { font-size: 1.1rem; }
+.cache-layer .layer-code { font-family: var(--font-mono); font-size: 0.82rem; flex: 1; }
+.cache-layer .layer-status { font-size: 0.78rem; font-weight: 600; }
+.cache-layer.cached .layer-status { color: #166534; }
+.cache-layer.rebuilt .layer-status { color: #991b1b; }
+.cache-layer .layer-btns { display: flex; gap: 4px; }
+.cache-layer .layer-btns button { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); cursor: pointer; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+.cache-layer .layer-btns button:hover { background: var(--primary-bg); color: var(--primary); }
+.cache-layer .layer-btns button:disabled { opacity: 0.3; cursor: not-allowed; }
+[data-theme="dark"] .cache-layer.cached { background: #052e16; color: #bbf7d0; }
+[data-theme="dark"] .cache-layer.rebuilt { background: #450a0a; color: #fecaca; }
+[data-theme="dark"] .cache-layer.cached .layer-status { color: #86efac; }
+[data-theme="dark"] .cache-layer.rebuilt .layer-status { color: #fca5a5; }
+.cache-stats { margin-top: 12px; padding: 10px 14px; background: var(--surface-alt); border-radius: 8px; font-size: 0.85rem; }
+.lifecycle-flow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0; }
+.lifecycle-stage { padding: 10px 16px; border-radius: var(--radius); border: 2px solid var(--border); background: var(--surface); transition: all 0.3s; font-size: 0.85rem; cursor: pointer; }
+.lifecycle-stage.running { border-color: var(--warning); background: #fef3c7; animation: pulse 1s infinite; }
+.lifecycle-stage.success { border-color: var(--success); background: #dcfce7; }
+.lifecycle-stage.fail { border-color: var(--error); background: #fee2e2; }
+.lifecycle-arrow { color: var(--primary); font-size: 1.2rem; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+[data-theme="dark"] .lifecycle-stage.running { background: #422006; color: #fef3c7; }
+[data-theme="dark"] .lifecycle-stage.success { background: #052e16; color: #bbf7d0; }
+[data-theme="dark"] .lifecycle-stage.fail { background: #450a0a; color: #fecaca; }
+.code-editor { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin: 16px 0; }
+.editor-bar { background: #1e293b; color: #94a3b8; padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+.dots i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 3px; }
+.dots i:nth-child(1) { background: #ef4444; }
+.dots i:nth-child(2) { background: #f59e0b; }
+.dots i:nth-child(3) { background: #22c55e; }
+.code-editor textarea { width: 100%; min-height: 200px; padding: 14px; background: #0f172a; color: #e2e8f0; border: none; resize: vertical; font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.5; }
+.code-editor textarea:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+.editor-actions { display: flex; gap: 8px; padding: 8px 14px; background: #1e293b; }
+.editor-actions button { padding: 6px 16px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+.editor-actions button:hover { background: var(--primary-light); }
+.console-output { padding: 10px 14px; background: #020617; color: #94a3b8; font-family: var(--font-mono); font-size: 0.82rem; min-height: 50px; white-space: pre-wrap; }
+.accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; overflow: hidden; }
+.accordion-btn { width: 100%; padding: 12px 16px; background: var(--surface-alt); border: none; text-align: left; cursor: pointer; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; color: var(--text); font-family: var(--font); }
+.accordion-btn .arrow { transition: transform 0.3s; }
+.accordion-item.open .accordion-btn .arrow { transform: rotate(180deg); }
+.accordion-panel { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+.accordion-item.open .accordion-panel { max-height: 100vh; }
+.accordion-panel-inner { padding: 14px 16px; }
+.quiz-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+.quiz-dots { display: flex; gap: 6px; margin-bottom: 16px; }
+.quiz-dots .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+.quiz-dots .dot.active { background: var(--primary); }
+.quiz-opts { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.quiz-opts button { padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; text-align: left; font-size: 0.9rem; color: var(--text); font-family: var(--font); transition: all 0.2s; }
+.quiz-opts button:hover { border-color: var(--primary); background: var(--primary-bg); }
+.quiz-opts button:disabled { cursor: default; }
+.quiz-opts button.correct { border-color: var(--success); background: #dcfce7; }
+.quiz-opts button.wrong { border-color: var(--error); background: #fee2e2; }
+[data-theme="dark"] .quiz-opts button.correct { background: #052e16; color: #bbf7d0; }
+[data-theme="dark"] .quiz-opts button.wrong { background: #450a0a; color: #fecaca; }
+.quiz-explain { margin-top: 12px; }
+.quiz-explain button, .quiz-score button { margin-top: 10px; padding: 8px 20px; border: none; border-radius: 8px; background: var(--primary); color: #fff; cursor: pointer; font-size: 0.88rem; }
+.quiz-score { text-align: center; }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
+.flip-card { perspective: 1000px; cursor: pointer; min-height: 160px; }
+.flip-inner { position: relative; width: 100%; height: 100%; min-height: 160px; transition: transform 0.6s; transform-style: preserve-3d; }
+.flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+.flip-front, .flip-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; overflow: auto; }
+.flip-front { background: var(--primary-bg); border: 2px solid var(--primary); }
+.flip-back { transform: rotateY(180deg); background: var(--surface-alt); border: 2px solid var(--border); }
+.flip-card:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.flip-front h3 { color: var(--primary); }
+.compare-matrix { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.88rem; }
+.compare-matrix th, .compare-matrix td { padding: 10px 14px; border: 1px solid var(--border); text-align: left; }
+.compare-matrix th { background: var(--surface-alt); font-weight: 600; }
+.compare-matrix td:first-child { font-weight: 600; background: var(--surface-alt); }
+.compare-matrix .win { color: var(--success); font-weight: 600; }
+@media (max-width: 640px) { .compare-matrix { display: block; overflow-x: auto; } }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin: 20px 0; }
+.summary-card { padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+.summary-card h3 { margin-bottom: 12px; color: var(--primary); }
+.summary-card li { margin: 6px 0; color: var(--text-muted); list-style: none; padding-left: 16px; position: relative; }
+.summary-card li::before { content: '\2022'; position: absolute; left: 0; color: var(--primary); }
+.callout { padding: 14px 18px; border-radius: var(--radius); border-left: 4px solid var(--info); background: var(--surface-alt); margin: 16px 0; font-size: 0.88rem; }
+.callout.warn { border-left-color: var(--warning); }
+.callout.success { border-left-color: var(--success); }
+.hint-box { padding: 10px 14px; background: var(--surface-alt); border-radius: 8px; font-size: 0.85rem; color: var(--text-muted); margin: 8px 0; }
+.task-list { list-style: none; padding-left: 0; }
+.task-list li { padding: 6px 0 6px 24px; position: relative; font-size: 0.9rem; }
+.task-list li::before { content: '\2610'; position: absolute; left: 0; font-size: 1.1rem; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div id="progressBar"></div>
+<button id="themeToggle" aria-label="切换到深色主题">🌙</button>
+
+<header class="container hero">
+  <h1>Docker 入门：从镜像到容器</h1>
+  <p>理解镜像、容器、Dockerfile 和层缓存，从零开始交互式学习</p>
+</header>
+
+<nav class="sticky-nav" id="stickyNav">
+  <a href="#map" class="nav-link">概念地图</a>
+  <a href="#explorer" class="nav-link">Dockerfile 解析</a>
+  <a href="#cache-sim" class="nav-link">层缓存</a>
+  <a href="#lifecycle" class="nav-link">容器生命周期</a>
+  <a href="#level1" class="nav-link">Level 1</a>
+  <a href="#level2" class="nav-link">Level 2</a>
+  <a href="#level3" class="nav-link">Level 3</a>
+  <a href="#level4" class="nav-link">Level 4</a>
+  <a href="#quiz" class="nav-link">自测</a>
+  <a href="#glossary" class="nav-link">术语表</a>
+</nav>
+
+<main class="container">
+
+<section id="map">
+  <h2>Docker 架构概念图</h2>
+  <p>Docker 的核心思想很简单：把应用和它的所有依赖打包成一个可移植的单元。点击下方的框，了解每个组件的关系。</p>
+  <div class="arch-diagram" role="group" aria-label="Docker architecture diagram">
+    <div class="arch-row">
+      <div class="arch-box" tabindex="0" data-id="client" role="button" aria-label="Docker Client"><div class="label">Docker Client</div><div class="sub">docker build / run / ps</div></div>
+      <span class="arch-arrow" aria-hidden="true">→</span>
+      <div class="arch-box" tabindex="0" data-id="daemon" role="button" aria-label="Docker Daemon"><div class="label">Docker Daemon</div><div class="sub">dockerd 守护进程</div></div>
+      <span class="arch-arrow" aria-hidden="true">↔</span>
+      <div class="arch-box" tabindex="0" data-id="registry" role="button" aria-label="Registry"><div class="label">Registry</div><div class="sub">Docker Hub / 私有仓库</div></div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box" tabindex="0" data-id="dockerfile" role="button" aria-label="Dockerfile"><div class="label">Dockerfile</div><div class="sub">构建镜像的配方</div></div>
+      <span class="arch-arrow" aria-hidden="true">→</span>
+      <div class="arch-box" tabindex="0" data-id="image" role="button" aria-label="Image"><div class="label">Image (镜像)</div><div class="sub">只读模板</div></div>
+      <span class="arch-arrow" aria-hidden="true">→</span>
+      <div class="arch-box" tabindex="0" data-id="container" role="button" aria-label="Container"><div class="label">Container (容器)</div><div class="sub">运行的实例</div></div>
+    </div>
+  </div>
+  <div class="callout"><strong>核心关系：</strong> Dockerfile 是配方，镜像是按配方构建的只读模板，容器是从镜像启动的运行实例。一个镜像可以创建无数个容器，就像一个类可以 new 出无数个对象。</div>
+  <h3>关键术语树</h3>
+  <ul class="concept-tree" role="tree">
+    <li role="treeitem"><span class="node" data-id="t-image" tabindex="0">Image 镜像</span>
+      <ul role="group">
+        <li role="treeitem"><span class="node" data-id="t-layer" tabindex="0">Layer 层</span></li>
+        <li role="treeitem"><span class="node" data-id="t-tag" tabindex="0">Tag 标签</span></li>
+        <li role="treeitem"><span class="node" data-id="t-dockerfile" tabindex="0">Dockerfile</span></li>
+      </ul>
+    </li>
+    <li role="treeitem"><span class="node" data-id="t-container" tabindex="0">Container 容器</span>
+      <ul role="group">
+        <li role="treeitem"><span class="node" data-id="t-run" tabindex="0">docker run</span></li>
+        <li role="treeitem"><span class="node" data-id="t-volume" tabindex="0">Volume 卷</span></li>
+        <li role="treeitem"><span class="node" data-id="t-port" tabindex="0">Port 端口映射</span></li>
+      </ul>
+    </li>
+    <li role="treeitem"><span class="node" data-id="t-registry" tabindex="0">Registry 仓库</span>
+      <ul role="group">
+        <li role="treeitem"><span class="node" data-id="t-hub" tabindex="0">Docker Hub</span></li>
+        <li role="treeitem"><span class="node" data-id="t-pull" tabindex="0">docker pull</span></li>
+        <li role="treeitem"><span class="node" data-id="t-push" tabindex="0">docker push</span></li>
+      </ul>
+    </li>
+  </ul>
+</section>
+
+<section id="explorer">
+  <h2>Dockerfile 逐行解析</h2>
+  <p>这是一个典型的 Python Web 应用 Dockerfile。点击左侧的每一行，右侧会显示详细解释。</p>
+  <div class="explorer">
+    <div class="explorer-code" id="codePane" role="tablist" aria-label="Dockerfile lines"></div>
+    <div class="explorer-info" id="infoPane" role="tabpanel" aria-live="polite">
+      <h4>点击左侧代码行查看解释</h4>
+      <p>每一行 Dockerfile 指令都会生成一个镜像层，理解每个指令的含义是写好 Dockerfile 的基础。</p>
+    </div>
+  </div>
+</section>
+
+<section id="cache-sim">
+  <h2>层缓存模拟器</h2>
+  <p>Docker 构建时，每个指令产生一个层。如果输入没变，层会被缓存复用。一旦某层失效，它后面所有层都得重建。试试调整顺序，看看缓存如何变化。</p>
+  <div class="cache-sim">
+    <div class="cache-controls">
+      <span style="font-size:0.88rem;color:var(--text-muted)">修改了什么文件？</span>
+      <label><input type="radio" name="changeType" value="none" checked> 没有变化</label>
+      <label><input type="radio" name="changeType" value="source"> 源代码 (app.py)</label>
+      <label><input type="radio" name="changeType" value="requirements"> requirements.txt</label>
+    </div>
+    <div class="cache-layers" id="cacheLayers"></div>
+    <div class="cache-stats" id="cacheStats"></div>
+  </div>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>为什么顺序很重要？（点击展开）</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner">
+      <p>Docker 构建从上到下依次执行指令。如果第 N 层的输入发生了变化，那么第 N 层及其后面所有层都会失效，需要重新构建。</p>
+      <p>试试这样：把 <code>COPY . .</code> 移到 <code>RUN pip install</code> 前面，然后选择"源代码变化"。你会发现 <code>pip install</code> 层也变红了——意味着每次改代码都要重新安装依赖，非常慢。</p>
+      <p>所以原则是：<strong>先复制不常变的文件（如 requirements.txt），再复制常变的源代码</strong>。</p>
+    </div></div>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <h2>容器生命周期</h2>
+  <p>点击 Run 观察容器从构建到运行到清理的全过程。每个阶段对应一条 docker 命令。</p>
+  <button onclick="runLifecycle()" id="lifecycleBtn" style="padding:8px 20px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:0.88rem;margin-bottom:16px;">▶ 模拟运行</button>
+  <div class="lifecycle-flow" id="lifecycleFlow">
+    <div class="lifecycle-stage" data-name="docker build" data-cmd="docker build -t myapp .">docker build</div>
+    <span class="lifecycle-arrow">→</span>
+    <div class="lifecycle-stage" data-name="docker run" data-cmd="docker run -d -p 5000:5000 myapp">docker run</div>
+    <span class="lifecycle-arrow">→</span>
+    <div class="lifecycle-stage" data-name="docker exec" data-cmd="docker exec -it <id> bash">docker exec</div>
+    <span class="lifecycle-arrow">→</span>
+    <div class="lifecycle-stage" data-name="docker stop" data-cmd="docker stop <id>">docker stop</div>
+    <span class="lifecycle-arrow">→</span>
+    <div class="lifecycle-stage" data-name="docker rm" data-cmd="docker rm <id>">docker rm</div>
+  </div>
+  <div class="console-output" id="lifecycleLog" aria-live="polite" style="min-height:60px;"></div>
+  <div class="callout"><strong>关键区别：</strong> <code>docker stop</code> 只是停止容器，容器仍然存在，可以用 <code>docker start</code> 重新启动。而 <code>docker rm</code> 才会真正删除容器。镜像在整个过程中不会被删除，需要单独用 <code>docker rmi</code>。</div>
+</section>
+
+<section id="level1">
+  <div class="level-header"><h2>Level 1 — 认知与探索</h2><span class="level-badge badge-cognition">Recognition</span></div>
+  <div class="level-meta"><span>⏱ ~10 min</span><span>🎯 阅读 Dockerfile，理解每条指令的作用</span></div>
+  <p class="level-task">你已经在上方看到了一个完整的 Dockerfile。现在来检验一下理解：下面的命令匹配练习中，将左侧的 Dockerfile 指令与右侧的描述正确匹配。使用上下按钮调整顺序。</p>
+  <h3>指令匹配练习</h3>
+  <p style="font-size:0.88rem;color:var(--text-muted)">Q："设置容器内的工作目录" 对应哪条指令？点击下方按钮查看答案。</p>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>查看答案</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner">
+      <p><code>WORKDIR /app</code> — 设置后续指令的工作目录。如果目录不存在会自动创建。</p>
+      <p style="margin-top:8px">其他指令对应：</p>
+      <p style="font-size:0.85rem"><code>FROM</code> = 选择基础镜像<br><code>COPY</code> = 复制文件到容器<br><code>RUN</code> = 构建时执行命令<br><code>EXPOSE</code> = 声明监听端口<br><code>CMD</code> = 容器启动时执行的命令</p>
+    </div></div>
+  </div>
+  <div class="level-outcome"><strong>验收标准：</strong> 能说出 FROM、COPY、RUN、CMD 各自的作用，并理解"镜像是只读模板，容器是运行实例"这一关系。</div>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>提示</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner"><p>回到上方的 Dockerfile 解析区，点击每一行复习一重。注意指令的执行顺序：FROM 永远在第一行，CMD 通常在最后。</p></div></div>
+  </div>
+  <p class="level-reflect"><em>为什么重要：</em> Dockerfile 就是一个构建脚本，只是它构建的产物是可移植的镜像。理解每条指令的含义后，你就能读懂任何 Dockerfile。</p>
+</section>
+
+<section id="level2">
+  <div class="level-header"><h2>Level 2 — 补全 Dockerfile</h2><span class="level-badge badge-guided">Guided Practice</span></div>
+  <div class="level-meta"><span>⏱ ~15 min</span><span>🎯 根据提示填写缺失的 Dockerfile 指令</span></div>
+  <p class="level-task">一个 Node.js Express 应用需要容器化。Dockerfile 中有 5 处 TODO，请补全。点击 Check 检查是否正确。</p>
+  <div class="code-editor">
+    <div class="editor-bar"><span class="dots"><i></i><i></i><i></i></span><span>Dockerfile</span></div>
+    <textarea id="codeL2" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"># Level 2: 补全这个 Node.js 应用的 Dockerfile
+# 目标：容器化 Express 应用，监听 3000 端口
+
+# TODO 1: 使用 node:20-slim 作为基础镜像
+
+# TODO 2: 设置工作目录 /app
+
+# TODO 3: 先复制 package.json 和 package-lock.json
+
+# TODO 4: 安装依赖
+
+# TODO 5: 复制所有源代码
+
+# TODO 6: 声明 3000 端口
+
+# TODO 7: 启动命令 npm start</textarea>
+    <div class="editor-actions">
+      <button onclick="checkL2()">Check</button>
+      <button onclick="document.getElementById('codeL2').value=document.getElementById('codeL2').dataset.original" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border);">Reset</button>
+    </div>
+    <div class="console-output" id="consoleL2" aria-live="polite"></div>
+  </div>
+  <div class="level-outcome"><strong>验收标准：</strong> 7 项检查全部通过（FROM、WORKDIR、COPY package、RUN npm install、COPY、EXPOSE、CMD）。</div>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>提示</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner">
+      <p>参考上方解析的 Python Dockerfile，结构类似：</p>
+      <p style="font-size:0.82rem;font-family:var(--font-mono);background:var(--surface-alt);padding:10px;border-radius:6px;margin-top:6px">FROM node:20-slim<br>WORKDIR /app<br>COPY package*.json ./<br>RUN npm install<br>COPY . .<br>EXPOSE 3000<br>CMD ["npm", "start"]</p>
+      <p style="margin-top:8px">注意：先复制 package.json 再安装依赖，最后才复制源代码——这是为了利用层缓存。</p>
+    </div></div>
+  </div>
+  <p class="level-reflect"><em>为什么重要：</em> 手写 Dockerfile 是容器化的第一步。掌握这 7 条指令后，90% 的应用都可以用这个模板容器化。</p>
+</section>
+
+<section id="level3">
+  <div class="level-header"><h2>Level 3 — 独立编写</h2><span class="level-badge badge-independent">Independent</span></div>
+  <div class="level-meta"><span>⏱ ~20 min</span><span>🎯 从零写一个完整的 Dockerfile</span></div>
+  <p class="level-task">从零写一个 Python Flask 应用的 Dockerfile。要求：</p>
+  <ul class="task-list">
+    <li>基础镜像用 python:3.12-slim</li>
+    <li>工作目录 /app</li>
+    <li>先复制 requirements.txt 并安装依赖（用 --no-cache-dir 参数）</li>
+    <li>复制全部源代码</li>
+    <li>声明 5000 端口</li>
+    <li>启动命令为 python app.py（用 JSON 数组形式）</li>
+    <li>添加一条注释说明使用 slim 的原因</li>
+  </ul>
+  <div class="code-editor">
+    <div class="editor-bar"><span class="dots"><i></i><i></i><i></i></span><span>Dockerfile</span></div>
+    <textarea id="codeL3" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="# 从零开始写你的 Dockerfile..."></textarea>
+    <div class="editor-actions"><button onclick="checkL3()">Check</button></div>
+    <div class="console-output" id="consoleL3" aria-live="polite"></div>
+  </div>
+  <div class="level-outcome"><strong>验收标准：</strong> 8 项检查全部通过，包括指令顺序正确、使用了 --no-cache-dir、CMD 用了 JSON 数组形式、包含注释。</div>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>提示</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner">
+      <p>CMD 的 JSON 数组形式：<code>CMD ["python", "app.py"]</code>。这比 shell 形式 <code>CMD python app.py</code> 更推荐，因为它不经过 shell 处理，信号可以直接传递给进程。</p>
+      <p style="margin-top:8px"><code>--no-cache-dir</code> 告诉 pip 不要在容器内保存缓存，可以减小镜像体积。</p>
+    </div></div>
+  </div>
+  <p class="level-reflect"><em>为什么重要：</em> 从零编写是巩固理解的最佳方式。如果你能独立完成这个任务，说明你已经掌握了 Dockerfile 的核心结构。</p>
+</section>
+
+<section id="level4">
+  <div class="level-header"><h2>Level 4 — 优化挑战</h2><span class="level-badge badge-challenge">Challenge</span></div>
+  <div class="level-meta"><span>⏱ ~25 min</span><span>🎯 优化 Dockerfile，最大化层缓存命中率</span></div>
+  <p class="level-task">下面是一个"笨拙"的 Dockerfile。它能跑但层缓存很差。请用上方的层缓存模拟器测试你的优化方案，记录你的思考过程。</p>
+  <div class="callout warn">
+    <strong>待优化的 Dockerfile：</strong>
+    <pre style="margin-top:8px;font-family:var(--font-mono);font-size:0.82rem;white-space:pre-wrap">FROM python:3.12
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+EXPOSE 5000
+CMD ["python", "app.py"]</pre>
+  </div>
+  <p style="font-size:0.9rem">问题：</p>
+  <ul class="task-list">
+    <li>这个 Dockerfile 有哪些问题？（至少找出 3 个）</li>
+    <li>如何重写以最大化缓存命中？</li>
+    <li>在层缓存模拟器中验证你的方案：选择"源代码变化"，优化后应该只有 2 层重建，而不是 4 层。</li>
+  </ul>
+  <div class="code-editor">
+    <div class="editor-bar"><span class="dots"><i></i><i></i><i></i></span><span>优化后的 Dockerfile</span></div>
+    <textarea id="codeL4" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="# 写你优化后的 Dockerfile..."></textarea>
+    <div class="editor-actions"><button onclick="checkL4()">Check</button></div>
+    <div class="console-output" id="consoleL4" aria-live="polite"></div>
+  </div>
+  <div class="level-outcome"><strong>验收标准：</strong> 优化后的 Dockerfile 应将 COPY requirements.txt 和 RUN pip install 放在 COPY . . 之前，使用 slim 基础镜像，添加 --no-cache-dir。在模拟器中"源代码变化"时应只有 2 层重建。</div>
+  <div class="accordion-item">
+    <button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>参考答案</span><span class="arrow">▼</span></button>
+    <div class="accordion-panel"><div class="accordion-panel-inner">
+      <p>原始 Dockerfile 的 3 个问题：</p>
+      <p style="font-size:0.85rem;margin-left:12px">1. 使用了 python:3.12 完整镜像（~900MB）而非 slim（~45MB）<br>2. <code>COPY . .</code> 在 <code>pip install</code> 之前，每次源代码变化都会重新安装依赖<br>3. pip install 没有 <code>--no-cache-dir</code>，会在镜像中留下缓存</p>
+      <p style="margin-top:10px">优化后：</p>
+      <pre style="font-family:var(--font-mono);font-size:0.82rem;background:var(--surface-alt);padding:10px;border-radius:6px;white-space:pre-wrap"># 使用 slim 减小体积
+FROM python:3.12-slim
+WORKDIR /app
+# 先复制依赖文件，利用层缓存
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+# 再复制源代码
+COPY . .
+EXPOSE 5000
+CMD ["python", "app.py"]</pre>
+    </div></div>
+  </div>
+  <p class="level-reflect"><em>为什么重要：</em> 在实际工程中，层缓存的优化可以把构建时间从几分钟缩短到几秒。这个"先复制依赖再复制源码"的模式适用于 Node.js、Go、Java 等所有语言。</p>
+</section>
+
+<section id="quiz">
+  <h2>自测</h2>
+  <p>检验你对 Docker 核心概念的理解。共 8 题，每题选完后查看解析。</p>
+  <div class="quiz-box" id="quizBox"></div>
+</section>
+
+<section id="vs-vm">
+  <h2>容器 vs 虚拟机</h2>
+  <p>经常有人问"容器和虚拟机有什么区别"。这是理解 Docker 价值的关键。</p>
+  <table class="compare-matrix">
+    <thead><tr><th></th><th>虚拟机 (VM)</th><th>Docker 容器</th></tr></thead>
+    <tbody>
+      <tr><td>隔离级别</td><td>硬件级（虚拟 CPU/内存）</td><td>进程级（共享内核）</td></tr>
+      <tr><td>启动时间</td><td>分钟级</td><td class="win">秒级</td></tr>
+      <tr><td>资源占用</td><td>每个 VM GB 级内存</td><td class="win">每个容器 MB 级</td></tr>
+      <tr><td>包含内核</td><td class="win">是（完整 OS）</td><td>否（共享宿主内核）</td></tr>
+      <tr><td>密度</td><td>低（数十个）</td><td class="win">高（数百个）</td></tr>
+      <tr><td>安全隔离</td><td class="win">强（硬件隔离）</td><td>较弱（内核共享）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><strong>类比：</strong> VM 像把一栋楼拆成多个独立公寓，每户有自己的地基和管线。容器像一栋楼里的多个办公室，共享地基和管线但有自己的门和墙。</div>
+</section>
+
+<section id="glossary">
+  <h2>术语表</h2>
+  <p>点击卡片翻转查看定义。</p>
+  <div class="card-grid">
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Image 镜像 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Image 镜像</h3></div><div class="flip-back"><p>只读的模板，包含运行应用所需的所有文件和配置。由 Dockerfile 构建，由多个层组成。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Container 容器 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Container 容器</h3></div><div class="flip-back"><p>镜像的运行实例。可以启动、停止、删除。一个镜像可以创建无数个容器。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Layer 层 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Layer 层</h3></div><div class="flip-back"><p>Dockerfile 中每条指令产生的只读文件系统层。相同的层会被缓存复用，加速构建。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Dockerfile — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Dockerfile</h3></div><div class="flip-back"><p>构建镜像的纯文本配方。从 FROM 开始，包含 COPY、RUN、CMD 等指令。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Volume 卷 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Volume 卷</h3></div><div class="flip-back"><p>独立于容器生命周期的持久化存储。容器删除后数据不丢失。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Registry 仓库 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Registry 仓库</h3></div><div class="flip-back"><p>存储和分发镜像的服务。Docker Hub 是官方公共仓库，也可以自建私有仓库。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Tag 标签 — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Tag 标签</h3></div><div class="flip-back"><p>镜像的版本号。如 python:3.12-slim 中的 3.12-slim 就是 tag。不指定时默认 latest。</p></div></div></div>
+    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Build Context — 点击翻转查看定义"><div class="flip-inner"><div class="flip-front"><h3>Build Context</h3></div><div class="flip-back"><p>docker build 时传入的路径。Docker 会将该目录下所有文件发送给 daemon，用于 COPY 指令。</p></div></div></div>
+  </div>
+</section>
+
+<section id="summary" aria-label="Summary and next steps">
+  <h2>总结与下一步</h2>
+  <div class="summary-grid">
+    <div class="summary-card"><h3>核心要点</h3><ul>
+      <li>Dockerfile 是配方，镜像是模板，容器是运行实例</li>
+      <li>每条 Dockerfile 指令产生一个层</li>
+      <li>层缓存：输入不变则复用，变化则重建该层及其后所有层</li>
+      <li>先复制依赖文件，再复制源代码，最大化缓存</li>
+      <li>用 slim/alpine 基础镜像减小体积</li>
+      <li>CMD 用 JSON 数组形式优于 shell 形式</li>
+    </ul></div>
+    <div class="summary-card"><h3>下一步学习</h3><ul>
+      <li>Docker Compose — 定义和运行多容器应用</li>
+      <li>Docker Volumes — 持久化数据存储的深入理解</li>
+      <li>Docker Networking — 容器间通信和端口映射</li>
+      <li>多阶段构建 (multi-stage build) — 进一步减小镜像</li>
+      <li>Docker Hub — 发布和共享镜像</li>
+      <li>.dockerignore — 排除不需要的文件</li>
+    </ul></div>
+    <div class="summary-card"><h3>实践建议</h3><ul>
+      <li>安装 Docker Desktop，跑通今天的例子</li>
+      <li>用你自己的项目写一个 Dockerfile</li>
+      <li>对比 python:3.12 和 python:3.12-slim 的镜像大小</li>
+      <li>尝试 docker exec -it 进入容器内部查看文件</li>
+      <li>结合 Docker Compose 运行一个 Web + DB 的完整栈</li>
+    </ul></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+var navSections = ['map','explorer','cache-sim','lifecycle','level1','level2','level3','level4','quiz','glossary'];
+var ticking = false;
+window.addEventListener('scroll', function() {
+  if (ticking) return;
+  requestAnimationFrame(function() {
+    var h = document.documentElement;
+    var bar = document.getElementById('progressBar');
+    if (bar) { var max = h.scrollHeight - h.clientHeight; bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%'; }
+    var active = 0;
+    navSections.forEach(function(id, i) { var el = document.getElementById(id); if (el && el.getBoundingClientRect().top < 200) active = i; });
+    document.querySelectorAll('.nav-link').forEach(function(l, i) { l.classList.toggle('active', i === active); });
+    ticking = false;
+  });
+  ticking = true;
+});
+
+function initTheme() {
+  var btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = prefersDark ? 'dark' : '';
+  btn.textContent = prefersDark ? '☀️' : '🌙';
+  btn.setAttribute('aria-label', prefersDark ? '切换到浅色主题' : '切换到深色主题');
+  btn.addEventListener('click', function() {
+    var isDark = document.documentElement.dataset.theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? '' : 'dark';
+    btn.textContent = isDark ? '🌙' : '☀️';
+    btn.setAttribute('aria-label', isDark ? '切换到深色主题' : '切换到浅色主题');
+  });
+}
+initTheme();
+
+function toggleAccordion(btn) {
+  var item = btn.closest('.accordion-item');
+  var isOpen = item.classList.toggle('open');
+  btn.setAttribute('aria-expanded', String(isOpen));
+}
+
+var archRelations = { client:['daemon'], daemon:['client','registry','image','container'], registry:['daemon'], dockerfile:['image'], image:['dockerfile','daemon','container'], container:['image','daemon'] };
+function initArchHighlight() {
+  var container = document.querySelector('.arch-diagram');
+  if (!container) return;
+  var clearAll = function() { container.querySelectorAll('.arch-box').forEach(function(n) { n.classList.remove('highlight'); }); };
+  container.querySelectorAll('.arch-box').forEach(function(node) {
+    var id = node.dataset.id;
+    var handler = function() {
+      clearAll();
+      node.classList.add('highlight');
+      (archRelations[id] || []).forEach(function(relId) { var related = container.querySelector('[data-id="' + relId + '"]'); if (related) related.classList.add('highlight'); });
+    };
+    node.addEventListener('mouseenter', handler);
+    node.addEventListener('focus', handler);
+    node.addEventListener('blur', function() { setTimeout(function() { if (!container.contains(document.activeElement) || !document.activeElement.classList.contains('arch-box')) clearAll(); }, 10); });
+    node.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
+  });
+  container.addEventListener('mouseleave', clearAll);
+}
+initArchHighlight();
+
+document.querySelectorAll('.concept-tree .node').forEach(function(node) {
+  node.addEventListener('click', function() { document.querySelectorAll('.concept-tree .node.current').forEach(function(n) { n.classList.remove('current'); }); node.classList.add('current'); });
+  node.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); node.click(); } });
+});
+
+var dockerfileLines = [
+  { code: 'FROM python:3.12-slim', info: { title: 'FROM — 基础镜像', body: '指定构建的起点。python:3.12-slim 是官方提供的精简版 Python 镜像，只包含 Python 运行时和最小依赖，约 45MB。对比之下，python:3.12 完整版约 900MB。', hint: '原则：用 slim/alpine 版本减小镜像体积。FROM 必须是第一条指令。' }},
+  { code: 'WORKDIR /app', info: { title: 'WORKDIR — 工作目录', body: '设置容器内的工作目录。后续的 COPY、RUN、CMD 都会在这个目录下执行。如果目录不存在会自动创建。', hint: '不写 WORKDIR 的话，所有文件会复制到根目录 / ，不利于管理。' }},
+  { code: 'COPY requirements.txt .', info: { title: 'COPY — 复制依赖文件', body: '只复制 requirements.txt 到工作目录。这一步看似多余，但它是层缓存优化的关键：先复制依赖文件，再复制源代码，这样源代码变化不会让 pip install 失效。', hint: '如果这里写 COPY . . 会怎样？每次源代码变化，这个层就失效，后面的 pip install 也得重跑。' }},
+  { code: 'RUN pip install --no-cache-dir -r requirements.txt', info: { title: 'RUN — 安装依赖', body: '在构建时执行 pip install。--no-cache-dir 禁止 pip 在容器内保存缓存，可以减小镜像体积。这个层会被缓存，只要 requirements.txt 不变，后续构建就不会重新安装。', hint: 'RUN 在构建时执行，CMD 在容器启动时执行。这是两者的关键区别。' }},
+  { code: 'COPY . .', info: { title: 'COPY — 复制源代码', body: '将构建上下文中的所有文件复制到容器的 /app 目录。第一个 . 是宿主路径，第二个 . 是容器内路径（即 WORKDIR）。', hint: '用 .dockerignore 排除 node_modules、.git 等不需要的文件，避免它们被发送给 daemon。' }},
+  { code: 'EXPOSE 5000', info: { title: 'EXPOSE — 声明端口', body: '文档性声明，告诉使用者这个容器监听 5000 端口。它本身不会真正打开端口——需要在 docker run 时用 -p 参数映射端口。', hint: 'EXPOSE 是文档，-p 是实际映射。不写 EXPOSE 也能用 -p 映射端口。' }},
+  { code: 'CMD ["python", "app.py"]', info: { title: 'CMD — 启动命令', body: '容器启动时默认执行的命令。JSON 数组形式不经过 shell 处理，信号可以直接传递给进程。一个 Dockerfile 只能有一个 CMD。', hint: 'CMD vs ENTRYPOINT：CMD 可以被 docker run 后的参数覆盖，ENTRYPOINT 不会。初学者用 CMD 就够了。' }}
+];
+function renderExplorer() {
+  var codePane = document.getElementById('codePane');
+  var infoPane = document.getElementById('infoPane');
+  codePane.innerHTML = '';
+  dockerfileLines.forEach(function(l, i) {
+    var div = document.createElement('div');
+    div.className = 'code-line';
+    div.setAttribute('tabindex', '0');
+    div.setAttribute('role', 'tab');
+    div.setAttribute('aria-selected', 'false');
+    div.textContent = l.code;
+    div.addEventListener('click', function() { showExplorerInfo(i, codePane, infoPane); });
+    div.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showExplorerInfo(i, codePane, infoPane); } });
+    codePane.appendChild(div);
+  });
+  showExplorerInfo(0, codePane, infoPane);
+}
+function showExplorerInfo(i, codePane, infoPane) {
+  codePane.querySelectorAll('.code-line').forEach(function(el, j) { el.classList.toggle('active', j === i); el.setAttribute('aria-selected', String(j === i)); });
+  var info = dockerfileLines[i].info;
+  infoPane.innerHTML = '';
+  var h4 = document.createElement('h4'); h4.textContent = info.title; infoPane.appendChild(h4);
+  var p = document.createElement('p'); p.textContent = info.body; infoPane.appendChild(p);
+  if (info.hint) { var hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = '💡 ' + info.hint; infoPane.appendChild(hint); }
+}
+renderExplorer();
+
+var cacheInstructions = [
+  { code: 'FROM python:3.12-slim', copiesAllSource: false, copiesRequirements: false },
+  { code: 'WORKDIR /app', copiesAllSource: false, copiesRequirements: false },
+  { code: 'COPY requirements.txt .', copiesAllSource: false, copiesRequirements: true },
+  { code: 'RUN pip install --no-cache-dir -r requirements.txt', copiesAllSource: false, copiesRequirements: false },
+  { code: 'COPY . .', copiesAllSource: true, copiesRequirements: false },
+  { code: 'CMD ["python", "app.py"]', copiesAllSource: false, copiesRequirements: false }
+];
+var cacheOrder = cacheInstructions.slice();
+function renderCacheSim() {
+  var container = document.getElementById('cacheLayers');
+  var stats = document.getElementById('cacheStats');
+  var changeType = document.querySelector('input[name="changeType"]:checked').value;
+  container.innerHTML = '';
+  var firstInvalid = -1;
+  for (var i = 0; i < cacheOrder.length; i++) {
+    var instr = cacheOrder[i];
+    var invalid = false;
+    if (firstInvalid >= 0) { invalid = true; }
+    else if (changeType === 'source' && instr.copiesAllSource) { invalid = true; }
+    else if (changeType === 'requirements' && (instr.copiesAllSource || instr.copiesRequirements)) { invalid = true; }
+    if (invalid && firstInvalid < 0) firstInvalid = i;
+    instr._cached = !invalid;
+  }
+  cacheOrder.forEach(function(instr, i) {
+    var div = document.createElement('div');
+    div.className = 'cache-layer ' + (instr._cached ? 'cached' : 'rebuilt');
+    var icon = document.createElement('span'); icon.className = 'layer-icon'; icon.textContent = instr._cached ? '✅' : '❌';
+    var code = document.createElement('span'); code.className = 'layer-code'; code.textContent = instr.code;
+    var status = document.createElement('span'); status.className = 'layer-status'; status.textContent = instr._cached ? '缓存命中' : '重建';
+    var btns = document.createElement('div'); btns.className = 'layer-btns';
+    var upBtn = document.createElement('button'); upBtn.textContent = '↑'; upBtn.setAttribute('aria-label', '上移'); upBtn.disabled = i === 0; upBtn.addEventListener('click', function() { moveCacheLayer(i, -1); });
+    var downBtn = document.createElement('button'); downBtn.textContent = '↓'; downBtn.setAttribute('aria-label', '下移'); downBtn.disabled = i === cacheOrder.length - 1; downBtn.addEventListener('click', function() { moveCacheLayer(i, 1); });
+    btns.appendChild(upBtn); btns.appendChild(downBtn);
+    div.appendChild(icon); div.appendChild(code); div.appendChild(status); div.appendChild(btns);
+    container.appendChild(div);
+  });
+  var cached = cacheOrder.filter(function(l) { return l._cached; }).length;
+  var rebuilt = cacheOrder.length - cached;
+  stats.innerHTML = '缓存命中: <strong style="color:var(--success)">' + cached + '</strong> 层，重建: <strong style="color:var(--error)">' + rebuilt + '</strong> 层。' + (rebuilt === 0 ? ' 构建极快！' : ' 需要重新执行 ' + rebuilt + ' 个指令。');
+}
+function moveCacheLayer(index, dir) {
+  var target = index + dir;
+  if (target < 0 || target >= cacheOrder.length) return;
+  var tmp = cacheOrder[index]; cacheOrder[index] = cacheOrder[target]; cacheOrder[target] = tmp;
+  renderCacheSim();
+}
+document.querySelectorAll('input[name="changeType"]').forEach(function(radio) { radio.addEventListener('change', renderCacheSim); });
+renderCacheSim();
+
+var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+async function runLifecycle() {
+  var btn = document.getElementById('lifecycleBtn');
+  var log = document.getElementById('lifecycleLog');
+  var stages = document.querySelectorAll('#lifecycleFlow .lifecycle-stage');
+  btn.disabled = true; log.textContent = '';
+  stages.forEach(function(s) { s.className = 'lifecycle-stage'; });
+  var t0 = performance.now();
+  try {
+    for (var i = 0; i < stages.length; i++) {
+      var stage = stages[i];
+      stage.className = 'lifecycle-stage running';
+      var name = stage.dataset.name;
+      var cmd = stage.dataset.cmd;
+      await sleep(700 + Math.random() * 300);
+      var elapsed = ((performance.now() - t0) / 1000).toFixed(1);
+      stage.className = 'lifecycle-stage success';
+      log.textContent += '[' + elapsed + 's] $ ' + cmd + '\n  ✅ ' + name + ' 完成\n';
+      log.scrollTop = log.scrollHeight;
+      await sleep(300);
+    }
+    log.textContent += '\n全部完成！容器已被删除，镜像仍然存在。';
+  } finally { btn.disabled = false; }
+}
+
+document.getElementById('codeL2').dataset.original = document.getElementById('codeL2').value;
+function checkL2() {
+  var val = document.getElementById('codeL2').value;
+  var out = document.getElementById('consoleL2');
+  var tests = [
+    { name: 'FROM node:20-slim', re: /from\s+node:20-slim/i },
+    { name: 'WORKDIR /app', re: /workdir\s+\/app/i },
+    { name: 'COPY package*.json', re: /copy\s+package\*?\.json/i },
+    { name: 'RUN npm install', re: /run\s+npm\s+install/i },
+    { name: 'COPY . .', re: /copy\s+\.\s+\./i },
+    { name: 'EXPOSE 3000', re: /expose\s+3000/i },
+    { name: 'CMD ["npm", "start"]', re: /cmd\s*\[\s*["']npm["']\s*,\s*["']start["']\s*\]/i }
+  ];
+  var pass = 0;
+  out.textContent = tests.map(function(t) { var ok = t.re.test(val); if (ok) pass++; return (ok ? '✅ ' : '❌ ') + t.name; }).join('\n');
+  out.textContent += '\n\n' + pass + '/' + tests.length + ' passed';
+  if (pass === tests.length) out.textContent += '\n\n🎉 全部通过！这就是一个完整的 Node.js Dockerfile。';
+}
+
+function checkL3() {
+  var val = document.getElementById('codeL3').value;
+  var out = document.getElementById('consoleL3');
+  var tests = [
+    { name: 'FROM python:3.12-slim', re: /from\s+python:3\.12-slim/i },
+    { name: 'WORKDIR /app', re: /workdir\s+\/app/i },
+    { name: 'COPY requirements.txt before RUN', multiline: true },
+    { name: 'RUN pip install --no-cache-dir', re: /run\s+pip\s+install\s+--no-cache-dir/i },
+    { name: 'COPY . . (source code)', re: /copy\s+\.\s+\./i },
+    { name: 'EXPOSE 5000', re: /expose\s+5000/i },
+    { name: 'CMD JSON array form', re: /cmd\s*\[\s*["']python["']\s*,\s*["']app\.py["']\s*\]/i },
+    { name: 'Has a comment explaining slim', re: /#\s*.*slim/i }
+  ];
+  var pass = 0;
+  out.textContent = tests.map(function(t) {
+    var ok;
+    if (t.multiline) ok = /copy\s+requirements\.txt[\s\S]*run\s+pip/i.test(val);
+    else ok = t.re.test(val);
+    if (ok) pass++;
+    return (ok ? '✅ ' : '❌ ') + t.name;
+  }).join('\n');
+  out.textContent += '\n\n' + pass + '/' + tests.length + ' passed';
+  if (pass === tests.length) out.textContent += '\n\n🎉 完美！你已经能独立写出一个优化过的 Dockerfile 了。';
+}
+
+function checkL4() {
+  var val = document.getElementById('codeL4').value;
+  var out = document.getElementById('consoleL4');
+  var tests = [
+    { name: 'Uses slim base image', re: /from\s+python:3\.12-slim/i },
+    { name: 'COPY requirements.txt before pip install', custom: function() { return /copy\s+requirements\.txt[\s\S]*run\s+pip/i.test(val); } },
+    { name: 'Uses --no-cache-dir', re: /--no-cache-dir/i },
+    { name: 'COPY . . comes after pip install', custom: function() { return /pip\s+install[\s\S]*copy\s+\.\s+\./i.test(val); } },
+    { name: 'Has EXPOSE 5000', re: /expose\s+5000/i },
+    { name: 'CMD in JSON array form', re: /cmd\s*\[\s*["']python["']/i },
+    { name: 'Has comment explaining optimization', re: /#\s*.+/i }
+  ];
+  var pass = 0;
+  out.textContent = tests.map(function(t) {
+    var ok = t.custom ? t.custom() : t.re.test(val);
+    if (ok) pass++;
+    return (ok ? '✅ ' : '❌ ') + t.name;
+  }).join('\n');
+  out.textContent += '\n\n' + pass + '/' + tests.length + ' passed';
+  if (pass === tests.length) out.textContent += '\n\n🎉 你完成了优化！在"源代码变化"时，你的 Dockerfile 只会重建 2 层（COPY . . 和 CMD），而不是原来的 4 层。';
+}
+
+var quizData = [
+  { q: '镜像（Image）和容器（Container）的关系是：', opts: ['同一个东西的不同叫法', '镜像是只读模板，容器是从镜像启动的运行实例', '容器生成镜像', '镜像生成容器，一对一关系'], ans: 1, explain: '镜像是只读的模板，容器是从镜像创建的运行实例。一个镜像可以创建无数个容器，就像一个类可以 new 出无数个对象。' },
+  { q: 'Dockerfile 中 FROM 指令的作用是：', opts: ['运行一条命令', '复制文件', '指定基础镜像，作为构建起点', '设置环境变量'], ans: 2, explain: 'FROM 指定基础镜像，后续所有指令都在这个镜像上叠加。FROM 必须是 Dockerfile 的第一条指令。' },
+  { q: '为什么要在 COPY . . 之前先 COPY requirements.txt？', opts: ['为了读性更好', '为了利用层缓存，源代码变化时不重新安装依赖', '法则要求，顺序不能变', '为了减小镜像体积'], ans: 1, explain: '先复制 requirements.txt 再 pip install，最后才 COPY . .。这样源代码变化时，只有 COPY . . 及后续层失效，pip install 层仍然被缓存复用。如果先 COPY . .，每次代码变化都会重新安装依赖。' },
+  { q: 'EXPOSE 5000 这条指令的实际效果是：', opts: ['打开 5000 端口供外部访问', '仅为文档声明，不会真正打开端口', '关闭 5000 端口', '强制应用监听 5000 端口'], ans: 1, explain: 'EXPOSE 只是文档性声明，告诉使用者这个容器监听哪个端口。真正打开端口需要在 docker run 时用 -p 参数，如 -p 5000:5000。' },
+  { q: 'docker run -p 8080:5000 myapp 中的端口映射含义是：', opts: ['容器内 8080 端口映射到宿主 5000', '宿主 8080 端口映射到容器内 5000 端口', '同时打开 8080 和 5000', '限制容器只能用 8080 端口'], ans: 1, explain: '-p 格式是 宿主端口:容器端口。宿主的 8080 端口连接会被转发到容器内部的 5000 端口。' },
+  { q: 'Docker 层缓存的规律是：', opts: ['所有层都会被缓存', '只缓存 FROM 层', '从第一个变化的层开始，它及后续所有层都重建', '随机选择重建哪些层'], ans: 2, explain: 'Docker 从上到下依次检查每层的输入是否变化。一旦发现变化，该层及其后所有层都会重建，之前的层仍然可以复用缓存。' },
+  { q: 'CMD 和 RUN 的关键区别是：', opts: ['没有区别，可以互换', 'RUN 在构建时执行，CMD 在容器启动时执行', 'CMD 在构建时执行，RUN 在启动时执行', 'RUN 只能写一次，CMD 可以多次'], ans: 1, explain: 'RUN 在 docker build 时执行，结果保存在镜像层中。CMD 在 docker run 时执行，是容器的默认启动命令。' },
+  { q: '如何在容器删除后保留数据？', opts: ['把数据存在 COPY 的文件里', '使用 Docker Volume 或 bind mount', '不能保留，容器删除后数据必丢', '用 EXPOSE 指定数据目录'], ans: 1, explain: 'Docker Volume（docker run -v mydata:/data）或 bind mount（docker run -v /host/path:/container/path）可以将数据存在容器之外，容器删除后数据不丢失。' }
+];
+var currentQ = 0, score = 0, answered = false;
+function renderQuiz() {
+  var el = document.getElementById('quizBox');
+  if (currentQ >= quizData.length) {
+    var pct = quizData.length > 0 ? Math.round(score / quizData.length * 100) : 0;
+    var msg = pct >= 90 ? '非常棒！你已经掌握了 Docker 的核心概念。' : pct >= 70 ? '不错！再复习一下错题就完美了。' : pct >= 50 ? '建议回顾上方的内容后重试。' : '先完成 Level 1-2 再来测试吧。';
+    el.innerHTML = '<div class="quiz-score"><h3>' + score + '/' + quizData.length + ' (' + pct + '%)</h3><p>' + esc(msg) + '</p><button onclick="resetQuiz()">重试</button></div>';
+    return;
+  }
+  var d = quizData[currentQ];
+  answered = false;
+  el.innerHTML = '<div class="quiz-dots">' + quizData.map(function(_, i) { return '<span class="dot' + (i === currentQ ? ' active' : '') + '"></span>'; }).join('') + '</div>' +
+    '<h3>Q' + (currentQ + 1) + '. ' + esc(d.q) + '</h3>' +
+    '<div class="quiz-opts">' + d.opts.map(function(o, i) { return '<button onclick="answerQuiz(' + i + ')">' + esc(o) + '</button>'; }).join('') + '</div>' +
+    '<div class="quiz-explain" id="quizExplain"></div>';
+}
+function answerQuiz(chosen) {
+  if (answered) return;
+  answered = true;
+  var d = quizData[currentQ];
+  var el = document.getElementById('quizBox');
+  var btns = el.querySelectorAll('.quiz-opts button');
+  btns.forEach(function(b, i) { b.disabled = true; if (i === d.ans) b.classList.add('correct'); if (i === chosen && chosen !== d.ans) b.classList.add('wrong'); });
+  if (chosen === d.ans) score++;
+  document.getElementById('quizExplain').innerHTML = '<p>' + esc(d.explain) + '</p><button onclick="nextQuestion()" id="nextBtn">下一题 →</button>';
+  var nextBtn = document.getElementById('nextBtn');
+  if (nextBtn) nextBtn.focus();
+}
+function nextQuestion() { currentQ++; renderQuiz(); }
+function resetQuiz() { currentQ = 0; score = 0; renderQuiz(); }
+renderQuiz();
+
+document.querySelectorAll('.flip-card').forEach(function(card) {
+  var toggle = function() {
+    var flipped = card.classList.toggle('flipped');
+    card.setAttribute('aria-pressed', String(flipped));
+  };
+  card.addEventListener('click', toggle);
+  card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+});
+</script>
+</body>
+</html>

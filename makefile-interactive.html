@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Makefile 从零到实战 — 交互式学习</title>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --bg: #0f172a;
+  --bg-secondary: #1e293b;
+  --surface: #1e293b;
+  --surface-hover: #334155;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #f59e0b;
+  --accent-light: #fbbf24;
+  --success: #10b981;
+  --success-light: #34d399;
+  --error: #ef4444;
+  --error-light: #f87171;
+  --border: #334155;
+  --code-bg: #0d1117;
+  --code-text: #c9d1d9;
+  --tab-active: #6366f1;
+  --tab-inactive: #334155;
+  --glow: rgba(99, 102, 241, 0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+  overflow-x: hidden;
+}
+/* Progress bar */
+#progress-bar {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 1000; transition: width 0.3s ease;
+}
+/* Navigation */
+#nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  z-index: 999; padding: 0 24px;
+}
+#nav-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; height: 56px; gap: 24px;
+}
+#nav .logo { font-weight: 700; font-size: 18px; color: var(--primary-light); white-space: nowrap; }
+#nav .nav-links { display: flex; gap: 6px; overflow-x: auto; flex: 1; }
+#nav .nav-links a {
+  color: var(--text-muted); text-decoration: none; font-size: 13px;
+  padding: 6px 12px; border-radius: 6px; white-space: nowrap;
+  transition: all 0.2s;
+}
+#nav .nav-links a:hover, #nav .nav-links a.active {
+  color: var(--text); background: var(--surface-hover);
+}
+/* Main layout */
+.container { max-width: 1100px; margin: 0 auto; padding: 80px 24px 60px; }
+section { margin-bottom: 80px; scroll-margin-top: 72px; }
+/* Hero */
+#hero {
+  text-align: center; padding: 60px 0 40px;
+}
+#hero h1 {
+  font-size: 42px; font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-light), var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 16px;
+}
+#hero p { font-size: 18px; color: var(--text-muted); max-width: 600px; margin: 0 auto; }
+.hero-stats {
+  display: flex; justify-content: center; gap: 40px; margin-top: 32px;
+}
+.hero-stat { text-align: center; }
+.hero-stat .num { font-size: 28px; font-weight: 700; color: var(--primary-light); }
+.hero-stat .label { font-size: 13px; color: var(--text-muted); }
+/* Section headers */
+h2 {
+  font-size: 28px; font-weight: 700; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+h2 .badge {
+  font-size: 12px; padding: 4px 10px; border-radius: 20px;
+  font-weight: 600; letter-spacing: 0.5px;
+}
+.badge-cognition { background: rgba(16, 185, 129, 0.15); color: var(--success-light); }
+.badge-guided { background: rgba(99, 102, 241, 0.15); color: var(--primary-light); }
+.badge-independent { background: rgba(245, 158, 11, 0.15); color: var(--accent); }
+.badge-challenge { background: rgba(239, 68, 68, 0.15); color: var(--error-light); }
+h3 { font-size: 20px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+p.desc { color: var(--text-muted); margin-bottom: 24px; font-size: 15px; }
+/* Knowledge map */
+#knowledge-map {
+  background: var(--surface); border-radius: 16px;
+  padding: 40px; border: 1px solid var(--border);
+}
+.km-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px; margin-top: 20px;
+}
+.km-card {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; cursor: pointer;
+  transition: all 0.3s ease; position: relative; overflow: hidden;
+}
+.km-card:hover {
+  border-color: var(--primary); transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--glow);
+}
+.km-card .icon { font-size: 28px; margin-bottom: 10px; }
+.km-card h4 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.km-card p { font-size: 13px; color: var(--text-muted); }
+.km-card .km-detail {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+}
+.km-card.expanded .km-detail { max-height: 500px; }
+.km-detail-inner {
+  padding-top: 12px; margin-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-muted); line-height: 1.8;
+}
+.km-detail-inner code {
+  background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px;
+  color: var(--accent);
+}
+/* Level cards */
+.level-card {
+  background: var(--surface); border-radius: 16px;
+  border: 1px solid var(--border); overflow: hidden;
+}
+.level-header {
+  padding: 24px 32px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.level-header-left { display: flex; align-items: center; gap: 16px; }
+.level-num {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px;
+}
+.level-num-1 { background: rgba(16, 185, 129, 0.15); color: var(--success-light); }
+.level-num-2 { background: rgba(99, 102, 241, 0.15); color: var(--primary-light); }
+.level-num-3 { background: rgba(245, 158, 11, 0.15); color: var(--accent); }
+.level-num-4 { background: rgba(239, 68, 68, 0.15); color: var(--error-light); }
+.level-title { font-size: 20px; font-weight: 700; }
+.level-meta { font-size: 13px; color: var(--text-muted); }
+.level-body { padding: 32px; }
+/* Code editor */
+.code-editor {
+  background: var(--code-bg); border-radius: 12px;
+  border: 1px solid var(--border); overflow: hidden; margin: 16px 0;
+}
+.code-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+}
+.code-toolbar .filename {
+  font-size: 13px; color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.code-toolbar .dots { display: flex; gap: 6px; }
+.code-toolbar .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+.dot-red { background: #ff5f57; }
+.dot-yellow { background: #febc2e; }
+.dot-green { background: #28c840; }
+.code-area {
+  padding: 20px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 14px; line-height: 1.8; min-height: 120px;
+  white-space: pre-wrap; word-wrap: break-word;
+  color: var(--code-text); overflow-x: auto;
+}
+.code-area textarea {
+  width: 100%; min-height: 200px; background: transparent;
+  border: none; color: var(--code-text); resize: vertical;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 14px; line-height: 1.8; outline: none;
+}
+/* Buttons */
+.btn {
+  padding: 10px 20px; border-radius: 8px; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { background: var(--surface-hover); color: var(--text); }
+.btn-secondary:hover { background: var(--border); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #059669; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+/* Output console */
+.console {
+  background: #000; border-radius: 8px; padding: 16px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  color: #a0f0a0; margin: 12px 0; min-height: 60px;
+  border: 1px solid #222; line-height: 1.6;
+  max-height: 300px; overflow-y: auto;
+}
+.console .line { margin: 2px 0; }
+.console .line.cmd { color: #82aaff; }
+.console .line.success { color: #c3e88d; }
+.console .line.error { color: #f07178; }
+.console .line.warn { color: #ffcb6b; }
+/* Dependency visualization */
+.dep-graph {
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px; gap: 12px; flex-wrap: wrap;
+}
+.dep-node {
+  padding: 12px 20px; border-radius: 10px; font-weight: 600;
+  font-size: 14px; cursor: pointer; transition: all 0.3s;
+  position: relative; text-align: center;
+}
+.dep-node.target { background: var(--primary); color: white; }
+.dep-node.dep { background: var(--surface-hover); color: var(--text); border: 1px solid var(--border); }
+.dep-node.built { background: var(--success); color: white; border-color: var(--success); }
+.dep-node.uptodate { background: var(--accent); color: #000; border-color: var(--accent); }
+.dep-arrow {
+  font-size: 24px; color: var(--text-muted); transition: color 0.3s;
+}
+.dep-arrow.active { color: var(--primary-light); }
+/* Interactive simulator */
+.simulator {
+  background: var(--bg); border-radius: 12px;
+  border: 1px solid var(--border); padding: 24px; margin: 16px 0;
+}
+.sim-files {
+  display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0;
+}
+.sim-file {
+  padding: 8px 14px; border-radius: 8px; font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface-hover); border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  transition: all 0.3s;
+}
+.sim-file .ts { font-size: 11px; color: var(--text-muted); }
+.sim-file.modified { border-color: var(--accent); }
+.sim-file.modified .ts { color: var(--accent); }
+.sim-controls { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+/* Hint panel */
+.hint-panel {
+  margin: 12px 0; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.hint-toggle {
+  width: 100%; padding: 12px 16px; background: var(--bg);
+  border: none; color: var(--text-muted); font-size: 14px;
+  cursor: pointer; text-align: left; display: flex; align-items: center; gap: 8px;
+  transition: all 0.2s;
+}
+.hint-toggle:hover { color: var(--text); background: var(--surface-hover); }
+.hint-toggle .arrow { transition: transform 0.3s; }
+.hint-panel.open .hint-toggle .arrow { transform: rotate(90deg); }
+.hint-content {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  background: rgba(99, 102, 241, 0.05);
+}
+.hint-panel.open .hint-content { max-height: 600px; }
+.hint-content-inner { padding: 16px; font-size: 14px; color: var(--text-muted); }
+.hint-content-inner code {
+  background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent);
+}
+/* Todo check */
+.task-check {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.task-check:last-child { border-bottom: none; }
+.check-box {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 2px solid var(--border); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0; margin-top: 2px;
+}
+.check-box.checked { background: var(--success); border-color: var(--success); }
+.check-box.checked::after { content: '\2713'; color: white; font-size: 14px; font-weight: 700; }
+.task-label { font-size: 14px; }
+.task-label.done { color: var(--text-muted); text-decoration: line-through; }
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 0; }
+.tab {
+  padding: 8px 16px; font-size: 13px; border-radius: 8px 8px 0 0;
+  cursor: pointer; color: var(--text-muted); background: var(--tab-inactive);
+  border: none; font-weight: 500; transition: all 0.2s;
+}
+.tab.active { background: var(--code-bg); color: var(--text); font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+/* Quiz */
+.quiz-question {
+  background: var(--bg); border-radius: 12px; padding: 24px;
+  margin: 16px 0; border: 1px solid var(--border);
+}
+.quiz-question h4 { font-size: 16px; margin-bottom: 16px; }
+.quiz-options { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt {
+  padding: 12px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 14px; transition: all 0.2s; display: flex; align-items: center; gap: 10px;
+}
+.quiz-opt:hover { border-color: var(--primary); }
+.quiz-opt.correct { border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
+.quiz-opt.wrong { border-color: var(--error); background: rgba(239, 68, 68, 0.1); }
+.quiz-opt .opt-letter {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--surface-hover);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.quiz-feedback {
+  margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+  font-size: 13px; display: none;
+}
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct { background: rgba(16, 185, 129, 0.1); color: var(--success-light); }
+.quiz-feedback.wrong { background: rgba(239, 68, 68, 0.1); color: var(--error-light); }
+/* Score */
+.score-display {
+  text-align: center; padding: 32px; background: var(--bg);
+  border-radius: 16px; border: 1px solid var(--border); margin: 24px 0;
+}
+.score-num { font-size: 48px; font-weight: 800; color: var(--primary-light); }
+.score-label { font-size: 16px; color: var(--text-muted); margin-top: 8px; }
+/* Glossary */
+.glossary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.glossary-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.glossary-term {
+  font-weight: 700; color: var(--accent); font-size: 15px;
+  font-family: 'JetBrains Mono', monospace; margin-bottom: 4px;
+}
+.glossary-def { font-size: 13px; color: var(--text-muted); }
+/* Responsive */
+@media (max-width: 768px) {
+  #hero h1 { font-size: 28px; }
+  .hero-stats { gap: 20px; }
+  .container { padding: 70px 16px 40px; }
+  .level-body { padding: 20px; }
+  .code-area { font-size: 12px; padding: 14px; }
+  .dep-graph { flex-direction: column; }
+  .km-grid { grid-template-columns: 1fr; }
+}
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeInUp 0.5s ease forwards; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.pulse { animation: pulse 0.6s ease; }
+/* Syntax highlight helpers */
+.kw { color: #c792ea; } /* keyword */
+.fn { color: #82aaff; } /* function */
+.var { color: #f78c6c; } /* variable */
+.str { color: #c3e88d; } /* string */
+.cm { color: #546e7a; font-style: italic; } /* comment */
+.op { color: #89ddff; } /* operator */
+</style>
+</head>
+<body>
+
+<div id="progress-bar" style="width: 0%"></div>
+
+<nav id="nav">
+  <div id="nav-inner">
+    <div class="logo">Makefile</div>
+    <div class="nav-links">
+      <a href="#knowledge-map">概念地图</a>
+      <a href="#level1">Level 1 认识</a>
+      <a href="#level2">Level 2 引导</a>
+      <a href="#level3">Level 3 独立</a>
+      <a href="#level4">Level 4 挑战</a>
+      <a href="#quiz">自测</a>
+      <a href="#glossary">术语表</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ====== HERO ====== -->
+<section id="hero">
+  <h1>Makefile 从零到实战</h1>
+  <p>通过 4 个渐进关卡，从理解基本概念到独立编写复杂构建脚本。每一步都有交互式演示和即时反馈。</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">4</div><div class="label">进阶关卡</div></div>
+    <div class="hero-stat"><div class="num">~2h</div><div class="label">预计用时</div></div>
+    <div class="hero-stat"><div class="num">8</div><div class="label">核心概念</div></div>
+  </div>
+</section>
+
+<!-- ====== KNOWLEDGE MAP ====== -->
+<section id="knowledge-map">
+  <h2>概念地图 <span class="badge badge-cognition">你将要学的</span></h2>
+  <p class="desc">Makefile 的知识体系由 8 个核心概念组成。点击卡片展开详情，了解它们之间的关系。</p>
+  <div class="km-grid">
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">📋</div>
+      <h4>Target（目标）</h4>
+      <p>规则左侧的名字，代表要生成的文件或要执行的任务</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        Target 是 Makefile 中最基本的单元。它可以是一个文件名（如 <code>main.o</code>），也可以是一个动作名（如 <code>clean</code>）。make 通过 target 来决定"做什么"。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">🔗</div>
+      <h4>Dependency（依赖）</h4>
+      <p>目标所依赖的文件或前置条件</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        依赖写在 target 右侧的冒号后面。make 会比较依赖文件和目标文件的时间戳——如果任何一个依赖比目标"新"，就会触发 recipe 重新执行。这就是 make 的<strong>增量编译</strong>机制。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">🔨</div>
+      <h4>Recipe（命令）</h4>
+      <p>以 Tab 开头的 shell 命令，描述如何从依赖生成目标</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        Recipe 的每一行必须以 <strong>Tab 键</strong>开头（不是空格！）。make 会把每一行当作 shell 命令来执行。常见命令如 <code>gcc -o main main.o</code>、<code>rm -f *.o</code> 等。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">📦</div>
+      <h4>Variable（变量）</h4>
+      <p>存储可复用的值，如编译器名、编译选项</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        定义变量用 <code>=</code> 或 <code>:=</code>，引用用 <code>$(VAR)</code> 或 <code>${VAR}</code>。<code>=</code> 是延迟展开（使用时才求值），<code>:=</code> 是立即展开（定义时求值）。还有 <code>?=</code>（仅在未定义时赋值）和 <code>+=</code>（追加）。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">🔁</div>
+      <h4>Pattern Rule（模式规则）</h4>
+      <p>用 % 通配符定义通用构建规则</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        模式规则让你用一条规则处理多个文件。例如 <code>%.o: %.c</code> 表示"任何 .o 文件都依赖对应的 .c 文件"。<code>$&lt;</code> 代表第一个依赖，<code>$@</code> 代表目标。这是消除重复代码的利器。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">🚫</div>
+      <h4>.PHONY（伪目标）</h4>
+      <p>声明不代表实际文件的目标</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        <code>.PHONY: clean</code> 告诉 make，clean 这个 target 不代表一个叫 "clean" 的文件。即使目录中存在同名文件，make 也会执行它的 recipe。常用的 phony 目标：<code>all</code>、<code>clean</code>、<code>install</code>、<code>test</code>。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">⚙️</div>
+      <h4>Function（函数）</h4>
+      <p>make 内置的文本处理和文件操作函数</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        常用函数：<code>$(wildcard *.c)</code> 获取匹配文件列表，<code>$(patsubst %.c,%.o,$(SRCS))</code> 做模式替换，<code>$(shell ls)</code> 执行 shell 命令。函数让 Makefile 更灵活、更 DRY。
+      </div></div>
+    </div>
+    <div class="km-card" onclick="toggleKmCard(this)">
+      <div class="icon">📐</div>
+      <h4>Include（包含）</h4>
+      <p>将其他 Makefile 文件引入当前文件</p>
+      <div class="km-detail"><div class="km-detail-inner">
+        <code>include config.mk</code> 会把 config.mk 的内容插入到当前位置。<code>-include</code>（注意前面的减号）则在文件不存在时不报错。适合管理多环境配置、子模块等场景。
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== LEVEL 1: COGNITION ====== -->
+<section id="level1">
+  <h2>Level 1：认识 Make <span class="badge badge-cognition">~20 min</span></h2>
+  <p class="desc">先不动手写代码——通过交互演示，直觉理解 make 做了什么。</p>
+
+  <div class="level-card">
+    <div class="level-header">
+      <div class="level-header-left">
+        <div class="level-num level-num-1">1</div>
+        <div>
+          <div class="level-title">Make 到底在干嘛？</div>
+          <div class="level-meta">理解依赖追踪与增量编译</div>
+        </div>
+      </div>
+    </div>
+    <div class="level-body">
+
+      <h3>场景：编译一个 C 程序</h3>
+      <p class="desc">假设你有一个小程序，由 main.c 和 utils.c 两个源文件组成。编译流程是：</p>
+
+      <div class="dep-graph" id="dep-graph-1">
+        <div class="dep-node dep" id="node-mainc">main.c</div>
+        <div class="dep-node dep" id="node-utilsc">utils.c</div>
+        <div class="dep-arrow" id="arrow-1">→</div>
+        <div class="dep-node dep" id="node-maino">main.o</div>
+        <div class="dep-node dep" id="node-utilso">utils.o</div>
+        <div class="dep-arrow" id="arrow-2">→</div>
+        <div class="dep-node target" id="node-app">myapp</div>
+      </div>
+
+      <p class="desc" style="text-align:center;font-size:13px;">点击 "模拟编译" 看 make 如何处理这些文件</p>
+
+      <div class="simulator" id="sim-1">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>项目文件时间戳</strong>
+          <button class="btn btn-sm btn-secondary" onclick="resetSim1()">重置</button>
+        </div>
+        <div class="sim-files" id="sim-files-1">
+          <div class="sim-file">main.c <span class="ts">10:00</span></div>
+          <div class="sim-file">utils.c <span class="ts">10:00</span></div>
+          <div class="sim-file">main.o <span class="ts">10:00</span></div>
+          <div class="sim-file">utils.o <span class="ts">10:00</span></div>
+          <div class="sim-file">myapp <span class="ts">10:00</span></div>
+        </div>
+        <div class="sim-controls">
+          <button class="btn btn-primary" onclick="runSim1('build')">模拟编译 make</button>
+          <button class="btn btn-secondary" onclick="runSim1('modify')">修改 utils.c</button>
+          <button class="btn btn-secondary" onclick="runSim1('rebuild')">再次 make</button>
+        </div>
+        <div class="console" id="console-1">
+          <div class="line" style="color:var(--text-muted);">👆 点击按钮开始体验</div>
+        </div>
+      </div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 看到了吗？增量编译的奥妙</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          第一次 make 会编译所有文件。但当你只修改了 <code>utils.c</code> 后再次 make，它<strong>只会重新编译 utils.o 并重新链接</strong>——main.o 没有变化，所以不会重新编译。<br><br>
+          这就是 make 的核心价值：<strong>只编译需要编译的部分</strong>，大幅节省大型项目的构建时间。判断依据就是文件的时间戳——如果依赖比目标"新"，就重新执行 recipe。
+        </div></div>
+      </div>
+
+      <h3>Makefile 的基本语法</h3>
+      <p class="desc">上面演示的编译逻辑，写成 Makefile 是这样的：</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><span class="cm"># 这是一个注释</span>
+
+<span class="cm"># 目标: 依赖文件列表</span>
+<span class="cm">#     命令（必须以 Tab 开头！）</span>
+
+<span class="fn">myapp</span><span class="op">:</span> <span class="var">main.o utils.o</span>
+    <span class="str">gcc -o myapp main.o utils.o</span>
+
+<span class="fn">main.o</span><span class="op">:</span> <span class="var">main.c</span>
+    <span class="str">gcc -c main.c</span>
+
+<span class="fn">utils.o</span><span class="op">:</span> <span class="var">utils.c</span>
+    <span class="str">gcc -c utils.c</span>
+
+<span class="fn">clean</span><span class="op">:</span>
+    <span class="str">rm -f *.o myapp</span></div>
+      </div>
+
+      <p class="desc">每条规则的结构是固定的：</p>
+      <div style="background:var(--bg);border-radius:10px;padding:20px;border:1px solid var(--border);font-family:monospace;font-size:15px;text-align:center;line-height:2;">
+        <span style="color:var(--primary-light);font-weight:700;">target</span><span style="color:var(--text-muted);"> : </span><span style="color:var(--accent);">dependencies</span><br>
+        <span style="color:var(--text-muted);">&nbsp;&nbsp;&nbsp;&nbsp;⎿ </span><span style="color:var(--success-light);">recipe (shell 命令，Tab 开头)</span>
+      </div>
+
+      <div class="task-check" style="margin-top:20px;">
+        <div class="check-box" onclick="toggleCheck(this)"></div>
+        <div class="task-label">我理解了 make 通过比较时间戳来决定是否重新编译</div>
+      </div>
+      <div class="task-check">
+        <div class="check-box" onclick="toggleCheck(this)"></div>
+        <div class="task-label">我知道每条规则由 target、dependencies、recipe 三部分组成</div>
+      </div>
+      <div class="task-check">
+        <div class="check-box" onclick="toggleCheck(this)"></div>
+        <div class="task-label">我知道 recipe 的行必须用 Tab 开头（不是空格）</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== LEVEL 2: GUIDED PRACTICE ====== -->
+<section id="level2">
+  <h2>Level 2：引导实践 <span class="badge badge-guided">~30 min</span></h2>
+  <p class="desc">动手补全 Makefile，在实战中掌握变量、伪目标和模式规则。</p>
+
+  <div class="level-card">
+    <div class="level-header">
+      <div class="level-header-left">
+        <div class="level-num level-num-2">2</div>
+        <div>
+          <div class="level-title">改造这个 Makefile</div>
+          <div class="level-meta">3 个任务，逐步优化</div>
+        </div>
+      </div>
+    </div>
+    <div class="level-body">
+
+      <!-- Task 2.1: Variables -->
+      <h3>任务 2.1：引入变量消除硬编码</h3>
+      <p class="desc">现在编译器名 <code>gcc</code> 散落在多处。如果以后要换编译器（比如 <code>clang</code>），需要改很多地方。用变量统一替换。</p>
+      <p class="desc" style="font-size:13px;">在下方编辑器中，把 3 个 <code>TODO</code> 标记替换为正确的变量定义或引用。完成后点击"检查答案"。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l2t1" spellcheck="false"># 定义变量
+CC = TODO_1          # 编译器
+CFLAGS = -Wall -g    # 编译选项
+
+myapp: main.o utils.o
+	$(CC) -o myapp main.o utils.o
+
+main.o: main.c
+	TODO_2 -c main.c  # 用变量引用替换硬编码的 gcc
+
+utils.o: utils.c
+	$(CC) TODO_3      # 用变量引用替换硬编码的 -c utils.c
+
+clean:
+	rm -f *.o myapp</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL2T1()">检查答案</button>
+        <button class="btn btn-secondary" onclick="resetL2T1()">重置</button>
+      </div>
+      <div class="console" id="console-l2t1" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 提示：变量语法</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          定义变量：<code>CC = gcc</code><br>
+          引用变量：<code>$(CC)</code> 或 <code>${CC}</code><br>
+          TODO_1 应该是编译器的名字；TODO_2 应该用变量引用替代 gcc；TODO_3 需要同时使用 <code>$(CFLAGS)</code> 和源文件名。
+        </div></div>
+      </div>
+
+      <!-- Task 2.2: .PHONY -->
+      <h3>任务 2.2：声明伪目标</h3>
+      <p class="desc">如果项目目录下恰好存在一个名为 <code>clean</code> 的文件，make 会认为 clean 已经"是最新的"而不执行删除操作。用 <code>.PHONY</code> 解决。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l2t2" spellcheck="false">CC = gcc
+CFLAGS = -Wall -g
+
+# TODO: 在下方添加 .PHONY 声明
+# 声明 all 和 clean 为伪目标
+
+
+all: myapp
+
+myapp: main.o utils.o
+	$(CC) -o myapp main.o utils.o
+
+main.o: main.c
+	$(CC) $(CFLAGS) -c main.c
+
+utils.o: utils.c
+	$(CC) $(CFLAGS) -c utils.c
+
+clean:
+	rm -f *.o myapp</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL2T2()">检查答案</button>
+        <button class="btn btn-secondary" onclick="resetL2T2()">重置</button>
+      </div>
+      <div class="console" id="console-l2t2" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 提示：.PHONY 语法</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          格式：<code>.PHONY: target1 target2 ...</code><br>
+          你需要声明 <code>all</code> 和 <code>clean</code> 两个目标为 PHONY。
+        </div></div>
+      </div>
+
+      <!-- Task 2.3: Pattern rules -->
+      <h3>任务 2.3：用模式规则消除重复</h3>
+      <p class="desc">main.o 和 utils.o 的编译命令几乎一样，只是文件名不同。用模式规则 <code>%.o: %.c</code> 一条搞定所有 .c → .o 的转换。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l2t3" spellcheck="false">CC = gcc
+CFLAGS = -Wall -g
+
+.PHONY: all clean
+
+all: myapp
+
+myapp: main.o utils.o
+	$(CC) -o myapp main.o utils.o
+
+# TODO: 用一条模式规则替代上面两条独立规则
+# 提示：%.o 匹配所有 .o 文件，%.c 匹配对应的 .c 文件
+# 自动变量：$< 代表第一个依赖，$@ 代表目标
+
+
+
+clean:
+	rm -f *.o myapp</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL2T3()">检查答案</button>
+        <button class="btn btn-secondary" onclick="resetL2T3()">重置</button>
+      </div>
+      <div class="console" id="console-l2t3" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 提示：模式规则语法</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          模式规则的格式：<br>
+          <code>%.o: %.c</code><br>
+          <code>&nbsp;&nbsp;&nbsp;&nbsp;$(CC) $(CFLAGS) -c $&lt; -o $@</code><br><br>
+          <code>$&lt;</code> = 第一个依赖文件（如 main.c）<br>
+          <code>$@</code> = 目标文件（如 main.o）<br>
+          <code>-c $&lt;</code> 编译该源文件，<code>-o $@</code> 指定输出文件名。
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====== LEVEL 3: INDEPENDENT ====== -->
+<section id="level3">
+  <h2>Level 3：独立实现 <span class="badge badge-independent">~30 min</span></h2>
+  <p class="desc">从零写一个完整的 Makefile。没有逐步提示，只有需求描述和验收标准。</p>
+
+  <div class="level-card">
+    <div class="level-header">
+      <div class="level-header-left">
+        <div class="level-num level-num-3">3</div>
+        <div>
+          <div class="level-title">为 Web 项目编写 Makefile</div>
+          <div class="level-meta">从需求到完整构建脚本</div>
+        </div>
+      </div>
+    </div>
+    <div class="level-body">
+
+      <h3>项目背景</h3>
+      <p class="desc">你有一个 Web 前端项目，结构如下：</p>
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">项目结构</div>
+        </div>
+        <div class="code-area">my-web-app/
+├── src/
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── dist/           <span class="cm"># 构建输出目录</span>
+├── Makefile        <span class="cm"># 你需要写的！</span>
+└── README.md</div>
+      </div>
+
+      <h3>需求</h3>
+      <div style="background:var(--bg);border-radius:10px;padding:20px;border:1px solid var(--border);margin:12px 0;">
+        <div class="task-check">
+          <div style="color:var(--accent);font-weight:700;width:24px;">1</div>
+          <div class="task-label"><code>make build</code>：将 src/ 下的所有文件复制到 dist/，并对 CSS 和 JS 进行压缩（用注释模拟即可）</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--accent);font-weight:700;width:24px;">2</div>
+          <div class="task-label"><code>make clean</code>：删除 dist/ 目录下所有文件</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--accent);font-weight:700;width:24px;">3</div>
+          <div class="task-label"><code>make dev</code>：启动一个本地开发服务器（模拟命令即可，如 echo）</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--accent);font-weight:700;width:24px;">4</div>
+          <div class="task-label">使用变量管理路径（SRC_DIR、DIST_DIR）</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--accent);font-weight:700;width:24px;">5</div>
+          <div class="task-label">声明所有非文件目标为 .PHONY</div>
+        </div>
+      </div>
+
+      <p class="desc" style="margin-top:16px;">验收标准：Makefile 包含 build/clean/dev 三个目标，使用变量，声明了 .PHONY。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l3" spellcheck="false" style="min-height:280px;"># 在这里编写你的 Makefile
+# 提示：从定义变量开始
+
+</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL3()">提交验收</button>
+        <button class="btn btn-secondary" onclick="resetL3()">重置</button>
+      </div>
+      <div class="console" id="console-l3" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 卡住了？看看思路</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          一个可能的结构框架：<br><br>
+          <code>SRC_DIR = src</code><br>
+          <code>DIST_DIR = dist</code><br><br>
+          <code>.PHONY: all build clean dev</code><br><br>
+          <code>all: build</code><br><br>
+          <code>build:</code><br>
+          <code>&nbsp;&nbsp;&nbsp;&nbsp;mkdir -p $(DIST_DIR)</code><br>
+          <code>&nbsp;&nbsp;&nbsp;&nbsp;cp -r $(SRC_DIR)/* $(DIST_DIR)/</code><br>
+          <code>&nbsp;&nbsp;&nbsp;&nbsp;@echo "构建完成！"</code><br><br>
+          注意 recipe 行要用 Tab 开头！<code>@</code> 前缀让 make 不打印该命令本身，只打印输出。
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====== LEVEL 4: CHALLENGE ====== -->
+<section id="level4">
+  <h2>Level 4：进阶挑战 <span class="badge badge-challenge">~40 min</span></h2>
+  <p class="desc">综合运用所学知识，处理更复杂的构建场景。这些能力会让你在实际项目中大放异彩。</p>
+
+  <div class="level-card">
+    <div class="level-header">
+      <div class="level-header-left">
+        <div class="level-num level-num-4">4</div>
+        <div>
+          <div class="level-title">为 C 项目编写专业级 Makefile</div>
+          <div class="level-meta">函数、自动依赖、条件编译</div>
+        </div>
+      </div>
+    </div>
+    <div class="level-body">
+
+      <h3>挑战 A：用函数自动化文件发现</h3>
+      <p class="desc">一个有 20 个 .c 文件的项目，你不可能一个一个写。用 <code>wildcard</code> 和 <code>patsubst</code> 函数自动发现源文件并生成对应的 .o 文件列表。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile（片段）</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l4a" spellcheck="false"># 项目结构：src/ 下有多个 .c 文件
+# 目标：自动发现所有 .c 文件，生成对应的 .o 列表
+
+# TODO 1: 用 wildcard 函数获取 src/ 下所有 .c 文件
+SRCS = 
+
+# TODO 2: 用 patsubst 函数将 .c 替换为 .o
+OBJS = 
+
+# TODO 3: 用变量和自动变量完成编译规则
+# 目标文件名为 myapp，放在 build/ 目录下
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2
+
+TARGET = TODO_4
+
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# TODO 5: 模式规则编译 .c -> .o
+# 源文件在 src/，目标文件在 build/
+# 提示：build/%.o: src/%.c</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL4A()">检查答案</button>
+        <button class="btn btn-secondary" onclick="resetL4A()">重置</button>
+      </div>
+      <div class="console" id="console-l4a" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 提示：函数用法</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          <code>$(wildcard src/*.c)</code> 返回 src/ 下所有 .c 文件的列表<br>
+          <code>$(patsubst src/%.c, build/%.o, $(SRCS))</code> 把 src/xxx.c 变成 build/xxx.o<br>
+          模式规则 <code>build/%.o: src/%.c</code> 可以匹配任意一对 .c 和 .o<br>
+          <code>$^</code> 代表所有依赖文件（空格分隔）<br>
+          别忘了 <code>mkdir -p build</code> 确保输出目录存在！
+        </div></div>
+      </div>
+
+      <h3>挑战 B：条件编译与多环境支持</h3>
+      <p class="desc">真实项目往往需要在 debug 和 release 模式之间切换。用 make 的条件语句实现。</p>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile（片段）</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l4b" spellcheck="false"># 用法：make          -> debug 模式
+#       make DEBUG=0  -> release 模式
+
+CC = gcc
+
+# TODO: 用 ifdef/ifeq 条件语句设置 CFLAGS
+# 如果 DEBUG 未定义或为 1，用 -g -O0
+# 否则用 -O2 -DNDEBUG
+
+
+</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL4B()">检查答案</button>
+        <button class="btn btn-secondary" onclick="resetL4B()">重置</button>
+      </div>
+      <div class="console" id="console-l4b" style="display:none;"></div>
+
+      <div class="hint-panel" onclick="toggleHint(this)">
+        <button class="hint-toggle"><span class="arrow">▶</span> 提示：条件语法</button>
+        <div class="hint-content"><div class="hint-content-inner">
+          make 的条件语句格式：<br>
+          <code>ifdef VARIABLE</code> ... <code>else</code> ... <code>endif</code><br>
+          <code>ifeq ($(VAR), value)</code> ... <code>else</code> ... <code>endif</code><br><br>
+          你可以用 <code>DEBUG ?= 1</code> 设置默认值（仅在未定义时赋值），然后用 <code>ifeq</code> 判断。
+        </div></div>
+      </div>
+
+      <h3>挑战 C：万能任务管理器</h3>
+      <p class="desc">Makefile 不只是编译工具！很多团队用它做项目管理。写一个 Makefile 实现以下目标：</p>
+      <div style="background:var(--bg);border-radius:10px;padding:20px;border:1px solid var(--border);margin:12px 0;">
+        <div class="task-check">
+          <div style="color:var(--error-light);font-weight:700;width:24px;">!</div>
+          <div class="task-label"><code>make setup</code>：安装依赖（pip install / npm install）</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--error-light);font-weight:700;width:24px;">!</div>
+          <div class="task-label"><code>make test</code>：运行测试</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--error-light);font-weight:700;width:24px;">!</div>
+          <div class="task-label"><code>make lint</code>：代码检查</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--error-light);font-weight:700;width:24px;">!</div>
+          <div class="task-label"><code>make docker</code>：构建 Docker 镜像</div>
+        </div>
+        <div class="task-check">
+          <div style="color:var(--error-light);font-weight:700;width:24px;">!</div>
+          <div class="task-label"><code>make deploy</code>：依赖 build + docker + test 三个目标</div>
+        </div>
+      </div>
+
+      <div class="code-editor">
+        <div class="code-toolbar">
+          <div class="dots"><div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div></div>
+          <div class="filename">Makefile</div>
+        </div>
+        <div class="code-area"><textarea id="editor-l4c" spellcheck="false" style="min-height:250px;"># 万能 Makefile 任务管理器
+# 命令可以用 echo 模拟，重点是结构和依赖关系
+
+</textarea></div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="checkL4C()">提交验收</button>
+        <button class="btn btn-secondary" onclick="resetL4C()">重置</button>
+      </div>
+      <div class="console" id="console-l4c" style="display:none;"></div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====== QUIZ ====== -->
+<section id="quiz">
+  <h2>自测测验</h2>
+  <p class="desc">检验你的理解程度。6 道题，测试理解而非记忆。</p>
+
+  <div id="quiz-container"></div>
+
+  <div style="text-align:center;margin-top:24px;">
+    <button class="btn btn-primary" onclick="submitQuiz()" id="quiz-submit">提交测验</button>
+    <button class="btn btn-secondary" onclick="resetQuiz()" id="quiz-reset" style="display:none;">重新测验</button>
+  </div>
+  <div class="score-display" id="quiz-score" style="display:none;">
+    <div class="score-num" id="score-num">0/6</div>
+    <div class="score-label" id="score-label"></div>
+  </div>
+</section>
+
+<!-- ====== GLOSSARY ====== -->
+<section id="glossary">
+  <h2>术语速查表</h2>
+  <p class="desc">随时查阅的核心概念。</p>
+  <div class="glossary-grid">
+    <div class="glossary-item"><div class="glossary-term">target</div><div class="glossary-def">规则左侧的名字。可以是要生成的文件（main.o）或要执行的动作（clean）。</div></div>
+    <div class="glossary-item"><div class="glossary-term">dependency</div><div class="glossary-def">目标依赖的文件列表。make 比较时间戳决定是否执行 recipe。</div></div>
+    <div class="glossary-item"><div class="glossary-term">recipe</div><div class="glossary-def">以 Tab 开头的 shell 命令块。描述如何从依赖生成目标。</div></div>
+    <div class="glossary-item"><div class="glossary-term">.PHONY</div><div class="glossary-def">声明伪目标。确保即使同名文件存在，make 也会执行该目标的 recipe。</div></div>
+    <div class="glossary-item"><div class="glossary-term">$@</div><div class="glossary-def">自动变量，代表当前规则的 target 名称。</div></div>
+    <div class="glossary-item"><div class="glossary-term">$&lt;</div><div class="glossary-def">自动变量，代表当前规则的第一个 dependency。</div></div>
+    <div class="glossary-item"><div class="glossary-term">$^</div><div class="glossary-def">自动变量，代表当前规则的所有 dependency（空格分隔）。</div></div>
+    <div class="glossary-item"><div class="glossary-term">%</div><div class="glossary-def">模式规则中的通配符。%.o 匹配任何以 .o 结尾的文件名。</div></div>
+    <div class="glossary-item"><div class="glossary-term">$(wildcard)</div><div class="glossary-def">函数，返回匹配指定模式的所有文件列表。如 $(wildcard *.c)。</div></div>
+    <div class="glossary-item"><div class="glossary-term">$(patsubst)</div><div class="glossary-def">函数，模式替换。$(patsubst %.c,%.o,files) 把所有 .c 替换为 .o。</div></div>
+    <div class="glossary-item"><div class="glossary-term">?=</div><div class="glossary-def">条件赋值运算符。仅在变量未定义时赋值，否则保持原值。</div></div>
+    <div class="glossary-item"><div class="glossary-term">@</div><div class="glossary-def">recipe 命令前的 @ 前缀，让 make 不打印命令本身，只打印输出。</div></div>
+  </div>
+</section>
+
+<!-- ====== SUMMARY ====== -->
+<section id="summary">
+  <h2>学有所成</h2>
+  <p class="desc">你已经掌握了 Makefile 的核心能力。下一步，去真实项目中实践吧。</p>
+  <div style="background:var(--surface);border-radius:16px;padding:32px;border:1px solid var(--border);">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;">
+      <div>
+        <h4 style="color:var(--success-light);margin-bottom:8px;">你已经学会</h4>
+        <div style="font-size:14px;color:var(--text-muted);line-height:2;">
+          依赖追踪与增量编译的原理<br>
+          变量、模式规则、伪目标<br>
+          函数自动化文件发现<br>
+          条件编译与多环境支持<br>
+          将 make 用作任务管理器
+        </div>
+      </div>
+      <div>
+        <h4 style="color:var(--accent);margin-bottom:8px;">推荐下一步</h4>
+        <div style="font-size:14px;color:var(--text-muted);line-height:2;">
+          在真实 C 项目中编写 Makefile<br>
+          学习 <code>make -n</code>（dry run）调试<br>
+          探索 <code>VPATH</code> 和 <code>vpath</code> 搜索路径<br>
+          了解 CMake 与 Make 的关系<br>
+          阅读 GNU Make 官方手册
+        </div>
+      </div>
+      <div>
+        <h4 style="color:var(--primary-light);margin-bottom:8px;">速查命令</h4>
+        <div style="font-size:14px;color:var(--text-muted);line-height:2;font-family:monospace;">
+          make          <span style="color:var(--text-muted);font-family:sans-serif;"># 构建默认目标</span><br>
+          make target   <span style="color:var(--text-muted);font-family:sans-serif;"># 构建指定目标</span><br>
+          make -n       <span style="color:var(--text-muted);font-family:sans-serif;"># 只打印命令不执行</span><br>
+          make -B       <span style="color:var(--text-muted);font-family:sans-serif;"># 强制重新构建</span><br>
+          make -j4      <span style="color:var(--text-muted);font-family:sans-serif;"># 4 线程并行构建</span><br>
+          make -f file  <span style="color:var(--text-muted);font-family:sans-serif;"># 指定 Makefile 文件</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+// ===== Progress bar =====
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+});
+
+// ===== Nav active state =====
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('#nav .nav-links a');
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`#nav a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px' });
+sections.forEach(s => obs.observe(s));
+
+// ===== Knowledge map cards =====
+function toggleKmCard(el) { el.classList.toggle('expanded'); }
+
+// ===== Check boxes =====
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+  const label = el.nextElementSibling;
+  if (label) label.classList.toggle('done');
+}
+
+// ===== Hint panels =====
+function toggleHint(el) { el.classList.toggle('open'); }
+
+// ===== Level 1 Simulator =====
+let sim1State = 'initial';
+function resetSim1() {
+  sim1State = 'initial';
+  document.getElementById('console-1').innerHTML = '<div class="line" style="color:var(--text-muted);">👆 点击按钮开始体验</div>';
+  const files = document.getElementById('sim-files-1');
+  files.innerHTML = `
+    <div class="sim-file">main.c <span class="ts">10:00</span></div>
+    <div class="sim-file">utils.c <span class="ts">10:00</span></div>
+    <div class="sim-file">main.o <span class="ts">10:00</span></div>
+    <div class="sim-file">utils.o <span class="ts">10:00</span></div>
+    <div class="sim-file">myapp <span class="ts">10:00</span></div>`;
+  resetNodes();
+}
+function resetNodes() {
+  ['node-mainc','node-utilsc','node-maino','node-utilso','node-app'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'dep-node ' + (id === 'node-app' ? 'target' : 'dep');
+  });
+  ['arrow-1','arrow-2'].forEach(id => {
+    document.getElementById(id).className = 'dep-arrow';
+  });
+}
+function runSim1(action) {
+  const console = document.getElementById('console-1');
+  const files = document.getElementById('sim-files-1');
+  resetNodes();
+  if (action === 'build') {
+    sim1State = 'built';
+    console.innerHTML = `
+      <div class="line cmd">$ make</div>
+      <div class="line">gcc -c main.c</div>
+      <div class="line success">✓ 编译 main.c → main.o</div>
+      <div class="line">gcc -c utils.c</div>
+      <div class="line success">✓ 编译 utils.c → utils.o</div>
+      <div class="line">gcc -o myapp main.o utils.o</div>
+      <div class="line success">✓ 链接 main.o + utils.o → myapp</div>
+      <div class="line" style="color:var(--text-muted);">编译完成：3 条命令执行</div>`;
+    files.innerHTML = `
+      <div class="sim-file">main.c <span class="ts">10:00</span></div>
+      <div class="sim-file">utils.c <span class="ts">10:00</span></div>
+      <div class="sim-file">main.o <span class="ts">10:01</span></div>
+      <div class="sim-file">utils.o <span class="ts">10:01</span></div>
+      <div class="sim-file">myapp <span class="ts">10:01</span></div>`;
+    document.getElementById('node-mainc').classList.add('built');
+    document.getElementById('node-utilsc').classList.add('built');
+    document.getElementById('node-maino').classList.add('built');
+    document.getElementById('node-utilso').classList.add('built');
+    document.getElementById('node-app').classList.add('built');
+    document.getElementById('arrow-1').classList.add('active');
+    document.getElementById('arrow-2').classList.add('active');
+  } else if (action === 'modify') {
+    if (sim1State !== 'built') { runSim1('build'); return; }
+    sim1State = 'modified';
+    console.innerHTML = `
+      <div class="line warn">✏️ 修改了 utils.c（时间戳更新为 10:05）</div>
+      <div class="line" style="color:var(--text-muted);">现在 utils.c (10:05) 比 utils.o (10:01) 新</div>
+      <div class="line" style="color:var(--text-muted);">但 main.c (10:00) 不比 main.o (10:01) 新</div>
+      <div class="line warn">💡 make 会怎么判断？点击"再次 make"看看</div>`;
+    files.innerHTML = `
+      <div class="sim-file">main.c <span class="ts">10:00</span></div>
+      <div class="sim-file modified">utils.c <span class="ts">10:05</span></div>
+      <div class="sim-file">main.o <span class="ts">10:01</span></div>
+      <div class="sim-file">utils.o <span class="ts">10:01</span></div>
+      <div class="sim-file">myapp <span class="ts">10:01</span></div>`;
+    document.getElementById('node-utilsc').classList.add('uptodate');
+  } else if (action === 'rebuild') {
+    if (sim1State !== 'modified') {
+      runSim1('build');
+      setTimeout(() => runSim1('modify'), 100);
+      return;
+    }
+    sim1State = 'rebuilt';
+    console.innerHTML = `
+      <div class="line cmd">$ make</div>
+      <div class="line" style="color:var(--text-muted);">检查 main.o 的依赖... main.c (10:00) < main.o (10:01) → 跳过</div>
+      <div class="line success">⏭ main.o 是最新的，不需要重新编译</div>
+      <div class="line">检查 utils.o 的依赖... utils.c (10:05) > utils.o (10:01) → 重新编译！</div>
+      <div class="line">gcc -c utils.c</div>
+      <div class="line success">✓ 重新编译 utils.c → utils.o</div>
+      <div class="line">gcc -o myapp main.o utils.o</div>
+      <div class="line success">✓ 重新链接 myapp</div>
+      <div class="line" style="color:var(--success-light);font-weight:700;">只执行了 2 条命令（而非 3 条）——节省了 33% 的编译时间！</div>`;
+    files.innerHTML = `
+      <div class="sim-file">main.c <span class="ts">10:00</span></div>
+      <div class="sim-file">utils.c <span class="ts">10:05</span></div>
+      <div class="sim-file">main.o <span class="ts">10:01</span></div>
+      <div class="sim-file">utils.o <span class="ts">10:06</span></div>
+      <div class="sim-file">myapp <span class="ts">10:06</span></div>`;
+    document.getElementById('node-maino').classList.add('uptodate');
+    document.getElementById('node-utilso').classList.add('built');
+    document.getElementById('node-app').classList.add('built');
+    document.getElementById('arrow-1').classList.add('active');
+    document.getElementById('arrow-2').classList.add('active');
+  }
+}
+
+// ===== Level 2 Task 1: Variables =====
+function checkL2T1() {
+  const val = document.getElementById('editor-l2t1').value;
+  const console = document.getElementById('console-l2t1');
+  console.style.display = 'block';
+  let ok = true, msgs = [];
+  if (!/CC\s*=\s*gcc/i.test(val)) { ok = false; msgs.push('❌ TODO_1：CC 应该赋值为 gcc'); }
+  else msgs.push('✅ CC = gcc 正确');
+  if (/\$\(CC\)\s+\$\(CFLAGS\)\s+-c\s+main\.c/.test(val) || /\$\(CC\)\s+-c\s+main\.c/.test(val.replace(/TODO_2/,''))) {
+    // Check if TODO_2 is replaced with $(CC) or $(CC) $(CFLAGS)
+    if (/TODO_2/.test(val)) { ok = false; msgs.push('❌ TODO_2 还没有替换'); }
+    else msgs.push('✅ 编译 main.o 的命令正确');
+  }
+  if (/TODO_3/.test(val)) { ok = false; msgs.push('❌ TODO_3 还没有替换'); }
+  if (!/\$\(CC\)\s+\$\(CFLAGS\)\s+-c\s+utils\.c/.test(val) && !/TODO_3/.test(val)) {
+    // They replaced TODO_3 but maybe not correctly
+    if (!val.includes('$(CFLAGS)') || !val.includes('utils.c')) {
+      ok = false; msgs.push('❌ utils.o 的编译命令应该包含 $(CFLAGS) -c utils.c');
+    }
+  }
+  // Simpler re-check
+  const lines = val.split('\n');
+  const ccLine = lines.find(l => /^\s*CC\s*=/.test(l));
+  if (ccLine && !/gcc/.test(ccLine)) { ok = false; msgs.push('❌ CC 应该赋值为 gcc'); }
+  if (ok) {
+    console.innerHTML = '<div class="line success">✅ 全部正确！变量让代码更易维护——改一处即可全局生效。</div>';
+  } else {
+    console.innerHTML = msgs.map(m => '<div class="line ' + (m.startsWith('✅') ? 'success' : 'error') + '">' + m + '</div>').join('');
+  }
+}
+function resetL2T1() {
+  document.getElementById('editor-l2t1').value = `# 定义变量
+CC = TODO_1          # 编译器
+CFLAGS = -Wall -g    # 编译选项
+
+myapp: main.o utils.o
+	\$(CC) -o myapp main.o utils.o
+
+main.o: main.c
+	TODO_2 -c main.c  # 用变量引用替换硬编码的 gcc
+
+utils.o: utils.c
+	\$(CC) TODO_3      # 用变量引用替换硬编码的 -c utils.c
+
+clean:
+	rm -f *.o myapp`;
+  document.getElementById('console-l2t1').style.display = 'none';
+}
+
+// ===== Level 2 Task 2: .PHONY =====
+function checkL2T2() {
+  const val = document.getElementById('editor-l2t2').value;
+  const console = document.getElementById('console-l2t2');
+  console.style.display = 'block';
+  if (/\.PHONY\s*:\s*.*all/.test(val) && /\.PHONY\s*:\s*.*clean/.test(val)) {
+    console.innerHTML = '<div class="line success">✅ 完美！all 和 clean 都声明为 .PHONY 了。即使目录下有同名文件，make 也会执行它们的 recipe。</div>';
+  } else if (/\.PHONY/.test(val)) {
+    console.innerHTML = '<div class="line warn">⚠️ 检测到 .PHONY，但 all 和 clean 没有都被声明。确保两者都包含。</div>';
+  } else {
+    console.innerHTML = '<div class="line error">❌ 还没有添加 .PHONY 声明。格式：.PHONY: target1 target2</div>';
+  }
+}
+function resetL2T2() {
+  document.getElementById('editor-l2t2').value = `CC = gcc
+CFLAGS = -Wall -g
+
+# TODO: 在下方添加 .PHONY 声明
+# 声明 all 和 clean 为伪目标
+
+
+all: myapp
+
+myapp: main.o utils.o
+	\$(CC) -o myapp main.o utils.o
+
+main.o: main.c
+	\$(CC) \$(CFLAGS) -c main.c
+
+utils.o: utils.c
+	\$(CC) \$(CFLAGS) -c utils.c
+
+clean:
+	rm -f *.o myapp`;
+  document.getElementById('console-l2t2').style.display = 'none';
+}
+
+// ===== Level 2 Task 3: Pattern rules =====
+function checkL2T3() {
+  const val = document.getElementById('editor-l2t3').value;
+  const console = document.getElementById('console-l2t3');
+  console.style.display = 'block';
+  if (/%\.o\s*:\s*%\.c/.test(val) && /\$</.test(val)) {
+    console.innerHTML = '<div class="line success">✅ 模式规则正确！一条 %.o: %.c 规则可以处理任意数量的 .c 文件。新增源文件时无需修改 Makefile——这就是 DRY 原则。</div>';
+  } else if (/%\.o/.test(val) || /%\.c/.test(val)) {
+    console.innerHTML = '<div class="line warn">⚠️ 接近了！确保有 %.o: %.c 的规则定义，且 recipe 中使用了 $< 和 $@ 自动变量。</div>';
+  } else {
+    console.innerHTML = '<div class="line error">❌ 还没有添加模式规则。试试 %.o: %.c 配合 $(CC) $(CFLAGS) -c $< -o $@</div>';
+  }
+}
+function resetL2T3() {
+  document.getElementById('editor-l2t3').value = `CC = gcc
+CFLAGS = -Wall -g
+
+.PHONY: all clean
+
+all: myapp
+
+myapp: main.o utils.o
+	\$(CC) -o myapp main.o utils.o
+
+# TODO: 用一条模式规则替代上面两条独立规则
+# 提示：%.o 匹配所有 .o 文件，%.c 匹配对应的 .c 文件
+# 自动变量：$< 代表第一个依赖，$@ 代表目标
+
+
+
+clean:
+	rm -f *.o myapp`;
+  document.getElementById('console-l2t3').style.display = 'none';
+}
+
+// ===== Level 3: Independent =====
+function checkL3() {
+  const val = document.getElementById('editor-l3').value;
+  const console = document.getElementById('console-l3');
+  console.style.display = 'block';
+  let checks = [];
+  let pass = 0, total = 5;
+  // Check 1: Variables
+  if (/(SRC_DIR|SRC|src_dir|SRC_PATH)\s*=/.test(val) && /(DIST_DIR|DIST|dist_dir|DIST_PATH|BUILD_DIR|BUILD)\s*=/.test(val)) {
+    checks.push({ok:true, msg:'✅ 使用了变量管理路径'});pass++;
+  } else {
+    checks.push({ok:false, msg:'❌ 缺少路径变量定义（如 SRC_DIR, DIST_DIR）'});
+  }
+  // Check 2: build target
+  if (/^build\s*:/m.test(val)) { checks.push({ok:true, msg:'✅ 有 build 目标'});pass++; }
+  else checks.push({ok:false, msg:'❌ 缺少 build 目标'});
+  // Check 3: clean target
+  if (/^clean\s*:/m.test(val)) { checks.push({ok:true, msg:'✅ 有 clean 目标'});pass++; }
+  else checks.push({ok:false, msg:'❌ 缺少 clean 目标'});
+  // Check 4: dev target
+  if (/^dev\s*:/m.test(val)) { checks.push({ok:true, msg:'✅ 有 dev 目标'});pass++; }
+  else checks.push({ok:false, msg:'❌ 缺少 dev 目标'});
+  // Check 5: .PHONY
+  if (/\.PHONY\s*:/m.test(val)) { checks.push({ok:true, msg:'✅ 声明了 .PHONY'});pass++; }
+  else checks.push({ok:false, msg:'❌ 缺少 .PHONY 声明'});
+  console.innerHTML = checks.map(c => `<div class="line ${c.ok?'success':'error'}">${c.msg}</div>`).join('');
+  console.innerHTML += `<div class="line" style="color:var(--text-muted);margin-top:8px;">通过 ${pass}/${total} 项检查</div>`;
+  if (pass === total) {
+    console.innerHTML += '<div class="line success" style="font-weight:700;margin-top:4px;">🎉 完美通过！你已经能独立编写实用的 Makefile 了！</div>';
+  }
+}
+function resetL3() {
+  document.getElementById('editor-l3').value = '# 在这里编写你的 Makefile\n# 提示：从定义变量开始\n';
+  document.getElementById('console-l3').style.display = 'none';
+}
+
+// ===== Level 4A: Functions =====
+function checkL4A() {
+  const val = document.getElementById('editor-l4a').value;
+  const console = document.getElementById('console-l4a');
+  console.style.display = 'block';
+  let checks = [];
+  let pass = 0;
+  if (/wildcard\s*\(\s*src\/\*\.c\s*\)/.test(val)) { checks.push({ok:true,msg:'✅ SRCS 使用 wildcard 函数'});pass++; }
+  else checks.push({ok:false,msg:'❌ SRCS 应使用 $(wildcard src/*.c)'});
+  if (/patsubst/.test(val) && /\$\(SRCS\)/.test(val)) { checks.push({ok:true,msg:'✅ OBJS 使用 patsubst 转换'});pass++; }
+  else checks.push({ok:false,msg:'❌ OBJS 应使用 $(patsubst src/%.c,build/%.o,$(SRCS))'});
+  if (!/TODO_4/.test(val) && /TARGET\s*=\s*\S+/.test(val)) { checks.push({ok:true,msg:'✅ TARGET 已设置'});pass++; }
+  else checks.push({ok:false,msg:'❌ TODO_4 需要替换为目标文件名（如 build/myapp）'});
+  if (/build\/%\.o\s*:\s*src\/%\.c/.test(val)) { checks.push({ok:true,msg:'✅ 模式规则正确'});pass++; }
+  else checks.push({ok:false,msg:'❌ 缺少 build/%.o: src/%.c 模式规则'});
+  if (/\$<|\$\^/.test(val) && /\$@/.test(val)) { checks.push({ok:true,msg:'✅ 使用了自动变量 $< 和 $@'});pass++; }
+  else checks.push({ok:false,msg:'❌ recipe 中应使用 $< (输入) 和 $@ (输出)'});
+  console.innerHTML = checks.map(c => `<div class="line ${c.ok?'success':'error'}">${c.msg}</div>`).join('');
+  console.innerHTML += `<div class="line" style="color:var(--text-muted);margin-top:8px;">通过 ${pass}/5 项检查</div>`;
+  if (pass === 5) console.innerHTML += '<div class="line success" style="font-weight:700;">🏆 函数 + 模式规则 = 自动化利器！</div>';
+}
+function resetL4A() {
+  document.getElementById('editor-l4a').value = `# 项目结构：src/ 下有多个 .c 文件
+# 目标：自动发现所有 .c 文件，生成对应的 .o 列表
+
+# TODO 1: 用 wildcard 函数获取 src/ 下所有 .c 文件
+SRCS = 
+
+# TODO 2: 用 patsubst 函数将 .c 替换为 .o
+OBJS = 
+
+# TODO 3: 用变量和自动变量完成编译规则
+# 目标文件名为 myapp，放在 build/ 目录下
+
+CC = gcc
+CFLAGS = -Wall -Wextra -O2
+
+TARGET = TODO_4
+
+\$(TARGET): \$(OBJS)
+	\$(CC) \$(CFLAGS) -o \$@ \$^
+
+# TODO 5: 模式规则编译 .c -> .o
+# 源文件在 src/，目标文件在 build/
+# 提示：build/%.o: src/%.c`;
+  document.getElementById('console-l4a').style.display = 'none';
+}
+
+// ===== Level 4B: Conditional =====
+function checkL4B() {
+  const val = document.getElementById('editor-l4b').value;
+  const console = document.getElementById('console-l4b');
+  console.style.display = 'block';
+  if ((/ifdef\s+DEBUG/.test(val) || /ifeq/.test(val)) && /-g/.test(val) && /-O2/.test(val) && /endif/.test(val)) {
+    console.innerHTML = '<div class="line success">✅ 条件编译配置正确！现在 make 默认用 debug 模式，make DEBUG=0 切换到 release 模式。这在大型项目中非常实用。</div>';
+  } else if (/ifdef|ifeq/.test(val)) {
+    console.innerHTML = '<div class="line warn">⚠️ 有条件语句了，但需要确保 debug 模式包含 -g -O0，release 模式包含 -O2 -DNDEBUG，并以 endif 结尾。</div>';
+  } else {
+    console.innerHTML = '<div class="line error">❌ 还没有使用条件语句。试试 ifdef DEBUG 或 ifeq ($(DEBUG),1) 配合 ?= 默认值。</div>';
+  }
+}
+function resetL4B() {
+  document.getElementById('editor-l4b').value = `# 用法：make          -> debug 模式
+#       make DEBUG=0  -> release 模式
+
+CC = gcc
+
+# TODO: 用 ifdef/ifeq 条件语句设置 CFLAGS
+# 如果 DEBUG 未定义或为 1，用 -g -O0
+# 否则用 -O2 -DNDEBUG
+
+`;
+  document.getElementById('console-l4b').style.display = 'none';
+}
+
+// ===== Level 4C: Task Manager =====
+function checkL4C() {
+  const val = document.getElementById('editor-l4c').value;
+  const console = document.getElementById('console-l4c');
+  console.style.display = 'block';
+  let checks = [], pass = 0, total = 6;
+  const targets = ['setup', 'test', 'lint', 'docker', 'deploy'];
+  targets.forEach(t => {
+    if (new RegExp(`^${t}\\s*:`, 'm').test(val)) { checks.push({ok:true,msg:`✅ 有 ${t} 目标`});pass++; }
+    else checks.push({ok:false,msg:`❌ 缺少 ${t} 目标`});
+  });
+  // deploy depends on build + docker + test
+  const deployMatch = val.match(/^deploy\s*:\s*(.*)/m);
+  if (deployMatch && /build/.test(deployMatch[1]) && /docker/.test(deployMatch[1]) && /test/.test(deployMatch[1])) {
+    checks.push({ok:true,msg:'✅ deploy 依赖 build + docker + test'});pass++;
+  } else if (deployMatch) {
+    checks.push({ok:false,msg:'❌ deploy 应依赖 build、docker、test 三个目标'});
+  } else {
+    checks.push({ok:false,msg:'❌ 缺少 deploy 目标'});
+  }
+  // Check for build target too
+  if (/^build\s*:/m.test(val)) { pass++; total++; checks.push({ok:true,msg:'✅ 有 build 目标（deploy 的前置）'}); }
+  else { total++; checks.push({ok:false,msg:'❌ 缺少 build 目标（deploy 的前置依赖）'}); }
+  console.innerHTML = checks.map(c => `<div class="line ${c.ok?'success':'error'}">${c.msg}</div>`).join('');
+  console.innerHTML += `<div class="line" style="color:var(--text-muted);margin-top:8px;">通过 ${pass}/${total} 项检查</div>`;
+  if (pass >= total - 1) console.innerHTML += '<div class="line success" style="font-weight:700;">🚀 恭喜！你已经掌握了 Makefile 作为任务管理器的精髓！</div>';
+}
+function resetL4C() {
+  document.getElementById('editor-l4c').value = '# 万能 Makefile 任务管理器\n# 命令可以用 echo 模拟，重点是结构和依赖关系\n';
+  document.getElementById('console-l4c').style.display = 'none';
+}
+
+// ===== Quiz =====
+const quizData = [
+  {
+    q: 'make 判断是否需要重新编译的依据是什么？',
+    opts: ['文件内容是否改变', '文件时间戳——依赖是否比目标更新', '文件大小是否变化', '用户是否手动指定'],
+    correct: 1,
+    explain: 'make 比较的是文件的时间戳（modification time）。如果任何一个依赖文件的时间戳比目标文件更新，make 就会重新执行 recipe。它不会检查文件内容。'
+  },
+  {
+    q: 'Makefile 中 recipe（命令）行必须以什么开头？',
+    opts: ['4 个空格', 'Tab 键', '两个空格', '没有要求'],
+    correct: 1,
+    explain: '这是 Makefile 最著名的"坑"——recipe 的每一行必须以 Tab 键开头，不能用空格替代。很多编辑器会把 Tab 自动转成空格，导致 "missing separator" 错误。'
+  },
+  {
+    q: '以下哪个变量赋值方式是"仅在变量未定义时赋值"？',
+    opts: ['CC = gcc', 'CC := gcc', 'CC ?= gcc', 'CC += gcc'],
+    correct: 2,
+    explain: '?= 是条件赋值运算符，仅在变量未定义时才赋值。= 是延迟展开，:= 是立即展开，+= 是追加。'
+  },
+  {
+    q: '自动变量 $< 代表什么？',
+    opts: ['目标文件名', '第一个依赖文件', '所有依赖文件', '上一个规则的目标'],
+    correct: 1,
+    explain: '$< 代表当前规则的第一个依赖文件（the first prerequisite）。$@ 是目标名，$^ 是所有依赖。在模式规则 %.o: %.c 中，$< 就是对应的 .c 文件。'
+  },
+  {
+    q: '为什么需要 .PHONY: clean？',
+    opts: ['让 clean 命令运行更快', '即使目录中存在名为 clean 的文件，也确保 make 会执行 clean 的 recipe', '声明 clean 是一个目录', '让 clean 可以并行执行'],
+    correct: 1,
+    explain: '.PHONY 告诉 make 某个 target 不代表实际文件。如果不用 .PHONY，而目录中恰好有一个叫 "clean" 的文件，make 会认为 clean 是"最新的"而跳过执行。'
+  },
+  {
+    q: '$(wildcard src/*.c) 的作用是什么？',
+    opts: ['在 src/ 中搜索包含 *.c 的文件', '返回 src/ 下所有匹配 *.c 模式的文件列表', '删除 src/ 下的 .c 文件', '将 *.c 替换为 src/'],
+    correct: 1,
+    explain: 'wildcard 函数返回匹配指定模式的所有文件列表。$(wildcard src/*.c) 会返回类似 "src/main.c src/utils.c src/helper.c" 的列表。'
+  }
+];
+
+let quizAnswers = {};
+function renderQuiz() {
+  const container = document.getElementById('quiz-container');
+  container.innerHTML = quizData.map((q, i) => `
+    <div class="quiz-question" id="qq-${i}">
+      <h4>${i+1}. ${q.q}</h4>
+      <div class="quiz-options">
+        ${q.opts.map((o, j) => `
+          <div class="quiz-opt" onclick="selectQuizOpt(${i},${j},this)">
+            <span class="opt-letter">${String.fromCharCode(65+j)}</span>
+            <span>${o}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="quiz-feedback" id="qfb-${i}"></div>
+    </div>
+  `).join('');
+}
+function selectQuizOpt(qi, oi, el) {
+  if (document.getElementById('quiz-score').style.display !== 'none') return;
+  quizAnswers[qi] = oi;
+  const siblings = el.parentElement.querySelectorAll('.quiz-opt');
+  siblings.forEach(s => s.style.borderColor = 'var(--border)');
+  el.style.borderColor = 'var(--primary)';
+}
+function submitQuiz() {
+  let score = 0;
+  quizData.forEach((q, i) => {
+    const fb = document.getElementById(`qfb-${i}`);
+    const opts = document.querySelectorAll(`#qq-${i} .quiz-opt`);
+    if (quizAnswers[i] === undefined) {
+      fb.className = 'quiz-feedback show wrong';
+      fb.textContent = '未作答。' + q.explain;
+    } else if (quizAnswers[i] === q.correct) {
+      score++;
+      opts[quizAnswers[i]].classList.add('correct');
+      fb.className = 'quiz-feedback show correct';
+      fb.textContent = '✅ 正确！' + q.explain;
+    } else {
+      opts[quizAnswers[i]].classList.add('wrong');
+      opts[q.correct].classList.add('correct');
+      fb.className = 'quiz-feedback show wrong';
+      fb.textContent = '❌ ' + q.explain;
+    }
+  });
+  const scoreEl = document.getElementById('quiz-score');
+  scoreEl.style.display = 'block';
+  document.getElementById('score-num').textContent = `${score}/${quizData.length}`;
+  const label = document.getElementById('score-label');
+  if (score === quizData.length) label.textContent = '🎉 满分！你对 Makefile 的理解非常扎实。';
+  else if (score >= 4) label.textContent = '👍 不错！回顾错题的解释，你会更强。';
+  else label.textContent = '📖 建议回到前面的关卡再练习一下。';
+  document.getElementById('quiz-submit').style.display = 'none';
+  document.getElementById('quiz-reset').style.display = 'inline-flex';
+  scoreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function resetQuiz() {
+  quizAnswers = {};
+  renderQuiz();
+  document.getElementById('quiz-score').style.display = 'none';
+  document.getElementById('quiz-submit').style.display = 'inline-flex';
+  document.getElementById('quiz-reset').style.display = 'none';
+}
+
+// Init quiz
+renderQuiz();
+</script>
+</body>
+</html>

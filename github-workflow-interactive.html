@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Actions Workflow — 互动学习</title>
+<style>
+:root {
+  --primary: #6366f1; --primary-light: #818cf8; --primary-dark: #4f46e5;
+  --bg: #f8fafc; --surface: #ffffff; --surface-alt: #f1f5f9;
+  --text: #1e293b; --text-muted: #64748b; --text-light: #94a3b8;
+  --accent: #f59e0b; --success: #10b981; --error: #ef4444;
+  --border: #e2e8f0; --code-bg: #1e293b; --code-text: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+  --radius: 12px;
+}
+[data-theme="dark"] {
+  --bg: #0f172a; --surface: #1e293b; --surface-alt: #334155;
+  --text: #e2e8f0; --text-muted: #94a3b8; --text-light: #64748b;
+  --border: #334155; --code-bg: #0f172a; --code-text: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3); --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; transition: background 0.3s, color 0.3s; }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Progress Bar */
+#progressBar { position: fixed; top: 0; left: 0; height: 4px; background: linear-gradient(90deg, var(--primary), var(--accent)); z-index: 1000; transition: width 0.15s; width: 0%; }
+
+/* Navigation */
+.top-nav { position: sticky; top: 4px; z-index: 999; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; gap: 12px; overflow-x: auto; box-shadow: var(--shadow); }
+.top-nav a { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; padding: 4px 12px; border-radius: 20px; transition: all 0.2s; }
+.top-nav a:hover, .top-nav a.active { background: var(--primary); color: white; text-decoration: none; }
+.nav-brand { font-weight: 700; color: var(--text); font-size: 0.95rem; margin-right: auto; display: flex; align-items: center; gap: 8px; }
+.nav-brand svg { width: 22px; height: 22px; }
+.theme-btn { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px; cursor: pointer; color: var(--text-muted); font-size: 0.82rem; transition: all 0.2s; white-space: nowrap; }
+.theme-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* Layout */
+.container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+section { padding: 48px 0 32px; }
+section + section { border-top: 1px solid var(--border); }
+
+/* Header */
+.hero { padding: 64px 0 40px; text-align: center; }
+.hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px; }
+.hero h1 span { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero p { font-size: 1.1rem; color: var(--text-muted); max-width: 540px; margin: 0 auto; }
+.hero-stats { display: flex; justify-content: center; gap: 32px; margin-top: 24px; }
+.hero-stat { text-align: center; }
+.hero-stat .num { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+.hero-stat .label { font-size: 0.8rem; color: var(--text-muted); }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin: 16px 0; box-shadow: var(--shadow); transition: box-shadow 0.2s, transform 0.2s; }
+.card:hover { box-shadow: var(--shadow-md); }
+.card h2 { font-size: 1.35rem; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+.card h3 { font-size: 1.1rem; margin: 20px 0 8px; color: var(--primary); }
+.card .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; }
+
+/* Level badges */
+.level-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+.level-1 { background: #dcfce7; color: #166534; }
+.level-2 { background: #dbeafe; color: #1e40af; }
+.level-3 { background: #fef3c7; color: #92400e; }
+.level-4 { background: #fce7f3; color: #9d174d; }
+[data-theme="dark"] .level-1 { background: #064e3b; color: #6ee7b7; }
+[data-theme="dark"] .level-2 { background: #1e3a5f; color: #93c5fd; }
+[data-theme="dark"] .level-3 { background: #78350f; color: #fde68a; }
+[data-theme="dark"] .level-4 { background: #831843; color: #f9a8d4; }
+
+/* Flow Diagram */
+.flow-diagram { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 20px 0; }
+.flow-node { background: var(--surface); border: 2px solid var(--primary); border-radius: var(--radius); padding: 14px 28px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative; min-width: 200px; }
+.flow-node:hover { transform: scale(1.03); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
+.flow-node.active { background: var(--primary); color: white; }
+.flow-node .node-label { font-weight: 600; font-size: 0.95rem; }
+.flow-node .node-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+.flow-node.active .node-desc { color: rgba(255,255,255,0.85); }
+.flow-arrow { width: 2px; height: 28px; background: var(--primary); position: relative; }
+.flow-arrow::after { content: ''; position: absolute; bottom: -1px; left: -5px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--primary); }
+.flow-branch { display: flex; gap: 16px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.flow-branch .flow-node { min-width: 160px; font-size: 0.9rem; border-color: var(--accent); }
+
+/* Concept Tree */
+.tree-node { margin: 6px 0; }
+.tree-header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface-alt); border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+.tree-header:hover { border-color: var(--primary); background: var(--surface); }
+.tree-header .toggle { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; }
+.tree-node.open > .tree-header .toggle { transform: rotate(90deg); }
+.tree-header .icon { font-size: 1.1rem; flex-shrink: 0; }
+.tree-header .title { font-weight: 600; font-size: 0.95rem; }
+.tree-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-left: 28px; padding-left: 16px; border-left: 2px solid var(--border); }
+.tree-node.open > .tree-body { max-height: 2000px; }
+.tree-leaf { padding: 8px 12px; margin: 4px 0; background: var(--surface); border-radius: 6px; font-size: 0.88rem; border: 1px solid var(--border); }
+.tree-leaf code { background: var(--surface-alt); padding: 2px 6px; border-radius: 4px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem; color: var(--primary); }
+.tree-leaf .desc { color: var(--text-muted); font-size: 0.82rem; margin-top: 2px; }
+
+/* Code Blocks */
+.code-block { background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 0; margin: 12px 0; overflow: hidden; font-size: 0.88rem; position: relative; }
+.code-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.08); }
+.code-header .lang { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
+.copy-btn { background: rgba(255,255,255,0.1); border: none; color: var(--code-text); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; transition: all 0.2s; }
+.copy-btn:hover { background: rgba(255,255,255,0.2); }
+.code-content { padding: 16px; overflow-x: auto; font-family: 'Cascadia Code', 'Fira Code', monospace; line-height: 1.6; white-space: pre; }
+.code-content .kw { color: #c084fc; }
+.code-content .str { color: #86efac; }
+.code-content .cmt { color: #64748b; font-style: italic; }
+.code-content .fn { color: #67e8f9; }
+.code-content .num { color: #fbbf24; }
+.code-content .todo { background: rgba(245,158,11,0.2); color: #fbbf24; padding: 0 4px; border-radius: 3px; }
+
+/* Interactive Editor */
+.editor-area { background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 16px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap; min-height: 160px; outline: none; border: 2px solid transparent; transition: border-color 0.2s; overflow-y: auto; max-height: 400px; }
+.editor-area:focus { border-color: var(--primary); }
+.editor-area .placeholder { color: var(--text-light); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-sm { padding: 6px 14px; font-size: 0.82rem; }
+.btn-group { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+
+/* Hint Panel */
+.hint-panel { background: var(--surface-alt); border: 1px solid var(--accent); border-radius: 8px; padding: 0; margin: 10px 0; overflow: hidden; max-height: 0; transition: max-height 0.4s ease, padding 0.3s; }
+.hint-panel.show { max-height: 600px; padding: 16px; }
+.hint-panel .hint-title { font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 8px; }
+
+/* Output Console */
+.console { background: #0c0c0c; color: #cccccc; border-radius: 8px; padding: 14px; font-family: 'Cascadia Code', monospace; font-size: 0.82rem; margin: 10px 0; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+.console .success { color: #86efac; }
+.console .error { color: #fca5a5; }
+.console .info { color: #93c5fd; }
+
+/* Quiz */
+.quiz-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 16px 0; }
+.quiz-card .q-title { font-weight: 700; font-size: 1rem; margin-bottom: 14px; }
+.quiz-opt { display: block; width: 100%; text-align: left; padding: 12px 16px; margin: 6px 0; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s; background: var(--surface); color: var(--text); font-size: 0.9rem; }
+.quiz-opt:hover:not(:disabled) { border-color: var(--primary); background: rgba(99,102,241,0.05); }
+.quiz-opt.correct { border-color: var(--success); background: rgba(16,185,129,0.1); }
+.quiz-opt.wrong { border-color: var(--error); background: rgba(239,68,68,0.1); }
+.quiz-opt:disabled { cursor: default; opacity: 0.7; }
+.quiz-feedback { margin-top: 10px; padding: 12px; border-radius: 8px; font-size: 0.88rem; display: none; }
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct { background: rgba(16,185,129,0.1); color: var(--success); }
+.quiz-feedback.wrong { background: rgba(239,68,68,0.1); color: var(--error); }
+.quiz-score { text-align: center; padding: 20px; background: var(--surface-alt); border-radius: var(--radius); margin-top: 16px; }
+.quiz-score .score-num { font-size: 2rem; font-weight: 800; color: var(--primary); }
+
+/* Glossary */
+.glossary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.glossary-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.2s; }
+.glossary-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+.glossary-item .term { font-weight: 700; font-size: 0.95rem; color: var(--primary); }
+.glossary-item .def { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; max-height: 0; overflow: hidden; transition: max-height 0.3s; }
+.glossary-item.open .def { max-height: 200px; }
+
+/* Comparison Table */
+.cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; font-size: 0.88rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.cmp-table th { background: var(--primary); color: white; padding: 12px 16px; text-align: left; font-weight: 600; }
+.cmp-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.2s; }
+.cmp-table tr:last-child td { border-bottom: none; }
+.cmp-table tr:hover td { background: var(--surface-alt); }
+
+/* Task checklist */
+.task-list { list-style: none; }
+.task-list li { padding: 8px 0; display: flex; align-items: flex-start; gap: 10px; }
+.task-list li::before { content: '☐'; font-size: 1.1rem; color: var(--text-muted); flex-shrink: 0; margin-top: 1px; }
+.task-list li.done::before { content: '☑'; color: var(--success); }
+.task-list li.done { color: var(--text-muted); text-decoration: line-through; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.tab-btn { padding: 8px 18px; border: none; background: none; color: var(--text-muted); font-size: 0.9rem; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-weight: 500; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .hero h1 { font-size: 1.6rem; }
+  .container { padding: 0 16px; }
+  .flow-branch { flex-direction: column; align-items: center; }
+  .glossary-grid { grid-template-columns: 1fr; }
+  .hero-stats { gap: 20px; }
+}
+
+/* Animations */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeInUp 0.5s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="progressBar"></div>
+
+<nav class="top-nav">
+  <div class="nav-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+    GitHub Actions
+  </div>
+  <a href="#map" onclick="smoothNav(event)">知识地图</a>
+  <a href="#level1" onclick="smoothNav(event)">Level 1</a>
+  <a href="#level2" onclick="smoothNav(event)">Level 2</a>
+  <a href="#level3" onclick="smoothNav(event)">Level 3</a>
+  <a href="#level4" onclick="smoothNav(event)">Level 4</a>
+  <a href="#quiz" onclick="smoothNav(event)">测验</a>
+  <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙 暗色</button>
+</nav>
+
+<div class="container">
+
+<!-- HERO -->
+<header class="hero fade-in">
+  <h1>掌握 <span>GitHub Actions</span> Workflow</h1>
+  <p>从零开始学习 CI/CD 自动化流水线 — 通过 4 个渐进级别，亲手构建真实可用的工作流</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">4</div><div class="label">学习级别</div></div>
+    <div class="hero-stat"><div class="num">8+</div><div class="label">核心概念</div></div>
+    <div class="hero-stat"><div class="num">~2h</div><div class="label">预计时长</div></div>
+  </div>
+</header>
+
+<!-- KNOWLEDGE MAP -->
+<section id="map">
+  <div class="card">
+    <h2>📍 知识地图</h2>
+    <p class="subtitle">点击各节点深入了解 GitHub Actions 的核心概念与执行流程</p>
+
+    <h3>执行流程</h3>
+    <div class="flow-diagram">
+      <div class="flow-node" onclick="toggleFlowNode(this)" data-detail="当满足触发条件时（如 push、pull_request、定时任务），Workflow 开始执行。">
+        <div class="node-label">⚡ Trigger 触发</div>
+        <div class="node-desc">push / pull_request / schedule / workflow_dispatch</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" onclick="toggleFlowNode(this)" data-detail="一个 Workflow 可以包含多个 Job，默认并行执行，也可用 needs 定义依赖顺序。">
+        <div class="node-label">📦 Workflow 工作流</div>
+        <div class="node-desc">.github/workflows/*.yml</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-branch">
+        <div class="flow-node" onclick="toggleFlowNode(this)" data-detail="每个 Job 运行在一个独立的 Runner 上，可以是 GitHub 托管的 Ubuntu/Windows/macOS，也可以是自托管 Runner。">
+          <div class="node-label">🖥️ Job A</div>
+          <div class="node-desc">Build & Test</div>
+        </div>
+        <div class="flow-node" onclick="toggleFlowNode(this)" data-detail="通过 needs: [build] 声明依赖，只有前置 Job 成功后才执行。">
+          <div class="node-label">🚀 Job B</div>
+          <div class="node-desc">Deploy (needs: A)</div>
+        </div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" onclick="toggleFlowNode(this)" data-detail="Step 是 Job 中最小的执行单元。可以是 run（执行 Shell 命令）或 uses（引用一个 Action）。">
+        <div class="node-label">🔧 Steps 步骤</div>
+        <div class="node-desc">run 命令 / uses 引用 Action</div>
+      </div>
+    </div>
+
+    <h3>概念树 — 点击展开</h3>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">📄</span><span class="title">Workflow 文件</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf">存放路径 <code>.github/workflows/*.yml</code><div class="desc">每个仓库可包含多个 Workflow 文件，互不影响</div></div>
+        <div class="tree-leaf">基本结构 <code>name → on → jobs</code><div class="desc">名称、触发器、任务列表三大部分</div></div>
+        <div class="tree-leaf">环境变量 <code>env:</code><div class="desc">可在 workflow / job / step 三个层级设置</div></div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">⚡</span><span class="title">Triggers 触发器</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf"><code>push</code> / <code>pull_request</code><div class="desc">最常用的触发器，可指定分支和路径过滤</div></div>
+        <div class="tree-leaf"><code>schedule</code><div class="desc">使用 cron 表达式定时执行，如 <code>'0 2 * * *'</code> 每天凌晨 2 点</div></div>
+        <div class="tree-leaf"><code>workflow_dispatch</code><div class="desc">允许在 GitHub UI 中手动触发，可定义输入参数</div></div>
+        <div class="tree-leaf"><code>repository_dispatch</code><div class="desc">通过 API 外部触发，适合跨仓库联动</div></div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">🖥️</span><span class="title">Jobs 任务</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf"><code>runs-on</code><div class="desc">指定运行器：ubuntu-latest / windows-latest / macOS-latest / self-hosted</div></div>
+        <div class="tree-leaf"><code>needs</code><div class="desc">声明 Job 之间的依赖关系，构成 DAG 执行图</div></div>
+        <div class="tree-leaf"><code>strategy.matrix</code><div class="desc">矩阵构建：一次运行多个 OS / 语言版本的组合</div></div>
+        <div class="tree-leaf"><code>if</code> 条件<div class="desc">控制 Job 是否执行，如 <code>if: github.ref == 'refs/heads/main'</code></div></div>
+        <div class="tree-leaf"><code>outputs</code><div class="desc">Job 输出值，供下游 Job 通过 needs 访问</div></div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">🔧</span><span class="title">Steps & Actions</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf"><code>uses: actions/checkout@v4</code><div class="desc">拉取代码仓库 — 几乎所有 Workflow 的第一步</div></div>
+        <div class="tree-leaf"><code>run:</code><div class="desc">执行 Shell 命令（bash / pwsh / python 等）</div></div>
+        <div class="tree-leaf"><code>with:</code><div class="desc">给 Action 传参，类似函数参数</div></div>
+        <div class="tree-leaf">常用 Actions<div class="desc"><code>setup-node</code>、<code>setup-python</code>、<code>cache</code>、<code>upload-artifact</code></div></div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">🔐</span><span class="title">Secrets & 环境变量</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf"><code>secrets.GITHUB_TOKEN</code><div class="desc">GitHub 自动提供的认证令牌，无需手动配置</div></div>
+        <div class="tree-leaf"><code>secrets.MY_SECRET</code><div class="desc">在仓库 Settings → Secrets 中添加的自定义密钥</div></div>
+        <div class="tree-leaf">上下文表达式 <code>${{ }}</code><div class="desc">引用变量：<code>${{ github.sha }}</code>、<code>${{ env.MY_VAR }}</code></div></div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleTree(event, this)">
+      <div class="tree-header">
+        <span class="toggle">▶</span><span class="icon">📦</span><span class="title">Artifacts & Caching</span>
+      </div>
+      <div class="tree-body">
+        <div class="tree-leaf"><code>upload-artifact</code> / <code>download-artifact</code><div class="desc">在 Job 之间传递文件，或保存构建产物供下载</div></div>
+        <div class="tree-leaf"><code>actions/cache</code><div class="desc">缓存依赖项（node_modules、pip 等），大幅加速后续运行</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trigger Comparison Table -->
+  <div class="card">
+    <h2>📊 常用触发器对比</h2>
+    <table class="cmp-table">
+      <thead>
+        <tr><th>触发器</th><th>触发时机</th><th>典型场景</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>push</code></td><td>代码推送到指定分支</td><td>CI 构建 & 测试</td></tr>
+        <tr><td><code>pull_request</code></td><td>PR 创建/更新</td><td>代码审查 & 检查</td></tr>
+        <tr><td><code>schedule</code></td><td>Cron 定时</td><td>定期巡检、夜间构建</td></tr>
+        <tr><td><code>workflow_dispatch</code></td><td>手动触发</td><td>按需部署、调试</td></tr>
+        <tr><td><code>release</code></td><td>发布版本时</td><td>发布流水线</td></tr>
+        <tr><td><code>workflow_call</code></td><td>被其他 Workflow 调用</td><td>可复用 Workflow</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- LEVEL 1: COGNITION -->
+<section id="level1">
+  <div class="card">
+    <h2><span class="level-badge level-1">⭐ Level 1</span> 认识 Workflow 结构</h2>
+    <p class="subtitle">目标：读懂一个完整的 Workflow YAML 文件，理解每个字段的含义 · 预计 15 分钟</p>
+
+    <h3>1.1 阅读你的第一个 Workflow</h3>
+    <p>下面是一个 Node.js 项目的 CI Workflow。点击每行注释旁的 <strong>💡</strong> 按钮，查看该字段的详细说明。</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content" id="code-l1"><span class="cmt"># .github/workflows/ci.yml</span>
+
+<span class="fn">name</span>: <span class="str">Node.js CI</span>          <span class="cmt" style="cursor:pointer" onclick="showTip(this, '给 Workflow 起个名字，会显示在 GitHub Actions 页面上')"># 💡</span>
+
+<span class="fn">on</span>:                       <span class="cmt" style="cursor:pointer" onclick="showTip(this, '定义触发条件：什么事件会让这个 Workflow 运行')"># 💡</span>
+  <span class="fn">push</span>:
+    <span class="fn">branches</span>: [<span class="str">"main"</span>]   <span class="cmt" style="cursor:pointer" onclick="showTip(this, '只在 push 到 main 分支时触发')"># 💡</span>
+  <span class="fn">pull_request</span>:
+    <span class="fn">branches</span>: [<span class="str">"main"</span>]
+
+<span class="fn">jobs</span>:                     <span class="cmt" style="cursor:pointer" onclick="showTip(this, 'jobs 下面定义所有要执行的任务')"># 💡</span>
+  <span class="fn">build</span>:                  <span class="cmt" style="cursor:pointer" onclick="showTip(this, '这个 Job 的名字叫 build，可以自定义')"># 💡</span>
+    <span class="fn">runs-on</span>: <span class="str">ubuntu-latest</span> <span class="cmt" style="cursor:pointer" onclick="showTip(this, '使用 GitHub 提供的最新 Ubuntu 虚拟机运行')"># 💡</span>
+
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: <span class="str">actions/checkout@v4</span>  <span class="cmt" style="cursor:pointer" onclick="showTip(this, '第一步：拉取你的代码到 Runner 上')"># 💡</span>
+
+      - <span class="fn">name</span>: <span class="str">Setup Node.js</span>
+        <span class="fn">uses</span>: <span class="str">actions/setup-node@v4</span> <span class="cmt" style="cursor:pointer" onclick="showTip(this, '安装指定版本的 Node.js 运行环境')"># 💡</span>
+        <span class="fn">with</span>:
+          <span class="fn">node-version</span>: <span class="str">'20'</span>
+
+      - <span class="fn">run</span>: <span class="str">npm ci</span>         <span class="cmt" style="cursor:pointer" onclick="showTip(this, '安装依赖（ci 比 install 更适合 CI 环境）')"># 💡</span>
+      - <span class="fn">run</span>: <span class="str">npm test</span>       <span class="cmt" style="cursor:pointer" onclick="showTip(this, '运行测试套件')"># 💡</span></div>
+    </div>
+
+    <h3>1.2 理解执行顺序</h3>
+    <p>把这个 Workflow 想象成一条流水线。拖动下面的卡片，将它们排列为正确的执行顺序：</p>
+
+    <div id="sortGame" style="margin: 16px 0;">
+      <div style="display: flex; flex-direction: column; gap: 8px;" id="sortContainer">
+        <div class="sort-item" draggable="true" data-order="3" style="background: var(--surface-alt); border: 2px solid var(--border); border-radius: 8px; padding: 12px 16px; cursor: grab; transition: all 0.2s; user-select: none;">
+          <strong>npm ci + npm test</strong> <span style="color: var(--text-muted); font-size: 0.85rem;">— 安装依赖并运行测试</span>
+        </div>
+        <div class="sort-item" draggable="true" data-order="1" style="background: var(--surface-alt); border: 2px solid var(--border); border-radius: 8px; padding: 12px 16px; cursor: grab; transition: all 0.2s; user-select: none;">
+          <strong>push to main</strong> <span style="color: var(--text-muted); font-size: 0.85rem;">— 触发 Workflow</span>
+        </div>
+        <div class="sort-item" draggable="true" data-order="2" style="background: var(--surface-alt); border: 2px solid var(--border); border-radius: 8px; padding: 12px 16px; cursor: grab; transition: all 0.2s; user-select: none;">
+          <strong>checkout + setup-node</strong> <span style="color: var(--text-muted); font-size: 0.85rem;">— 准备环境</span>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="checkSort()">检查顺序</button>
+        <button class="btn btn-outline btn-sm" onclick="resetSort()">重置</button>
+      </div>
+      <div id="sortResult" style="margin-top: 8px; font-size: 0.9rem;"></div>
+    </div>
+
+    <h3>1.3 小试牛刀</h3>
+    <p>在下面的 Workflow 中，有一个 <strong>YAML 语法错误</strong>。找出来并修正它：</p>
+    <div class="code-block">
+      <div class="code-header"><span class="lang">找 Bug</span></div>
+      <div class="code-content"><span class="fn">name</span>: My Workflow
+<span class="fn">on</span>: push
+<span class="fn">jobs</span>:
+  <span class="fn">test</span>:
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+      - <span class="fn">run</span> echo <span class="str">"Hello"</span>    <span class="cmt">← 这里有问题？</span></div>
+    </div>
+    <div class="hint-panel" id="hint-l1-3">
+      <div class="hint-title">💡 提示</div>
+      <p><code>run</code> 后面应该用冒号 <code>:</code> 而不是空格。正确写法是 <code>run: echo "Hello"</code>。YAML 中键值对必须用冒号分隔。</p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="toggleHint('hint-l1-3')">显示提示</button>
+  </div>
+</section>
+
+<!-- LEVEL 2: GUIDED PRACTICE -->
+<section id="level2">
+  <div class="card">
+    <h2><span class="level-badge level-2">⭐⭐ Level 2</span> 构建你的 CI 流水线</h2>
+    <p class="subtitle">目标：补全一个 Python 项目的 CI Workflow，掌握 Jobs、Steps 和 Matrix 构建 · 预计 25 分钟</p>
+
+    <h3>2.1 补全 Workflow 模板</h3>
+    <p>你正在为一个 Python Flask 项目搭建 CI。模板已搭好框架，请根据注释补全 <span style="color: var(--accent); font-weight: 600;">TODO</span> 部分。</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(event, 'l2-template')">模板（补全）</button>
+      <button class="tab-btn" onclick="switchTab(event, 'l2-solution')">参考答案</button>
+    </div>
+
+    <div class="tab-content active" id="l2-template">
+      <div class="code-block">
+        <div class="code-header"><span class="lang">YAML — 请补全 TODO 部分</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+        <div class="code-content"><span class="fn">name</span>: Python CI
+
+<span class="fn">on</span>:
+  <span class="fn">push</span>:
+    <span class="fn">branches</span>: [<span class="str">"main"</span>, <span class="str">"develop"</span>]
+  <span class="cmt"># TODO 1: 添加 pull_request 触发器</span>
+  <span class="cmt"># ___________________</span>
+
+<span class="fn">jobs</span>:
+  <span class="fn">test</span>:
+    <span class="fn">runs-on</span>: ubuntu-latest
+
+    <span class="cmt"># TODO 2: 添加 matrix 策略，测试 Python 3.10 和 3.12</span>
+    <span class="cmt"># strategy:</span>
+    <span class="cmt">#   matrix:</span>
+    <span class="cmt">#     ___________________</span>
+
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+
+      - <span class="fn">name</span>: Set up Python
+        <span class="fn">uses</span>: actions/setup-python@v5
+        <span class="fn">with</span>:
+          <span class="cmt"># TODO 3: 引用 matrix 中的 Python 版本</span>
+          <span class="cmt"># python-version: ___________</span>
+
+      - <span class="fn">name</span>: Install dependencies
+        <span class="cmt"># TODO 4: 安装依赖的命令</span>
+        <span class="cmt"># run: ___________</span>
+
+      - <span class="fn">name</span>: Run tests
+        <span class="fn">run</span>: pytest --verbose</div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="l2-solution">
+      <div class="code-block">
+        <div class="code-header"><span class="lang">YAML — 完整答案</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+        <div class="code-content"><span class="fn">name</span>: Python CI
+
+<span class="fn">on</span>:
+  <span class="fn">push</span>:
+    <span class="fn">branches</span>: [<span class="str">"main"</span>, <span class="str">"develop"</span>]
+  <span class="fn">pull_request</span>:                       <span class="cmt"># ✅ TODO 1</span>
+    <span class="fn">branches</span>: [<span class="str">"main"</span>]
+
+<span class="fn">jobs</span>:
+  <span class="fn">test</span>:
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">strategy</span>:                          <span class="cmt"># ✅ TODO 2</span>
+      <span class="fn">matrix</span>:
+        <span class="fn">python-version</span>: [<span class="str">"3.10"</span>, <span class="str">"3.12"</span>]
+
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+
+      - <span class="fn">name</span>: Set up Python
+        <span class="fn">uses</span>: actions/setup-python@v5
+        <span class="fn">with</span>:
+          <span class="fn">python-version</span>: <span class="str">${{ matrix.python-version }}</span>  <span class="cmt"># ✅ TODO 3</span>
+
+      - <span class="fn">name</span>: Install dependencies
+        <span class="fn">run</span>: pip install -r requirements.txt  <span class="cmt"># ✅ TODO 4</span>
+
+      - <span class="fn">name</span>: Run tests
+        <span class="fn">run</span>: pytest --verbose</div>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px;">💡 使用 matrix 后，GitHub 会自动创建 <strong>2 个并行 Job</strong>，分别测试 Python 3.10 和 3.12。</p>
+    </div>
+
+    <h3>2.2 添加依赖缓存</h3>
+    <p>每次 CI 都重新 <code>pip install</code> 太慢了。用 <code>actions/cache</code> 缓存依赖，加速后续运行：</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content">      - <span class="fn">name</span>: Cache pip packages
+        <span class="fn">uses</span>: actions/cache@v4
+        <span class="fn">with</span>:
+          <span class="fn">path</span>: ~/.cache/pip             <span class="cmt"># 缓存目录</span>
+          <span class="fn">key</span>: <span class="str">${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}</span>
+          <span class="fn">restore-keys</span>: |
+            <span class="str">${{ runner.os }}-pip-</span></div>
+    </div>
+
+    <p style="font-size: 0.9rem;">这里的 <code>key</code> 是缓存的唯一标识。当 <code>requirements.txt</code> 内容变化时，哈希值改变，缓存失效并重新生成。<code>restore-keys</code> 允许精确匹配失败时回退到前缀匹配。</p>
+
+    <div class="hint-panel" id="hint-l2">
+      <div class="hint-title">💡 关键理解</div>
+      <p>缓存和 Artifacts 的区别：<br>
+      <strong>Cache</strong> = 加速依赖安装，在同一 Job 的后续步骤中复用<br>
+      <strong>Artifacts</strong> = 在不同 Job 之间传递文件，或保存构建产物<br>
+      缓存有 10GB 上限，7 天不用自动清理。</p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="toggleHint('hint-l2')">💡 Cache vs Artifacts</button>
+  </div>
+</section>
+
+<!-- LEVEL 3: INDEPENDENT -->
+<section id="level3">
+  <div class="card">
+    <h2><span class="level-badge level-3">⭐⭐⭐ Level 3</span> 搭建完整 CI/CD 流水线</h2>
+    <p class="subtitle">目标：独立编写一个包含构建、测试、部署的多 Job Workflow · 预计 40 分钟</p>
+
+    <h3>📋 需求描述</h3>
+    <p>你有一个 Node.js + Docker 的 Web 应用。请编写一个 Workflow 满足以下要求：</p>
+    <ul class="task-list" id="l3-tasks">
+      <li onclick="toggleTask(this)">push 到 main 分支时触发</li>
+      <li onclick="toggleTask(this)">Job 1 <strong>build</strong>：安装依赖 → 运行 lint → 运行测试</li>
+      <li onclick="toggleTask(this)">Job 2 <strong>docker</strong>：构建 Docker 镜像 → 推送到 Docker Hub（依赖 build 成功）</li>
+      <li onclick="toggleTask(this)">Job 3 <strong>deploy</strong>：SSH 部署到服务器（依赖 docker 成功，且仅在 main 分支执行）</li>
+      <li onclick="toggleTask(this)">使用 Secrets 存储 Docker Hub 密码和 SSH 私钥</li>
+    </ul>
+
+    <h3>✏️ 开始编写</h3>
+    <p>在下方编辑器中编写你的 Workflow YAML。可以随时点击「查看参考」对比答案。</p>
+
+    <div class="editor-area" contenteditable="true" id="l3-editor" spellcheck="false">name: Deploy Pipeline
+
+on:
+  # TODO: 添加触发器
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # TODO: checkout, setup, lint, test
+
+  docker:
+    # TODO: 声明依赖 + 运行器
+    steps:
+      # TODO: build & push docker image
+
+  deploy:
+    # TODO: 条件判断 + SSH 部署
+</div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="validateL3()">✅ 验证结构</button>
+      <button class="btn btn-outline" onclick="toggleHint('hint-l3-ref')">📖 查看参考</button>
+    </div>
+    <div class="console" id="l3-output">等待验证...</div>
+
+    <div class="hint-panel" id="hint-l3-ref">
+      <div class="hint-title">参考答案</div>
+      <div class="code-block" style="margin-top: 8px;">
+        <div class="code-header"><span class="lang">YAML</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+        <div class="code-content"><span class="fn">name</span>: Deploy Pipeline
+
+<span class="fn">on</span>:
+  <span class="fn">push</span>:
+    <span class="fn">branches</span>: [<span class="str">"main"</span>]
+
+<span class="fn">jobs</span>:
+  <span class="fn">build</span>:
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+      - <span class="fn">uses</span>: actions/setup-node@v4
+        <span class="fn">with</span>:
+          <span class="fn">node-version</span>: <span class="str">'20'</span>
+      - <span class="fn">run</span>: npm ci
+      - <span class="fn">run</span>: npm run lint
+      - <span class="fn">run</span>: npm test
+
+  <span class="fn">docker</span>:
+    <span class="fn">needs</span>: build                   <span class="cmt"># 依赖 build Job</span>
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+      - <span class="fn">name</span>: Login to Docker Hub
+        <span class="fn">run</span>: echo <span class="str">"${{ secrets.DOCKER_PASSWORD }}"</span> | docker login -u <span class="str">"${{ secrets.DOCKER_USER }}"</span> --password-stdin
+      - <span class="fn">name</span>: Build & Push
+        <span class="fn">run</span>: |
+          docker build -t myapp:${{ github.sha }} .
+          docker push myapp:${{ github.sha }}
+
+  <span class="fn">deploy</span>:
+    <span class="fn">needs</span>: docker                  <span class="cmt"># 依赖 docker Job</span>
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">if</span>: github.ref == <span class="str">'refs/heads/main'</span>  <span class="cmt"># 仅 main 分支</span>
+    <span class="fn">steps</span>:
+      - <span class="fn">name</span>: Deploy via SSH
+        <span class="fn">uses</span>: appleboy/ssh-action@v1
+        <span class="fn">with</span>:
+          <span class="fn">host</span>: <span class="str">${{ secrets.SERVER_HOST }}</span>
+          <span class="fn">username</span>: deploy
+          <span class="fn">key</span>: <span class="str">${{ secrets.SSH_PRIVATE_KEY }}</span>
+          <span class="fn">script</span>: |
+            docker pull myapp:${{ github.sha }}
+            docker stop myapp || true
+            docker run -d --name myapp -p 80:3000 myapp:${{ github.sha }}</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEVEL 4: CHALLENGE -->
+<section id="level4">
+  <div class="card">
+    <h2><span class="level-badge level-4">⭐⭐⭐⭐ Level 4</span> 进阶挑战</h2>
+    <p class="subtitle">目标：优化流水线性能、处理边缘场景、构建可复用 Workflow · 预计 40 分钟</p>
+
+    <h3>挑战 A：性能优化 🔥</h3>
+    <p>你的 Workflow 运行时间从 3 分钟增长到了 12 分钟。在不改变功能的前提下，用以下手段优化：</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 12px 0;">
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px; border-left: 3px solid var(--success);">
+        <strong>缓存依赖</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">用 actions/cache 缓存 node_modules 或 pip 包</p>
+      </div>
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px; border-left: 3px solid var(--primary);">
+        <strong>并行执行</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">lint 和 test 可以在两个 Job 中并行运行</p>
+      </div>
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px; border-left: 3px solid var(--accent);">
+        <strong>路径过滤</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">仅当 src/ 目录变更时才触发 CI</p>
+      </div>
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px; border-left: 3px solid var(--error);">
+        <strong>条件跳过</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">文档更新不需要跑测试</p>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML — 路径过滤示例</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content"><span class="fn">on</span>:
+  <span class="fn">push</span>:
+    <span class="fn">paths</span>:                       <span class="cmt"># 仅当这些路径有改动时触发</span>
+      - <span class="str">'src/**'</span>
+      - <span class="str">'tests/**'</span>
+      - <span class="str">'package.json'</span>
+    <span class="fn">paths-ignore</span>:                <span class="cmt"># 忽略这些改动</span>
+      - <span class="str">'docs/**'</span>
+      - <span class="str">'*.md'</span></div>
+    </div>
+
+    <h3>挑战 B：可复用 Workflow 🔄</h3>
+    <p>当你有多个项目使用相似的 CI 配置时，可以抽取为 <strong>Reusable Workflow</strong>：</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML — reusable-ci.yml</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content"><span class="cmt"># .github/workflows/reusable-ci.yml</span>
+<span class="fn">name</span>: Reusable CI
+
+<span class="fn">on</span>:
+  <span class="fn">workflow_call</span>:                 <span class="cmt"># 可被其他 Workflow 调用</span>
+    <span class="fn">inputs</span>:
+      <span class="fn">node-version</span>:
+        <span class="fn">type</span>: string
+        <span class="fn">default</span>: <span class="str">'20'</span>
+    <span class="fn">secrets</span>:
+      <span class="fn">NPM_TOKEN</span>:
+        <span class="fn">required</span>: true
+
+<span class="fn">jobs</span>:
+  <span class="fn">test</span>:
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">steps</span>:
+      - <span class="fn">uses</span>: actions/checkout@v4
+      - <span class="fn">uses</span>: actions/setup-node@v4
+        <span class="fn">with</span>:
+          <span class="fn">node-version</span>: <span class="str">${{ inputs.node-version }}</span>
+      - <span class="fn">run</span>: npm ci
+      - <span class="fn">run</span>: npm test</div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML — 调用方</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content"><span class="cmt"># 在另一个仓库中调用</span>
+<span class="fn">jobs</span>:
+  <span class="fn">ci</span>:
+    <span class="fn">uses</span>: ./.github/workflows/reusable-ci.yml
+    <span class="fn">with</span>:
+      <span class="fn">node-version</span>: <span class="str">'22'</span>
+    <span class="fn">secrets</span>: inherit             <span class="cmt"># 自动传递所有 secrets</span></div>
+    </div>
+
+    <h3>挑战 C：处理失败与通知 📢</h3>
+    <p>测试失败时自动发送通知，且允许某些非关键步骤失败而不阻塞整个流水线：</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="lang">YAML</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+      <div class="code-content">    <span class="fn">steps</span>:
+      - <span class="fn">name</span>: Run linter
+        <span class="fn">run</span>: npm run lint
+        <span class="fn">continue-on-error</span>: true     <span class="cmt"># lint 失败不阻塞后续</span>
+
+      - <span class="fn">name</span>: Run tests
+        <span class="fn">run</span>: npm test
+
+  <span class="fn">notify</span>:
+    <span class="fn">needs</span>: [build, test]
+    <span class="fn">if</span>: failure()                 <span class="cmt"># 任何前置 Job 失败时执行</span>
+    <span class="fn">runs-on</span>: ubuntu-latest
+    <span class="fn">steps</span>:
+      - <span class="fn">name</span>: Send notification
+        <span class="fn">run</span>: |
+          curl -X POST <span class="str">${{ secrets.WEBHOOK_URL }}</span> \
+            -d <span class="str">"Build failed: ${{ github.repository }}@${{ github.sha }}"</span></div>
+    </div>
+
+    <div class="hint-panel" id="hint-l4">
+      <div class="hint-title">🎯 进阶技巧总结</div>
+      <p>
+      <strong>concurrency</strong>: 同一分支只保留最新运行，取消旧的<br>
+      <code>concurrency: { group: ${{ github.ref }}, cancel-in-progress: true }</code><br><br>
+      <strong>environment</strong>: 部署环境保护，需要人工审批<br>
+      <code>environment: production</code><br><br>
+      <strong>permissions</strong>: 精细控制 GITHUB_TOKEN 的权限范围<br>
+      <code>permissions: { contents: read, packages: write }</code>
+      </p>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="toggleHint('hint-l4')">🎯 更多进阶技巧</button>
+  </div>
+</section>
+
+<!-- QUIZ -->
+<section id="quiz">
+  <div class="card">
+    <h2>🧪 自测小测验</h2>
+    <p class="subtitle">10 道题检验你的学习成果，点击选项作答</p>
+
+    <div id="quizContainer"></div>
+
+    <div class="quiz-score" id="quizScore" style="display: none;">
+      <div class="score-num" id="scoreNum">0/10</div>
+      <p style="color: var(--text-muted); margin-top: 4px;" id="scoreMsg"></p>
+      <button class="btn btn-primary btn-sm" onclick="resetQuiz()" style="margin-top: 12px;">重新测验</button>
+    </div>
+  </div>
+</section>
+
+<!-- GLOSSARY -->
+<section id="glossary">
+  <div class="card">
+    <h2>📖 术语表</h2>
+    <p class="subtitle">点击卡片展开完整定义</p>
+    <div class="glossary-grid" id="glossaryGrid"></div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section id="summary" style="padding-bottom: 64px;">
+  <div class="card" style="text-align: center;">
+    <h2>🎉 学习完成！</h2>
+    <p class="subtitle">你已经掌握了 GitHub Actions Workflow 的核心知识</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; text-align: left;">
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px;">
+        <strong>🔰 入门</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">为个人项目添加基础 CI Workflow</p>
+      </div>
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px;">
+        <strong>📦 进阶</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Matrix 构建 + 缓存 + Artifacts</p>
+      </div>
+      <div style="background: var(--surface-alt); padding: 16px; border-radius: 8px;">
+        <strong>🚀 高级</strong>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Reusable Workflow + 自定义 Action</p>
+      </div>
+    </div>
+    <p style="font-size: 0.9rem;">📚 推荐阅读：<a href="https://docs.github.com/en/actions" target="_blank">GitHub Actions 官方文档</a> · <a href="https://github.com/actions/starter-workflows" target="_blank">官方 Starter Workflows</a></p>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<script>
+// === Theme ===
+function toggleTheme() {
+  const isDark = document.body.dataset.theme === 'dark';
+  document.body.dataset.theme = isDark ? '' : 'dark';
+  document.getElementById('themeBtn').textContent = isDark ? '🌙 暗色' : '☀️ 亮色';
+}
+
+// === Progress Bar ===
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  document.getElementById('progressBar').style.width = Math.min(pct, 100) + '%';
+});
+
+// === Smooth Nav ===
+function smoothNav(e) {
+  e.preventDefault();
+  const id = e.target.getAttribute('href').slice(1);
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('.top-nav a').forEach(a => a.classList.remove('active'));
+  e.target.classList.add('active');
+}
+
+// === Flow Nodes ===
+function toggleFlowNode(el) {
+  const detail = el.dataset.detail;
+  if (!detail) return;
+  const isActive = el.classList.contains('active');
+  document.querySelectorAll('.flow-node.active').forEach(n => n.classList.remove('active'));
+  if (!isActive) {
+    el.classList.add('active');
+    let tip = document.getElementById('flowTip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'flowTip';
+      tip.style.cssText = 'margin-top: 16px; padding: 14px; background: var(--surface-alt); border-radius: 8px; font-size: 0.9rem; border-left: 3px solid var(--primary); transition: opacity 0.3s;';
+      el.closest('.flow-diagram').appendChild(tip);
+    }
+    tip.textContent = detail;
+    tip.style.opacity = '0';
+    requestAnimationFrame(() => tip.style.opacity = '1');
+  } else {
+    const tip = document.getElementById('flowTip');
+    if (tip) tip.style.opacity = '0';
+  }
+}
+
+// === Concept Tree ===
+function toggleTree(e, el) {
+  if (e.target.closest('.tree-leaf')) return;
+  el.classList.toggle('open');
+}
+
+// === Sort Game ===
+let dragItem = null;
+const sortContainer = document.getElementById('sortContainer');
+sortContainer.addEventListener('dragstart', e => {
+  dragItem = e.target.closest('.sort-item');
+  if (dragItem) { dragItem.style.opacity = '0.5'; e.dataTransfer.effectAllowed = 'move'; }
+});
+sortContainer.addEventListener('dragend', e => {
+  if (dragItem) { dragItem.style.opacity = '1'; dragItem = null; }
+  [...sortContainer.children].forEach(c => c.style.borderTop = '');
+});
+sortContainer.addEventListener('dragover', e => {
+  e.preventDefault();
+  const afterEl = getDragAfter(sortContainer, e.clientY);
+  if (afterEl) afterEl.style.borderTop = '3px solid var(--primary)';
+  else [...sortContainer.children].forEach(c => c.style.borderTop = '');
+});
+sortContainer.addEventListener('drop', e => {
+  e.preventDefault();
+  [...sortContainer.children].forEach(c => c.style.borderTop = '');
+  const afterEl = getDragAfter(sortContainer, e.clientY);
+  if (dragItem) {
+    if (afterEl) sortContainer.insertBefore(dragItem, afterEl);
+    else sortContainer.appendChild(dragItem);
+  }
+});
+function getDragAfter(container, y) {
+  const items = [...container.querySelectorAll('.sort-item:not([style*="opacity: 0.5"])')];
+  return items.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) return { offset, element: child };
+    return closest;
+  }, { offset: -Infinity }).element;
+}
+function checkSort() {
+  const items = [...sortContainer.querySelectorAll('.sort-item')];
+  const orders = items.map(i => parseInt(i.dataset.order));
+  const correct = orders.every((v, i) => v === i + 1);
+  const result = document.getElementById('sortResult');
+  if (correct) {
+    result.innerHTML = '<span style="color: var(--success);">✅ 顺序正确！触发 → 准备环境 → 执行构建测试</span>';
+    items.forEach(i => i.style.borderColor = 'var(--success)');
+  } else {
+    result.innerHTML = '<span style="color: var(--error);">❌ 顺序不对，想想 Workflow 的执行流程...</span>';
+  }
+}
+function resetSort() {
+  const items = [...sortContainer.querySelectorAll('.sort-item')];
+  items.forEach(i => { i.style.borderColor = 'var(--border)'; });
+  document.getElementById('sortResult').innerHTML = '';
+  // shuffle
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    sortContainer.appendChild(items[j]);
+  }
+}
+
+// === Code Tips ===
+function showTip(el, text) {
+  let popup = document.getElementById('codeTip');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.id = 'codeTip';
+    popup.style.cssText = 'position: fixed; z-index: 1001; background: var(--primary); color: white; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.2s; pointer-events: none;';
+    document.body.appendChild(popup);
+  }
+  popup.textContent = text;
+  popup.style.opacity = '1';
+  const rect = el.getBoundingClientRect();
+  popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+  popup.style.top = (rect.bottom + 8) + 'px';
+  clearTimeout(popup._timer);
+  popup._timer = setTimeout(() => popup.style.opacity = '0', 3500);
+}
+
+// === Hints ===
+function toggleHint(id) {
+  document.getElementById(id).classList.toggle('show');
+}
+
+// === Copy ===
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('.code-content').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '已复制 ✓';
+    setTimeout(() => btn.textContent = '复制', 1500);
+  });
+}
+
+// === Tabs ===
+function switchTab(e, id) {
+  const card = e.target.closest('.card');
+  card.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  card.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  e.target.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// === Task List ===
+function toggleTask(li) { li.classList.toggle('done'); }
+
+// === L3 Validator ===
+function validateL3() {
+  const code = document.getElementById('l3-editor').textContent;
+  const out = document.getElementById('l3-output');
+  const checks = [];
+  let pass = 0;
+
+  const tests = [
+    { name: '触发器 (on: push)', re: /on:\s*\n\s+push:/i },
+    { name: 'main 分支过滤', re: /branches:.*main/i },
+    { name: 'build Job', re: /jobs:\s*\n\s+build:/i },
+    { name: 'checkout Action', re: /actions\/checkout/ },
+    { name: 'npm test 步骤', re: /run:\s*(npm test|npm run test)/i },
+    { name: 'docker Job', re: /docker:/i },
+    { name: 'needs 依赖声明', re: /needs:\s*\[?build/i },
+    { name: 'deploy Job', re: /deploy:/i },
+    { name: 'if 条件判断', re: /if:.*github\.ref/i },
+    { name: 'secrets 引用', re: /secrets\./i }
+  ];
+
+  tests.forEach(t => {
+    if (t.re.test(code)) { pass++; checks.push(`<span class="success">✅ ${t.name}</span>`); }
+    else checks.push(`<span class="error">❌ ${t.name} — 未检测到</span>`);
+  });
+
+  out.innerHTML = `<span class="info">结构检查: ${pass}/${tests.length}</span>\n` + checks.join('\n');
+  if (pass === tests.length) out.innerHTML += '\n\n<span class="success">🎉 所有检查通过！你的 CI/CD 流水线结构完整。</span>';
+  else if (pass >= 7) out.innerHTML += '\n\n<span class="info">接近完成了！再检查一下缺少的部分。</span>';
+}
+
+// === Quiz ===
+const quizData = [
+  { q: 'Workflow 文件应该放在仓库的哪个目录下？', opts: ['.github/actions/', '.github/workflows/', '.ci/', 'workflows/'], ans: 1, explain: 'Workflow 文件固定存放在 .github/workflows/ 目录下。' },
+  { q: '以下哪个触发器可以定时执行 Workflow？', opts: ['push', 'workflow_dispatch', 'schedule', 'repository_dispatch'], ans: 2, explain: 'schedule 使用 cron 表达式实现定时任务。' },
+  { q: '两个 Job 默认的执行方式是？', opts: ['串行执行', '并行执行', '随机执行', '按字母顺序'], ans: 1, explain: '没有 needs 依赖声明的 Job 会并行执行。用 needs 可以定义串行依赖。' },
+  { q: 'runs-on: ubuntu-latest 中的 ubuntu-latest 指的是？', opts: ['Docker 容器', 'GitHub 托管的虚拟机', '你的本地机器', 'Kubernetes Pod'], ans: 1, explain: 'ubuntu-latest 是 GitHub 提供的托管 Runner，每次运行都是全新的虚拟机。' },
+  { q: 'secrets.GITHUB_TOKEN 需要手动配置吗？', opts: ['需要，在 Settings 中添加', '不需要，GitHub 自动提供', '需要，通过环境变量传入', '需要，用 CLI 生成'], ans: 1, explain: 'GITHUB_TOKEN 在每个 Workflow 运行时由 GitHub 自动生成，无需手动配置。' },
+  { q: '${{ matrix.python-version }} 这种语法叫什么？', opts: ['模板字符串', '上下文表达式', 'Shell 变量', 'YAML 锚点'], ans: 1, explain: '${{ }} 是 GitHub Actions 的表达式语法，用于引用上下文变量。' },
+  { q: 'continue-on-error: true 的效果是？', opts: ['跳过这个 Step', 'Step 失败不标记 Workflow 失败', '自动重试该 Step', '忽略所有错误'], ans: 1, explain: '设置后，即使该 Step 失败，Job 仍然标记为成功（在 UI 上显示警告图标）。' },
+  { q: '如何让一个 Job 等待另一个 Job 完成后再执行？', opts: ['wait-for 关键字', 'depends 关键字', 'needs 关键字', 'after 关键字'], ans: 2, explain: 'needs: [job-name] 声明 Job 之间的依赖关系。' },
+  { q: 'actions/cache 和 upload-artifact 的区别是？', opts: ['没有区别', 'cache 用于跨 Job 传文件，artifact 用于缓存', 'cache 用于加速依赖安装，artifact 用于跨 Job 传文件或保存产物', 'cache 有大小限制，artifact 没有'], ans: 2, explain: 'cache 在同一 Job 内加速重复安装；artifact 在不同 Job 之间传递文件或保存构建产物。' },
+  { q: 'workflow_call 触发器的用途是？', opts: ['通过 API 触发', '手动在 UI 中触发', '让 Workflow 可被其他 Workflow 调用', '通过 webhook 触发'], ans: 2, explain: 'workflow_call 将 Workflow 变为可复用的模块，供其他 Workflow 通过 uses 引用。' }
+];
+
+let quizAnswered = 0, quizCorrect = 0;
+function renderQuiz() {
+  const container = document.getElementById('quizContainer');
+  container.innerHTML = quizData.map((q, i) => `
+    <div class="quiz-card" id="quiz-${i}">
+      <div class="q-title">Q${i+1}: ${q.q}</div>
+      ${q.opts.map((o, j) => `<button class="quiz-opt" onclick="answerQuiz(${i}, ${j})">${String.fromCharCode(65+j)}. ${o}</button>`).join('')}
+      <div class="quiz-feedback" id="fb-${i}"></div>
+    </div>
+  `).join('');
+}
+function answerQuiz(qi, oi) {
+  const card = document.getElementById(`quiz-${qi}`);
+  if (card.dataset.done) return;
+  card.dataset.done = '1';
+  quizAnswered++;
+  const correct = quizData[qi].ans;
+  const btns = card.querySelectorAll('.quiz-opt');
+  btns.forEach((b, j) => {
+    b.disabled = true;
+    if (j === correct) b.classList.add('correct');
+    if (j === oi && oi !== correct) b.classList.add('wrong');
+  });
+  const fb = document.getElementById(`fb-${qi}`);
+  fb.classList.add('show');
+  if (oi === correct) {
+    quizCorrect++;
+    fb.classList.add('correct');
+    fb.textContent = '✅ 正确！' + quizData[qi].explain;
+  } else {
+    fb.classList.add('wrong');
+    fb.textContent = '❌ ' + quizData[qi].explain;
+  }
+  if (quizAnswered === quizData.length) {
+    const scoreDiv = document.getElementById('quizScore');
+    scoreDiv.style.display = 'block';
+    document.getElementById('scoreNum').textContent = `${quizCorrect}/${quizData.length}`;
+    const pct = quizCorrect / quizData.length;
+    document.getElementById('scoreMsg').textContent = pct >= 0.8 ? '🎉 优秀！你已经掌握了核心知识' : pct >= 0.6 ? '👍 不错！再复习一下薄弱环节' : '📚 建议重新阅读知识地图和各级别内容';
+    scoreDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+function resetQuiz() {
+  quizAnswered = 0; quizCorrect = 0;
+  document.getElementById('quizScore').style.display = 'none';
+  renderQuiz();
+}
+
+// === Glossary ===
+const glossary = [
+  { term: 'Workflow', def: '定义在 .github/workflows/ 下的 YAML 文件，描述整个自动化流程的触发条件、任务和步骤。' },
+  { term: 'Job', def: 'Workflow 中的一个独立任务单元，运行在指定的 Runner 上。多个 Job 可并行或串行执行。' },
+  { term: 'Step', def: 'Job 中的最小执行单元，要么是一个 Shell 命令（run），要么引用一个 Action（uses）。' },
+  { term: 'Action', def: '可复用的代码模块，类似函数。可以是官方提供的（如 actions/checkout）或社区/自定义的。' },
+  { term: 'Runner', def: '执行 Job 的虚拟机环境。GitHub 提供托管 Runner（Ubuntu/Windows/macOS），也可自托管。' },
+  { term: 'Trigger', def: '触发 Workflow 执行的事件，如 push、pull_request、schedule 等。' },
+  { term: 'Matrix', def: '策略配置，允许一个 Job 在多种 OS/语言版本组合上并行运行。' },
+  { term: 'Secrets', def: '加密存储的敏感数据（密码、Token），在 Workflow 中通过 ${{ secrets.X }} 引用，日志中自动脱敏。' },
+  { term: 'Artifact', def: 'Workflow 运行产生的文件（构建产物、测试报告），可在 Job 之间传递或供下载。' },
+  { term: 'GITHUB_TOKEN', def: 'GitHub 自动为每次运行生成的临时令牌，用于 API 调用和仓库操作，运行结束自动失效。' },
+  { term: 'Context', def: '表达式 ${{ }} 中可访问的变量集合，包括 github、env、matrix、secrets 等上下文。' },
+  { term: 'Reusable Workflow', def: '通过 workflow_call 触发的 Workflow，可被其他 Workflow 用 uses 引用，实现模块化复用。' }
+];
+function renderGlossary() {
+  document.getElementById('glossaryGrid').innerHTML = glossary.map(g => `
+    <div class="glossary-item" onclick="this.classList.toggle('open')">
+      <div class="term">${g.term}</div>
+      <div class="def">${g.def}</div>
+    </div>
+  `).join('');
+}
+
+// === Init ===
+renderQuiz();
+renderGlossary();
+</script>
+</body>
+</html>

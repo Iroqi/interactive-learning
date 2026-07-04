@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS 基础工具互动学习</title>
+<style>
+:root{--primary:#6366f1;--primary-light:#818cf8;--primary-bg:#eef2ff;--bg:#f8fafc;--surface:#fff;--surface-alt:#f1f5f9;--text:#0f172a;--text-muted:#475569;--text-dim:#94a3b8;--success:#22c55e;--error:#ef4444;--warning:#f59e0b;--info:#3b82f6;--border:#e2e8f0;--shadow:0 1px 3px rgba(0,0,0,.08);--radius:10px;--transition:.3s ease;--font:'Inter','PingFang SC','Microsoft YaHei',sans-serif;--font-mono:'Cascadia Code','Fira Code','Consolas',monospace}
+[data-theme="dark"]{--bg:#0f172a;--surface:#1e293b;--surface-alt:#334155;--text:#f1f5f9;--text-muted:#94a3b8;--text-dim:#64748b;--border:#334155;--shadow:0 1px 3px rgba(0,0,0,.4);--primary-bg:#1e1b4b}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;transition:background var(--transition),color var(--transition)}
+.container{max-width:920px;margin:0 auto;padding:0 20px}
+@media(max-width:640px){.container{padding:0 12px}.hero h1{font-size:1.5rem!important}.split-layout{flex-direction:column}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important}}
+#progressBar{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--primary),var(--primary-light));z-index:1000;transition:width .1s}
+#themeToggle{position:fixed;top:16px;right:16px;z-index:999;width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:1.2rem;box-shadow:var(--shadow)}
+#themeToggle:hover{background:var(--surface-alt)}#themeToggle:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.hero{padding:60px 0 30px;text-align:center}.hero h1{font-size:2rem;margin-bottom:8px}.hero p{color:var(--text-muted);font-size:1.05rem}
+.sticky-nav{position:sticky;top:3px;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 16px;margin:16px auto;max-width:920px;display:flex;gap:6px;overflow-x:auto;box-shadow:var(--shadow);justify-content:center;align-items:center;flex-wrap:wrap}
+.nav-link{padding:6px 14px;border-radius:6px;font-size:.85rem;text-decoration:none;color:var(--text-muted);white-space:nowrap;transition:all .2s;border:none;background:none;cursor:pointer}
+.nav-link:hover{color:var(--text);background:var(--surface-alt)}.nav-link.active{color:var(--primary);background:var(--primary-bg);font-weight:600}
+section{margin:40px 0}section h2{font-size:1.4rem;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.concept-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin:20px 0}
+.concept-card{padding:20px;border:2px solid var(--border);border-radius:var(--radius);background:var(--surface);transition:all .3s;cursor:pointer;text-align:center}
+.concept-card:hover,.concept-card:focus-visible{border-color:var(--primary);background:var(--primary-bg);transform:scale(1.03)}
+.concept-card .icon{font-size:2.5rem;margin-bottom:8px}.concept-card h3{font-size:1.1rem;margin-bottom:6px}
+.concept-card p{font-size:.85rem;color:var(--text-muted)}.concept-card .cmd-count{display:inline-block;margin-top:8px;padding:2px 10px;border-radius:12px;background:var(--surface-alt);font-size:.8rem;color:var(--text-dim)}
+#conceptDetail{padding:12px 16px;background:var(--surface-alt);border-radius:var(--radius);margin-top:12px;display:none;font-size:.9rem}
+
+/* Command Explorer */
+.cmd-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
+.cmd-tab{padding:10px 20px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-muted);cursor:pointer;font-size:.9rem;font-family:var(--font);transition:all .2s}
+.cmd-tab:hover{color:var(--text);background:var(--surface-alt)}
+.cmd-tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.cmd-panel{display:none}.cmd-panel.active{display:block}
+details.cmd-item{border:1px solid var(--border);border-radius:var(--radius);margin:8px 0;overflow:hidden}
+details.cmd-item[open]{border-color:var(--primary)}
+details.cmd-item summary{padding:10px 16px;cursor:pointer;font-family:var(--font-mono);font-size:.9rem;color:var(--primary);background:var(--surface);list-style:none;display:flex;justify-content:space-between;align-items:center;transition:background .2s}
+details.cmd-item summary::-webkit-details-marker{display:none}
+details.cmd-item summary::after{content:'▸';font-size:.8rem;color:var(--text-dim);transition:transform .2s}
+details.cmd-item[open] summary::after{transform:rotate(90deg)}
+details.cmd-item summary:hover{background:var(--primary-bg)}
+.cmd-detail{padding:12px 16px;background:var(--surface-alt);font-size:.9rem}
+.cmd-detail p{margin-bottom:8px;color:var(--text-muted)}
+.cmd-example{background:#0f172a;color:#e2e8f0;padding:10px 14px;border-radius:6px;font-family:var(--font-mono);font-size:.85rem;white-space:pre-wrap;line-height:1.5;overflow-x:auto}
+.cmd-example .prompt{color:#22c55e}
+.cmd-example .output{color:#94a3b8}
+
+/* Markdown preview */
+.md-split{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.md-editor-pane,.md-preview-pane{flex:1;min-height:250px}
+.md-editor-pane textarea{width:100%;height:100%;min-height:250px;padding:14px;background:#0f172a;color:#e2e8f0;border:none;resize:vertical;font-family:var(--font-mono);font-size:.9rem;line-height:1.5}
+.md-preview-pane{padding:14px;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto}
+.md-preview-pane h1{font-size:1.5rem;margin:8px 0;border-bottom:1px solid var(--border);padding-bottom:4px}
+.md-preview-pane h2{font-size:1.2rem;margin:8px 0}.md-preview-pane h3{font-size:1.05rem;margin:6px 0}
+.md-preview-pane code{background:var(--surface-alt);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:.88em}
+.md-preview-pane a{color:var(--primary)}.md-preview-pane ul,.md-preview-pane ol{padding-left:24px;margin:6px 0}
+.md-preview-pane blockquote{border-left:3px solid var(--primary);padding-left:12px;color:var(--text-muted);margin:8px 0}
+.md-preview-pane hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+.md-preview-pane pre{background:var(--surface-alt);padding:10px;border-radius:6px;overflow-x:auto;margin:8px 0}
+.md-preview-pane pre code{background:none;padding:0}
+
+/* Levels */
+.level-header{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.level-badge{padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600}
+.badge-cognition{background:#dbeafe;color:#1e40af}.badge-guided{background:#fef3c7;color:#92400e}
+.badge-independent{background:#dcfce7;color:#166534}.badge-challenge{background:#fee2e2;color:#991b1b}
+[data-theme="dark"] .badge-cognition{background:#1e3a5f;color:#93c5fd}[data-theme="dark"] .badge-guided{background:#422006;color:#fde68a}
+[data-theme="dark"] .badge-independent{background:#052e16;color:#86efac}[data-theme="dark"] .badge-challenge{background:#450a0a;color:#fca5a5}
+.level-meta{display:flex;gap:20px;color:var(--text-muted);font-size:.85rem;margin:8px 0 12px}
+.level-task{margin-bottom:12px}.level-task code{background:var(--surface-alt);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:.88em}
+.level-outcome{padding:10px 14px;background:var(--surface-alt);border-radius:var(--radius);margin:12px 0;font-size:.9rem;border-left:3px solid var(--success)}
+.level-outcome code{background:var(--surface);padding:1px 4px;border-radius:3px;font-family:var(--font-mono);font-size:.88em}
+.level-reflect{color:var(--text-muted);font-size:.85rem;margin-top:16px;font-style:italic}
+.topic-divider{display:flex;align-items:center;gap:12px;margin:32px 0 16px}
+.topic-divider .topic-icon{font-size:1.5rem}.topic-divider h3{font-size:1.1rem;color:var(--primary)}
+.topic-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.task-steps{padding-left:20px;margin:8px 0 12px}.task-steps li{margin:4px 0}
+.task-steps code{background:var(--surface-alt);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:.88em}
+.accordion-item{border:1px solid var(--border);border-radius:var(--radius);margin:10px 0;overflow:hidden}
+.accordion-btn{width:100%;padding:12px 16px;background:var(--surface-alt);border:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--text);font-family:var(--font);transition:background .2s}
+.accordion-btn:hover{background:var(--primary-bg)}.accordion-btn:focus-visible{outline:2px solid var(--primary)}
+.accordion-btn .arrow{transition:transform .3s;font-size:.8rem}.accordion-item.open .accordion-btn .arrow{transform:rotate(180deg)}
+.accordion-panel{max-height:0;overflow:hidden;transition:max-height .4s ease}.accordion-panel-inner{padding:12px 16px}
+.accordion-item.open .accordion-panel{max-height:100vh}
+
+/* Quiz */
+.quiz-container{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin:16px 0}
+.quiz-dots{display:flex;gap:6px;margin-bottom:16px}
+.quiz-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:background .2s}
+.quiz-dot.active{background:var(--primary)}.quiz-dot.done{background:var(--success)}
+.quiz-question h3{font-size:1rem;margin-bottom:14px}
+.quiz-opts{display:grid;gap:8px}
+.quiz-opts button{padding:10px 16px;border:2px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;font-size:.9rem;text-align:left;font-family:var(--font);color:var(--text);transition:all .2s}
+.quiz-opts button:hover:not(:disabled){border-color:var(--primary);background:var(--primary-bg)}
+.quiz-opts button:disabled{cursor:default;opacity:.7}
+.quiz-opts button.correct{border-color:var(--success);background:#dcfce7}.quiz-opts button.wrong{border-color:var(--error);background:#fee2e2}
+[data-theme="dark"] .quiz-opts button.correct{background:#052e16;color:#86efac}[data-theme="dark"] .quiz-opts button.wrong{background:#450a0a;color:#fca5a5}
+.quiz-explain{margin-top:14px;padding:12px;background:var(--surface-alt);border-radius:8px;font-size:.9rem}
+.quiz-explain button{margin-top:10px;padding:8px 20px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:var(--font)}
+.quiz-score{text-align:center;padding:20px}.quiz-score h3{font-size:1.5rem;margin-bottom:8px}
+.quiz-score button{margin-top:16px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:var(--font);font-size:.95rem}
+
+/* Flip Cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin:20px 0}
+.flip-card{perspective:1000px;cursor:pointer;min-height:140px}
+.flip-inner{position:relative;width:100%;height:100%;min-height:140px;transition:transform .6s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;overflow:auto;border:1px solid var(--border)}
+.flip-front{background:var(--surface)}.flip-front h4{font-size:.95rem;font-family:var(--font-mono);color:var(--primary)}
+.flip-front .card-cat{font-size:.75rem;color:var(--text-dim);margin-top:6px}
+.flip-back{transform:rotateY(180deg);background:var(--primary-bg)}.flip-back p{font-size:.85rem}
+.flip-back .card-full{font-family:var(--font-mono);font-size:.8rem;color:var(--text-muted);margin-top:8px}
+.flip-card:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+
+/* Summary */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:20px 0}
+.summary-card{padding:20px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface)}
+.summary-card h3{margin-bottom:12px;color:var(--primary);font-size:1rem}
+.summary-card li{margin:6px 0;color:var(--text-muted);font-size:.9rem}.summary-card ul{padding-left:18px}
+footer{text-align:center;padding:30px 0;color:var(--text-dim);font-size:.85rem;border-top:1px solid var(--border);margin-top:40px}
+</style>
+</head>
+<body>
+<div id="progressBar"></div>
+<button id="themeToggle" aria-label="切换主题">🌙</button>
+<header class="container hero"><h1>CS 基础工具互动学习</h1><p>Git · Linux · Vim · Markdown — 从笔记到肌肉记忆</p></header>
+<nav class="sticky-nav" aria-label="页面导航">
+<a href="#map" class="nav-link active">概念地图</a><a href="#explorer" class="nav-link">命令浏览器</a>
+<a href="#level1" class="nav-link">L1 认知</a><a href="#level2" class="nav-link">L2 练习</a>
+<a href="#level3" class="nav-link">L3 实现</a><a href="#level4" class="nav-link">L4 挑战</a>
+<a href="#md" class="nav-link">Markdown</a><a href="#quiz" class="nav-link">自测</a><a href="#glossary" class="nav-link">术语表</a>
+</nav>
+<main class="container">
+
+<section id="map"><h2>概念地图</h2><p>这四个工具构成了程序员的日常工作台。点击查看详情。</p>
+<div class="concept-grid" id="conceptGrid">
+<div class="concept-card" tabindex="0" data-id="git"><div class="icon">🌳</div><h3>Git</h3><p>版本控制：记录每一次修改，支持分支并行开发</p><span class="cmd-count">20+ 命令</span></div>
+<div class="concept-card" tabindex="0" data-id="linux"><div class="icon">🐧</div><h3>Linux</h3><p>系统操作：文件管理、进程控制、权限管理</p><span class="cmd-count">25+ 命令</span></div>
+<div class="concept-card" tabindex="0" data-id="vim"><div class="icon">⌨️</div><h3>Vim</h3><p>模式编辑：NORMAL/INSERT/COMMAND 三种模式切换</p><span class="cmd-count">12+ 命令</span></div>
+<div class="concept-card" tabindex="0" data-id="markdown"><div class="icon">📝</div><h3>Markdown</h3><p>轻量标记：用纯文本写出结构化文档</p><span class="cmd-count">15+ 语法</span></div>
+</div>
+<div id="conceptDetail"></div></section>
+
+<section id="explorer"><h2>命令浏览器</h2>
+<p>点击任意命令展开查看详细解释和示例输出。这是你的随身命令手册。</p>
+<div class="cmd-tabs" role="tablist">
+<button class="cmd-tab active" onclick="showPanel('p-linux',this)">🐧 Linux</button>
+<button class="cmd-tab" onclick="showPanel('p-git',this)">🌳 Git</button>
+<button class="cmd-tab" onclick="showPanel('p-vim',this)">⌨️ Vim</button>
+</div>
+
+<div id="p-linux" class="cmd-panel active">
+<details class="cmd-item"><summary>pwd — Print Working Directory</summary><div class="cmd-detail"><p>显示当前工作目录的完整路径。</p><div class="cmd-example"><span class="prompt">$ pwd</span>
+<span class="output">/home/user/projects</span></div></div></details>
+<details class="cmd-item"><summary>ls — List Files</summary><div class="cmd-detail"><p>列出当前目录下的文件和文件夹。加 <code>-l</code> 显示详细信息（权限、大小、日期）。</p><div class="cmd-example"><span class="prompt">$ ls</span>
+<span class="output">documents  projects  logs  notes.md</span>
+
+<span class="prompt">$ ls -l</span>
+<span class="output">drwxr-xr-x 2 user user 4096 Jul 3 10:00 documents
+drwxr-xr-x 2 user user 4096 Jul 3 10:00 projects
+-rw-r--r-- 1 user user  128 Jul 3 10:00 notes.md</span></div></div></details>
+<details class="cmd-item"><summary>cd — Change Directory</summary><div class="cmd-detail"><p>切换目录。<code>cd ..</code> 返回上级，<code>cd ~</code> 回主目录。</p><div class="cmd-example"><span class="prompt">$ cd projects</span>
+<span class="prompt">$ pwd</span>
+<span class="output">/home/user/projects</span>
+
+<span class="prompt">$ cd ..</span>
+<span class="prompt">$ pwd</span>
+<span class="output">/home/user</span></div></div></details>
+<details class="cmd-item"><summary>mkdir — Make Directory</summary><div class="cmd-detail"><p>创建新目录。</p><div class="cmd-example"><span class="prompt">$ mkdir myproject</span>
+<span class="prompt">$ ls</span>
+<span class="output">documents  projects  logs  myproject  notes.md</span></div></div></details>
+<details class="cmd-item"><summary>touch — 创建空文件</summary><div class="cmd-detail"><p>创建一个空文件。如果文件已存在，只更新修改时间。</p><div class="cmd-example"><span class="prompt">$ touch app.py</span>
+<span class="prompt">$ ls -l app.py</span>
+<span class="output">-rw-r--r-- 1 user user 0 Jul 3 10:00 app.py</span></div></div></details>
+<details class="cmd-item"><summary>cat — Concatenate（查看文件）</summary><div class="cmd-detail"><p>显示文件内容到标准输出。</p><div class="cmd-example"><span class="prompt">$ cat notes.md</span>
+<span class="output"># Notes
+- Learn Git
+- Practice Linux
+- Master Vim</span></div></div></details>
+<details class="cmd-item"><summary>echo — 输出文字 / 写入文件</summary><div class="cmd-detail"><p>输出文字。<code>&gt;</code> 覆盖写入文件，<code>&gt;&gt;</code> 追加写入。</p><div class="cmd-example"><span class="prompt">$ echo "Hello World"</span>
+<span class="output">Hello World</span>
+
+<span class="prompt">$ echo "print('hi')" > app.py</span>
+<span class="prompt">$ cat app.py</span>
+<span class="output">print('hi')</span></div></div></details>
+<details class="cmd-item"><summary>cp — Copy File</summary><div class="cmd-detail"><p>复制文件或目录。格式：<code>cp 源 目标</code></p><div class="cmd-example"><span class="prompt">$ cp report.txt backup/</span>
+<span class="prompt">$ ls backup/</span>
+<span class="output">report.txt</span></div></div></details>
+<details class="cmd-item"><summary>mv — Move / Rename</summary><div class="cmd-detail"><p>移动文件或重命名。</p><div class="cmd-example"><span class="prompt">$ mv old_name.txt new_name.txt</span>
+<span class="prompt">$ mv report.txt documents/</span></div></div></details>
+<details class="cmd-item"><summary>rm — Remove</summary><div class="cmd-detail"><p>删除文件。加 <code>-r</code> 递归删除目录。</p><div class="cmd-example"><span class="prompt">$ rm old.log</span>
+<span class="prompt">$ rm -r temp_dir</span></div></div></details>
+<details class="cmd-item"><summary>find — 查找文件</summary><div class="cmd-detail"><p>按名称或模式搜索文件。</p><div class="cmd-example"><span class="prompt">$ find -name "*.log"</span>
+<span class="output">./logs/access.log
+./logs/error.log
+./logs/old.log</span></div></div></details>
+<details class="cmd-item"><summary>df / du — 磁盘空间</summary><div class="cmd-detail"><p><code>df</code> 查看磁盘总体使用，<code>du</code> 查看目录占用。</p><div class="cmd-example"><span class="prompt">$ df</span>
+<span class="output">Filesystem     1K-blocks    Used Available Use% Mounted on
+/dev/sda1       51200000 18432000  32768000  36% /</span>
+
+<span class="prompt">$ du</span>
+<span class="output">4.0K  ./documents
+2.0K  ./projects
+7.0K  .</span></div></div></details>
+<details class="cmd-item"><summary>ps / top — 进程管理</summary><div class="cmd-detail"><p><code>ps</code> 列出当前进程快照，<code>top</code> 实时显示进程状态。<code>kill PID</code> 终止进程。</p><div class="cmd-example"><span class="prompt">$ ps</span>
+<span class="output">  PID TTY          TIME CMD
+ 1024 pts/0    00:00:00 bash
+ 1089 pts/0    00:00:00 ps</span></div></div></details>
+<details class="cmd-item"><summary>chmod / chown — 权限管理</summary><div class="cmd-detail"><p><code>chmod</code> 修改文件权限（rwx），<code>chown</code> 修改文件所有者。</p><div class="cmd-example"><span class="prompt">$ chmod 755 script.sh</span>
+<span class="prompt">$ ls -l script.sh</span>
+<span class="output">-rwxr-xr-x 1 user user 128 Jul 3 10:00 script.sh</span></div></div></details>
+<details class="cmd-item"><summary>| 管道 / > 重定向</summary><div class="cmd-detail"><p><code>|</code> 把前一个命令的输出传给后一个。<code>&gt;</code> 输出到文件，<code>2&gt;&amp;1</code> 错误重定向到标准输出。</p><div class="cmd-example"><span class="prompt">$ ls | grep ".log"</span>
+<span class="output">access.log
+error.log
+old.log</span>
+
+<span class="prompt">$ ps > processes.txt</span></div></div></details>
+</div>
+
+<div id="p-git" class="cmd-panel">
+<details class="cmd-item"><summary>git init — 初始化仓库</summary><div class="cmd-detail"><p>在当前目录创建一个新的 Git 仓库（.git 隐藏目录）。</p><div class="cmd-example"><span class="prompt">$ git init</span>
+<span class="output">Initialized empty Git repository in ~/project/.git/</span></div></div></details>
+<details class="cmd-item"><summary>git status — 查看状态</summary><div class="cmd-detail"><p>显示工作区和暂存区的状态：哪些文件修改了、暂存了、未跟踪。</p><div class="cmd-example"><span class="prompt">$ git status</span>
+<span class="output">On branch main
+Changes to be committed:
+  new file:   main.py
+Changes not staged:
+  modified:   README.md</span></div></div></details>
+<details class="cmd-item"><summary>git add — 添加到暂存区</summary><div class="cmd-detail"><p>把文件加入暂存区，准备提交。<code>.</code> 表示添加所有改动。</p><div class="cmd-example"><span class="prompt">$ git add main.py</span>
+<span class="prompt">$ git add .</span>
+<span class="prompt">$ git add -A</span></div></div></details>
+<details class="cmd-item"><summary>git commit — 提交</summary><div class="cmd-detail"><p>把暂存区的修改永久保存到仓库历史。<code>-m</code> 添加提交信息。</p><div class="cmd-example"><span class="prompt">$ git commit -m "add login feature"</span>
+<span class="output">[main a3f8b2c] add login feature
+ 2 files changed, 45 insertions(+)</span></div></div></details>
+<details class="cmd-item"><summary>git log — 查看历史</summary><div class="cmd-detail"><p>显示提交历史。<code>--oneline</code> 精简为一行一个提交。</p><div class="cmd-example"><span class="prompt">$ git log --oneline</span>
+<span class="output">a3f8b2c (main) add login feature
+e7d2190 initial commit</span></div></div></details>
+<details class="cmd-item"><summary>git branch — 分支管理</summary><div class="cmd-detail"><p>无参数列出所有分支。加名称创建新分支。<code>-d</code> 删除分支。</p><div class="cmd-example"><span class="prompt">$ git branch</span>
+<span class="output">* main
+  feature</span>
+
+<span class="prompt">$ git branch feature</span>
+<span class="output">Branch 'feature' created.</span></div></div></details>
+<details class="cmd-item"><summary>git switch / checkout — 切换分支</summary><div class="cmd-detail"><p>切换到指定分支。<code>-b</code> 创建并切换。</p><div class="cmd-example"><span class="prompt">$ git switch feature</span>
+<span class="output">Switched to branch 'feature'</span>
+
+<span class="prompt">$ git switch -b hotfix</span>
+<span class="output">Switched to a new branch 'hotfix'</span></div></div></details>
+<details class="cmd-item"><summary>git merge — 合并分支</summary><div class="cmd-detail"><p>把指定分支的修改合并到当前分支。如果两个分支改了同一处，会产生冲突。</p><div class="cmd-example"><span class="prompt">$ git switch main</span>
+<span class="prompt">$ git merge feature</span>
+<span class="output">Merge made by the 'ort' strategy.
+ 3 files changed, 120 insertions(+)</span></div></div></details>
+<details class="cmd-item"><summary>git tag — 标签</summary><div class="cmd-detail"><p>给某个提交打标签（通常用于版本号）。</p><div class="cmd-example"><span class="prompt">$ git tag v1.0</span>
+<span class="prompt">$ git tag</span>
+<span class="output">v1.0</span></div></div></details>
+<details class="cmd-item"><summary>git reset / revert — 回退</summary><div class="cmd-detail"><p><code>reset</code> 回退到指定版本（移除之后的提交）。<code>revert</code> 创建新提交来撤销指定提交（不丢失历史）。</p><div class="cmd-example"><span class="prompt">$ git reset v1.0</span>
+<span class="output">HEAD is now at a3f8b2c</span>
+
+<span class="prompt">$ git revert a3f8b2c</span>
+<span class="output">[main e9c4d1a] Revert "add login feature"</span></div></div></details>
+<details class="cmd-item"><summary>git remote / push / pull</summary><div class="cmd-detail"><p><code>remote add</code> 关联远程仓库。<code>push</code> 推送本地提交到远程。<code>pull</code> 拉取远程修改并合并。<code>fetch</code> 只拉取不合并。</p><div class="cmd-example"><span class="prompt">$ git remote add origin https://github.com/user/repo.git</span>
+<span class="prompt">$ git push</span>
+<span class="output">Enumerating objects: 5, done.
+To https://github.com/user/repo.git
+   e7d2..a3f8  main -> main</span>
+
+<span class="prompt">$ git pull</span>
+<span class="output">Already up to date.</span></div></div></details>
+</div>
+
+<div id="p-vim" class="cmd-panel">
+<details class="cmd-item"><summary>三种模式：NORMAL / INSERT / COMMAND</summary><div class="cmd-detail"><p><strong>NORMAL</strong>：默认模式，用于导航和操作（移动、删除、复制）。<br><strong>INSERT</strong>：输入文字的模式，按 <code>i</code> 进入。<br><strong>COMMAND</strong>：输入 <code>:</code> 开头的命令（保存、退出等）。</p><div class="cmd-example">NORMAL → i → INSERT → Esc → NORMAL → : → COMMAND</div></div></details>
+<details class="cmd-item"><summary>i / a / o — 进入插入模式</summary><div class="cmd-detail"><p><code>i</code> 在光标前插入。<code>a</code> 在光标后插入。<code>o</code> 在下方新建一行并插入。</p></div></details>
+<details class="cmd-item"><summary>Esc — 返回 NORMAL 模式</summary><div class="cmd-detail"><p>无论在哪个模式，按 Esc 都回到 NORMAL 模式。这是 Vim 最重要的操作。</p></div></details>
+<details class="cmd-item"><summary>h j k l — 方向移动</summary><div class="cmd-detail"><p>NORMAL 模式下：<code>h</code>=左 <code>j</code>=下 <code>k</code>=上 <code>l</code>=右。替代方向键，手不用离开主键盘区。</p></div></details>
+<details class="cmd-item"><summary>dd — 删除当前行</summary><div class="cmd-detail"><p>删除（剪切）光标所在行。删除的内容可以通过 <code>p</code> 粘贴。</p></div></details>
+<details class="cmd-item"><summary>yy / p — 复制粘贴</summary><div class="cmd-detail"><p><code>yy</code> 复制当前行（yank）。<code>p</code> 在下方粘贴。</p></div></details>
+<details class="cmd-item"><summary>x — 删除字符</summary><div class="cmd-detail"><p>删除光标所在的单个字符。</p></div></details>
+<details class="cmd-item"><summary>u — 撤销</summary><div class="cmd-detail"><p>撤销上一步操作。</p></div></details>
+<details class="cmd-item"><summary>w / b — 按单词移动</summary><div class="cmd-detail"><p><code>w</code> 跳到下一个单词开头。<code>b</code> 跳到上一个单词开头。</p></div></details>
+<details class="cmd-item"><summary>G / gg — 跳到文件首尾</summary><div class="cmd-detail"><p><code>G</code> 跳到文件最后一行。<code>gg</code> 跳到文件第一行。</p></div></details>
+<details class="cmd-item"><summary>:w :q :wq :q! — 保存退出</summary><div class="cmd-detail"><p><code>:w</code> 保存。<code>:q</code> 退出。<code>:wq</code> 保存并退出。<code>:q!</code> 强制退出（不保存）。</p><div class="cmd-example"><span class="prompt">:w</span>    → "hello.txt" written
+<span class="prompt">:wq</span>   → 已保存并退出
+<span class="prompt">:q!</span>   → 强制退出（丢弃修改）</div></div></details>
+<details class="cmd-item"><summary>:s/a/b — 替换</summary><div class="cmd-detail"><p>在当前行把 <code>a</code> 替换为 <code>b</code>。</p><div class="cmd-example"><span class="prompt">:s/hello/world</span>
+→ 当前行第一个 "hello" 被替换为 "world"</div></div></details>
+</div>
+</section>
+
+<section id="level1"><h2>Level 1 — 认知探索</h2>
+<div class="level-header"><span class="level-badge badge-cognition">Recognition</span></div>
+<div class="level-meta"><span>⏱ ~15 min</span><span>🎯 熟悉各工具的基本命令</span></div>
+<div class="topic-divider"><span class="topic-icon">🐧</span><h3>Linux 基本导航</h3></div>
+<p class="level-task">在命令浏览器中依次展开以下命令，理解它们的作用：</p>
+<ol class="task-steps"><li><code>pwd</code> — 查看当前路径</li><li><code>ls</code> — 查看当前目录内容</li><li><code>cd</code> — 切换目录</li><li><code>mkdir</code> — 创建目录</li><li><code>touch</code> — 创建空文件</li></ol>
+<div class="level-outcome"><strong>验收：</strong>能说出每个命令的英文全称和核心功能。</div>
+<div class="topic-divider"><span class="topic-icon">🌳</span><h3>Git 基本流程</h3></div>
+<p class="level-task">在命令浏览器中展开 Git 命令，理解完整工作流：</p>
+<ol class="task-steps"><li><code>git init</code> → <code>git add</code> → <code>git commit</code> → <code>git log</code></li><li>理解暂存区（staging area）的作用</li></ol>
+<div class="level-outcome"><strong>验收：</strong>能画出 git add → commit → push 的流程图。</div>
+<div class="topic-divider"><span class="topic-icon">⌨️</span><h3>Vim 模式切换</h3></div>
+<ol class="task-steps"><li>理解 NORMAL → INSERT → COMMAND 三种模式</li><li>记住 <code>i</code> 进入插入、<code>Esc</code> 返回、<code>:wq</code> 保存退出</li></ol>
+<p class="level-reflect"><em>为什么重要：</em>这些命令是每天都会用到的基础。熟练掌握它们能大幅提升你的工作效率。</p></section>
+
+<section id="level2"><h2>Level 2 — 引导练习</h2>
+<div class="level-header"><span class="level-badge badge-guided">Guided Practice</span></div>
+<div class="level-meta"><span>⏱ ~20 min</span><span>🎯 组合使用命令完成多步骤任务</span></div>
+<div class="topic-divider"><span class="topic-icon">🐧</span><h3>Linux 文件操作场景</h3></div>
+<p class="level-task">假设你要创建一个项目，需要执行以下命令序列。先在脑中想出命令，再去浏览器验证：</p>
+<ol class="task-steps">
+<li>创建目录 <code>myproject</code> → 用什么命令？</li>
+<li>在其中创建文件 <code>app.py</code> → 用什么命令？</li>
+<li>向 app.py 写入 <code>print("hello")</code> → 用什么命令？</li>
+<li>验证文件内容 → 用什么命令？</li>
+<li>查看详细信息 → 加什么参数？</li></ol>
+<div class="accordion-item"><button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>💡 答案</span><span class="arrow">▼</span></button>
+<div class="accordion-panel" role="region"><div class="accordion-panel-inner"><p><code>mkdir myproject</code> → <code>touch myproject/app.py</code> → <code>echo "print('hello')" > myproject/app.py</code> → <code>cat myproject/app.py</code> → <code>ls -l myproject</code></p></div></div></div>
+<div class="topic-divider"><span class="topic-icon">🌳</span><h3>Git 分支操作场景</h3></div>
+<p class="level-task">你要开发一个新功能，正确的 Git 操作流程是什么？</p>
+<ol class="task-steps">
+<li>创建并切换到 feature 分支</li>
+<li>开发完成后添加和提交</li>
+<li>切回 main 并合并</li></ol>
+<div class="accordion-item"><button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>💡 答案</span><span class="arrow">▼</span></button>
+<div class="accordion-panel" role="region"><div class="accordion-panel-inner"><p><code>git branch feature</code> → <code>git switch feature</code> → 开发 → <code>git add .</code> → <code>git commit -m "feature done"</code> → <code>git switch main</code> → <code>git merge feature</code></p></div></div></div>
+<p class="level-reflect"><em>为什么重要：</em>理解命令的组合使用比死记硬背更重要。</p></section>
+
+<section id="level3"><h2>Level 3 — 独立实现</h2>
+<div class="level-header"><span class="level-badge badge-independent">Independent</span></div>
+<div class="level-meta"><span>⏱ ~25 min</span><span>🎯 独立分析场景，写出命令序列</span></div>
+<div class="topic-divider"><span class="topic-icon">💻</span><h3>系统管理员日常</h3></div>
+<p class="level-task">你是系统管理员，需要完成以下任务。不看命令浏览器，自己写出命令序列：</p>
+<ol class="task-steps">
+<li>进入 logs 目录，查看日志文件</li>
+<li>删除旧日志 old.log</li>
+<li>返回主目录，创建 backup 目录</li>
+<li>把 documents/report.txt 备份到 backup</li>
+<li>检查磁盘空间</li></ol>
+<div class="accordion-item"><button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>💡 参考答案</span><span class="arrow">▼</span></button>
+<div class="accordion-panel" role="region"><div class="accordion-panel-inner"><p><code>cd logs</code> → <code>ls -l</code> → <code>rm old.log</code> → <code>cd ~</code> → <code>mkdir backup</code> → <code>cp documents/report.txt backup</code> → <code>df</code></p></div></div></div>
+<p class="level-reflect"><em>为什么重要：</em>不看提示独立写出命令，是从"知道"到"会用"的关键跨越。</p></section>
+
+<section id="level4"><h2>Level 4 — 进阶挑战</h2>
+<div class="level-header"><span class="level-badge badge-challenge">Challenge</span></div>
+<div class="level-meta"><span>⏱ ~30 min</span><span>🎯 综合 Linux + Git 完成项目初始化</span></div>
+<div class="topic-divider"><span class="topic-icon">🚀</span><h3>全流程项目初始化</h3></div>
+<p class="level-task">不看命令浏览器，写出完整的项目初始化命令序列：</p>
+<ol class="task-steps">
+<li>创建项目目录 awesome-app 并进入</li>
+<li>初始化 Git 仓库</li>
+<li>创建 README.md 和 main.py</li>
+<li>写入初始内容</li>
+<li>首次提交</li>
+<li>创建 feature 分支并切换</li>
+<li>打标签 v0.1</li></ol>
+<div class="accordion-item"><button class="accordion-btn" aria-expanded="false" onclick="toggleAccordion(this)"><span>💡 参考答案</span><span class="arrow">▼</span></button>
+<div class="accordion-panel" role="region"><div class="accordion-panel-inner">
+<p><code>mkdir awesome-app && cd awesome-app</code><br>
+<code>git init</code><br>
+<code>touch README.md main.py</code><br>
+<code>echo "# Awesome App" > README.md</code><br>
+<code>echo "print('hello')" > main.py</code><br>
+<code>git add .</code><br>
+<code>git commit -m "initial commit"</code><br>
+<code>git branch feature</code><br>
+<code>git switch feature</code><br>
+<code>git tag v0.1</code></p></div></div></div>
+<p class="level-reflect"><em>为什么重要：</em>这是你每次新建项目都会做的事。形成肌肉记忆后，30秒就能完成。</p></section>
+
+<section id="md"><h2>Markdown 实时编辑器</h2>
+<p>在左侧输入 Markdown，右侧实时预览渲染效果。</p>
+<div class="md-split">
+<div class="md-editor-pane"><textarea id="mdInput" spellcheck="false"># 一级标题
+
+## 二级标题
+
+这是一段**粗体**和*斜体*的示例。
+
+- 无序列表项 A
+- 无序列表项 B
+
+1. 有序列表项
+2. 第二项
+
+> 这是引用块
+
+[访问网站](https://example.com)
+
+`行内代码` 示例
+
+---
+
+### 代码块
+
+```python
+print("Hello World")
+```</textarea></div>
+<div class="md-preview-pane" id="mdPreview"></div>
+</div></section>
+
+<section id="quiz"><h2>自测</h2><p>检验你对这些工具的理解程度。</p><div class="quiz-container" id="quizBox"></div></section>
+
+<section id="glossary"><h2>术语表 — 命令缩写释义</h2>
+<p>点击卡片翻转，看看这些缩写背后的全称和含义。</p>
+<div class="card-grid" id="cardGrid"></div></section>
+
+<section id="summary"><h2>总结与下一步</h2>
+<div class="summary-grid">
+<div class="summary-card"><h3>核心要点</h3><ul>
+<li>Linux 是所有操作的基础：文件、进程、权限</li>
+<li>Git 记录每一次修改，分支让并行开发成为可能</li>
+<li>Vim 的模式切换是高效编辑的关键</li>
+<li>Markdown 用纯文本实现结构化文档</li></ul></div>
+<div class="summary-card"><h3>下一步学习</h3><ul>
+<li>Shell 脚本编写 — 自动化重复任务</li>
+<li>Git 高级：rebase、cherry-pick、bisect</li>
+<li>Vim 插件与配置：Neovim + LSP</li>
+<li>Docker 容器化部署</li></ul></div>
+<div class="summary-card"><h3>实践建议</h3><ul>
+<li>每天在终端中工作 30 分钟，强制不用鼠标</li>
+<li>用 Git 管理所有笔记和项目</li>
+<li>用 Vim 编辑所有配置文件</li>
+<li>用 Markdown 写所有文档和笔记</li></ul></div>
+</div></section>
+</main>
+<footer class="container"><p>CS 基础工具互动学习 — 基于你的 CS-Note 笔记生成</p></footer>
+
+<script>
+/* Theme */
+(function(){var b=document.getElementById('themeToggle');if(!b)return;
+var dk=window.matchMedia('(prefers-color-scheme:dark)').matches;
+document.documentElement.dataset.theme=dk?'dark':'';
+b.textContent=dk?'\u2600\uFE0F':'\uD83C\uDF19';
+b.onclick=function(){var d=document.documentElement.dataset.theme==='dark';document.documentElement.dataset.theme=d?'':'dark';b.textContent=d?'\uD83C\uDF19':'\u2600\uFE0F'}})();
+
+/* Scroll */
+var navIds=['map','explorer','level1','level2','level3','level4','md','quiz','glossary'];
+window.addEventListener('scroll',function(){
+var h=document.documentElement,bar=document.getElementById('progressBar');
+if(bar){var m=h.scrollHeight-h.clientHeight;bar.style.width=(m>0?(h.scrollTop/m)*100:0)+'%'}
+var a=0;navIds.forEach(function(id,i){var el=document.getElementById(id);if(el&&el.getBoundingClientRect().top<200)a=i});
+document.querySelectorAll('.nav-link').forEach(function(l,i){l.classList.toggle('active',i===a)})});
+
+/* Concept Map */
+var cDetails={
+git:'<strong>Git 核心概念：</strong>repository（仓库）、commit（提交）、branch（分支）、merge（合并）、staging area（暂存区）。工作流：修改文件 → git add → git commit → git push。',
+linux:'<strong>Linux 核心概念：</strong>文件系统层级、标准输入/输出/错误、管道（pipe）、重定向、进程管理、文件权限（rwx）。',
+vim:'<strong>Vim 核心概念：</strong>三种模式 — NORMAL（导航/操作）、INSERT（输入）、COMMAND（命令行）。核心思想：键盘快捷键替代鼠标操作。',
+markdown:'<strong>Markdown 核心概念：</strong>用纯文本符号表示格式 — # 标题、** 粗体、* 斜体、- 列表、[] 链接、`` 代码。'
+};
+document.querySelectorAll('.concept-card').forEach(function(c){
+c.onclick=function(){var el=document.getElementById('conceptDetail');el.innerHTML=cDetails[c.dataset.id]||'';el.style.display='block'}});
+
+/* Command Explorer Tabs */
+function showPanel(id,btn){
+document.querySelectorAll('.cmd-panel').forEach(function(p){p.classList.remove('active')});
+document.querySelectorAll('.cmd-tab').forEach(function(t){t.classList.remove('active')});
+document.getElementById(id).classList.add('active');
+btn.classList.add('active')}
+
+/* Accordion */
+function toggleAccordion(b){var it=b.closest('.accordion-item');it.classList.toggle('open');b.setAttribute('aria-expanded',String(it.classList.contains('open')))}
+
+/* Markdown Preview */
+function mdParse(md){var h=md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+h=h.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>');
+h=h.replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>');
+h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
+h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+h=h.replace(/^- (.+)$/gm,'<li>$1</li>');h=h.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+h=h.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+h=h.replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>');
+h=h.replace(/^---$/gm,'<hr>');
+h=h.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+h=h.replace(/\n{2,}/g,'</p><p>');h='<p>'+h+'</p>';
+h=h.replace(/<p><(h[1-3]|ul|ol|pre|blockquote|hr)/g,'<$1');h=h.replace(/<\/(h[1-3]|ul|ol|pre|blockquote)><\/p>/g,'</$1>');
+return h}
+function updateMd(){var el=document.getElementById('mdPreview'),inp=document.getElementById('mdInput');
+if(el&&inp)el.innerHTML=mdParse(inp.value)}
+document.getElementById('mdInput').addEventListener('input',updateMd);
+updateMd();
+
+/* Quiz */
+var esc=function(s){var d=document.createElement('div');d.textContent=String(s);return d.innerHTML};
+var quizData=[
+{q:'pwd 的全称是什么？',opts:['Print Working Directory','Power Write Data','Process Working Daemon','Print Web Document'],ans:0,explain:'pwd = Print Working Directory，打印当前工作目录的完整路径。'},
+{q:'ls -l 中的 -l 参数表示什么？',opts:['列出链接','长格式显示','递归列出','按时间排序'],ans:1,explain:'-l 是 long format，显示文件权限、所有者、大小、修改时间等详细信息。'},
+{q:'git add . 中的 . 表示什么？',opts:['当前提交','当前目录下的所有文件','上一个 commit','配置文件'],ans:1,explain:'. 代表当前目录，git add . 会把所有改动添加到暂存区。'},
+{q:'Git 中暂存区的作用是什么？',opts:['存储远程备份','选择哪些修改进入下一次 commit','保存冲突文件','存储日志'],ans:1,explain:'暂存区让你精确选择哪些修改进入下一次提交。'},
+{q:'Vim 中 dd 命令做什么？',opts:['复制当前行','删除当前行','向下移动','保存文件'],ans:1,explain:'dd 删除（剪切）当前行，可通过 p 粘贴。'},
+{q:'Vim 的三种模式是什么？',opts:['编辑/预览/导出','NORMAL/INSERT/COMMAND','读/写/执行','主/从/调试'],ans:1,explain:'NORMAL 导航操作，INSERT 输入文字，COMMAND 执行命令。'},
+{q:'Markdown 中如何创建粗体？',opts:['*text*','**text**','~~text~~','# text'],ans:1,explain:'**text** 创建粗体，*text* 是斜体。'},
+{q:'Linux 中 > 和 >> 的区别？',opts:['没区别','> 覆盖，>> 追加','> 读取，>> 写入','> stdout，>> stderr'],ans:1,explain:'> 覆盖文件，>> 追加到文件末尾。'},
+{q:'git merge 什么时候会冲突？',opts:['分支超过3个','两个分支改了同一处','远程断开','reset 之后'],ans:1,explain:'两个分支对同一区域做了不同修改时产生冲突。'},
+{q:'文件描述符 0/1/2 分别代表？',opts:['读/写/执行','stdin/stdout/stderr','用户/组/其他','创建/修改/删除'],ans:1,explain:'0=标准输入，1=标准输出，2=标准错误。'}
+];
+var qIdx=0,qScore=0,qAns=false;
+function renderQuiz(){var el=document.getElementById('quizBox');
+if(qIdx>=quizData.length){var pct=Math.round(qScore/quizData.length*100);
+var msg=pct>=90?'太棒了！':pct>=70?'不错！':pct>=50?'继续加油！':'建议重新复习命令浏览器。';
+el.innerHTML='<div class="quiz-score"><h3>'+qScore+'/'+quizData.length+' ('+pct+'%)</h3><p>'+esc(msg)+'</p><button onclick="resetQuiz()">重新测试</button></div>';return}
+var d=quizData[qIdx];qAns=false;
+el.innerHTML='<div class="quiz-dots">'+quizData.map(function(_,i){return'<span class="quiz-dot'+(i===qIdx?' active':'')+(i<qIdx?' done':'')+'"></span>'}).join('')+'</div>'+
+'<div class="quiz-question"><h3>Q'+(qIdx+1)+'. '+esc(d.q)+'</h3><div class="quiz-opts">'+d.opts.map(function(o,i){return'<button onclick="ansQuiz('+i+')">'+esc(o)+'</button>'}).join('')+'</div></div>'+
+'<div class="quiz-explain" id="qEx"></div>'}
+function ansQuiz(ch){if(qAns)return;qAns=true;var d=quizData[qIdx],el=document.getElementById('quizBox');
+el.querySelectorAll('.quiz-opts button').forEach(function(b,i){b.disabled=true;if(i===d.ans)b.classList.add('correct');if(i===ch&&ch!==d.ans)b.classList.add('wrong')});
+if(ch===d.ans)qScore++;
+document.getElementById('qEx').innerHTML='<p>'+esc(d.explain)+'</p><button onclick="nextQ()">下一题 →</button>'}
+function nextQ(){qIdx++;renderQuiz()}
+function resetQuiz(){qIdx=0;qScore=0;renderQuiz()}
+renderQuiz();
+
+/* Flip Cards */
+var cardData=[
+{cmd:'pwd',full:'Print Working Directory',desc:'打印当前路径',cat:'Linux'},
+{cmd:'ls',full:'List Files',desc:'列出目录内容',cat:'Linux'},
+{cmd:'cd',full:'Change Directory',desc:'切换目录',cat:'Linux'},
+{cmd:'cp',full:'Copy File',desc:'复制文件',cat:'Linux'},
+{cmd:'mv',full:'Move File',desc:'移动/重命名',cat:'Linux'},
+{cmd:'rm',full:'Remove File',desc:'删除文件',cat:'Linux'},
+{cmd:'cat',full:'Concatenate',desc:'查看文件内容',cat:'Linux'},
+{cmd:'mkdir',full:'Make Directory',desc:'创建目录',cat:'Linux'},
+{cmd:'chmod',full:'Change Mode',desc:'修改权限',cat:'Linux'},
+{cmd:'chown',full:'Change Owner',desc:'修改所有者',cat:'Linux'},
+{cmd:'df',full:'Disk Free',desc:'查看磁盘空间',cat:'Linux'},
+{cmd:'du',full:'Disk Usage',desc:'磁盘使用率',cat:'Linux'},
+{cmd:'ps',full:'Process Status',desc:'查看进程',cat:'Linux'},
+{cmd:'tar',full:'Tape Archive',desc:'打包/解压',cat:'Linux'},
+{cmd:'apt',full:'Advanced Packaging Tool',desc:'包管理器',cat:'Linux'},
+{cmd:'su',full:'Switch User',desc:'切换用户',cat:'Linux'},
+{cmd:'git init',full:'Initialize Repository',desc:'初始化仓库',cat:'Git'},
+{cmd:'git commit',full:'Commit Changes',desc:'提交修改',cat:'Git'},
+{cmd:'git branch',full:'Create Branch',desc:'管理分支',cat:'Git'},
+{cmd:'git merge',full:'Merge Branches',desc:'合并分支',cat:'Git'},
+{cmd:'git fetch',full:'Fetch Remote',desc:'拉取不合并',cat:'Git'},
+{cmd:'git pull',full:'Pull & Merge',desc:'拉取并合并',cat:'Git'},
+{cmd:'i',full:'Insert Mode',desc:'进入插入模式',cat:'Vim'},
+{cmd:'dd',full:'Delete Line',desc:'删除当前行',cat:'Vim'},
+{cmd:'yy',full:'Yank Line',desc:'复制当前行',cat:'Vim'},
+{cmd:':wq',full:'Write & Quit',desc:'保存并退出',cat:'Vim'}
+];
+(function(){var g=document.getElementById('cardGrid');
+cardData.forEach(function(c){var d=document.createElement('div');d.className='flip-card';d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-pressed','false');
+d.innerHTML='<div class="flip-inner"><div class="flip-front"><h4>'+esc(c.cmd)+'</h4><span class="card-cat">'+esc(c.cat)+'</span></div><div class="flip-back"><p>'+esc(c.desc)+'</p><span class="card-full">'+esc(c.full)+'</span></div></div>';
+d.onclick=function(){var f=d.classList.toggle('flipped');d.setAttribute('aria-pressed',String(f))};
+d.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();d.click()}};
+g.appendChild(d)})})();
+</script>
+</body>
+</html>

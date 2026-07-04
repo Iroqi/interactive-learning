@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>建站全流程仿真学习平台</title>
+  <style>
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef2f7;
+  --text: #1f2937;
+  --text-secondary: #6b7280;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --danger: #dc2626;
+  --border: #d1d5db;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo { font-size: 28px; }
+.brand h1 { font-size: 20px; margin: 0; }
+
+.progress-area {
+  width: 320px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.badges-display { display: flex; gap: 4px; }
+
+.progress-bar {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #3b82f6);
+  transition: width 0.4s ease;
+}
+
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 260px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+}
+
+.step-nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.2s;
+  color: var(--text-secondary);
+}
+
+.step-item:hover { background: var(--bg); }
+
+.step-item.active {
+  background: #eff6ff;
+  border-left-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.step-item.completed { color: var(--success); }
+
+.step-number {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.step-item.completed .step-number {
+  background: var(--success);
+  color: white;
+}
+
+.step-item.active .step-number {
+  background: var(--primary);
+  color: white;
+}
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.step-header {
+  padding: 24px 32px 0;
+}
+
+.step-header h2 { margin: 0 0 8px; font-size: 24px; }
+.step-header p { margin: 0; color: var(--text-secondary); line-height: 1.6; }
+
+.step-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.knowledge-card {
+  margin: 0 32px 16px;
+  padding: 16px 20px;
+  background: #eff6ff;
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+}
+
+.knowledge-card.hidden { display: none; }
+
+.knowledge-card h4 { margin: 0 0 8px; color: var(--primary-dark); }
+.knowledge-card p { margin: 0; line-height: 1.6; }
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled { background: var(--border); cursor: not-allowed; }
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn-secondary:hover { background: var(--surface-2); }
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-secondary);
+  width: 100%;
+}
+.btn-ghost:hover { background: var(--surface-2); }
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+.btn-success:hover { background: #15803d; }
+
+.btn-warning {
+  background: var(--warning);
+  color: white;
+}
+
+/* Cards and panels */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h3 { margin-top: 0; font-size: 18px; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+@media (max-width: 900px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .sidebar { width: 200px; }
+}
+
+/* Form elements */
+input, select, textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  width: 100%;
+  font-family: inherit;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
+
+.check-label {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 0;
+  margin-top: 8px;
+}
+.check-label:first-child { margin-top: 0; }
+
+.form-group { margin-bottom: 16px; }
+
+/* Option cards */
+.option-card {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-card:hover { border-color: var(--primary); }
+.option-card.selected {
+  border-color: var(--primary);
+  background: #eff6ff;
+}
+
+.option-card h4 { margin: 0 0 6px; }
+.option-card p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+/* Domain / DNS tables */
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.table th { background: var(--surface-2); font-weight: 600; font-size: 13px; }
+
+/* Terminal */
+.terminal {
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: "SF Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  min-height: 160px;
+  overflow-y: auto;
+}
+
+.terminal .line { margin-bottom: 4px; }
+.terminal .cmd { color: #60a5fa; }
+.terminal .success { color: #34d399; }
+.terminal .error { color: #f87171; }
+.terminal .dim { color: #9ca3af; }
+
+/* Browser mock */
+.browser-mock {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.browser-dots { display: flex; gap: 6px; }
+.browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+.browser-dot.red { background: #ef4444; }
+.browser-dot.yellow { background: #f59e0b; }
+.browser-dot.green { background: #22c55e; }
+
+.browser-address {
+  flex: 1;
+  background: white;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.browser-viewport {
+  padding: 24px;
+  min-height: 200px;
+}
+
+/* Tooltip */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dashed var(--primary);
+  color: var(--primary);
+  cursor: help;
+}
+
+.tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+}
+
+.tooltip:hover::after { opacity: 1; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1f2937;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 1000;
+}
+
+.toast.hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse { animation: pulse 1.5s infinite; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in { animation: slideIn 0.3s ease; }
+
+/* Utility */
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.mt-2 { margin-top: 12px; }
+.mb-2 { margin-bottom: 12px; }
+.flex { display: flex; }
+.gap-2 { gap: 12px; }
+.gap-1 { gap: 8px; }
+.wrap { flex-wrap: wrap; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #dbeafe;
+  color: var(--primary-dark);
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-tag.success { background: #dcfce7; color: var(--success); }
+.status-tag.pending { background: #fef3c7; color: #b45309; }
+.status-tag.error { background: #fee2e2; color: var(--danger); }
+
+.dns-propagation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+}
+
+.dns-node {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s;
+}
+
+.dns-node.active { background: var(--success); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <div class="brand">
+        <span class="logo">🌐</span>
+        <h1>建站全流程仿真学习平台</h1>
+      </div>
+      <div class="progress-area">
+        <div class="progress-info">
+          <span id="progress-text">进度 0/9</span>
+          <span id="badges-display" class="badges-display"></span>
+        </div>
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <nav id="step-nav" class="step-nav"></nav>
+        <div class="sidebar-footer">
+          <button id="reset-btn" class="btn btn-ghost">重置进度</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div id="step-header" class="step-header"></div>
+        <div id="step-content" class="step-content"></div>
+        <div id="knowledge-card" class="knowledge-card hidden"></div>
+        <div class="step-actions">
+          <button id="prev-btn" class="btn btn-secondary">上一步</button>
+          <button id="next-btn" class="btn btn-primary">下一步</button>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script>
+window.SimData = {
+  stepsConfig: [
+    {
+      id: 'planning',
+      title: '项目规划',
+      subtitle: '明确网站目标、受众和技术方案',
+      description: '在正式开始之前，先想清楚你要做什么类型的网站、给谁看、用什么技术搭建。这一步决定了后续的域名、主机和部署方式。'
+    },
+    {
+      id: 'building',
+      title: '建站',
+      subtitle: '创建网站内容与页面',
+      description: '根据上一步选择的技术方案，生成或编辑你的网站首页。你可以使用可视化编辑器，也可以切换到代码模式查看真实 HTML。'
+    },
+    {
+      id: 'domain',
+      title: '购买域名',
+      subtitle: '在域名注册商处注册网址',
+      description: '域名是用户访问你网站的地址（如 example.com）。在这个模拟注册商中搜索、选择并购买一个域名。'
+    },
+    {
+      id: 'hosting',
+      title: '选择主机',
+      subtitle: '存放网站文件的服务器空间',
+      description: '网站文件需要放在服务器上才能被访问。根据你的技术方案和预算，选择合适的托管方案。'
+    },
+    {
+      id: 'dns',
+      title: 'DNS 解析',
+      subtitle: '把域名指向服务器',
+      description: 'DNS 就像互联网的电话簿，负责把域名翻译成服务器的 IP 地址。你需要在域名控制台添加正确的解析记录。'
+    },
+    {
+      id: 'deploy',
+      title: '部署网站',
+      subtitle: '把网站文件上传到服务器',
+      description: '将建好的网页文件上传到主机。常见方式包括 FTP、Git 推送、控制台上传或命令行 scp/rsync。'
+    },
+    {
+      id: 'ssl',
+      title: 'SSL / HTTPS',
+      subtitle: '为网站启用安全加密',
+      description: 'HTTPS 可以保护用户和服务器之间的数据传输。通过申请 SSL 证书并配置到服务器，让网站支持 https:// 访问。'
+    },
+    {
+      id: 'test',
+      title: '访问测试',
+      subtitle: '验证网站能否正常打开',
+      description: '在浏览器中输入你的域名，检查 DNS 是否生效、HTTPS 是否正常、页面内容是否显示完整。'
+    },
+    {
+      id: 'ops',
+      title: '运维监控',
+      subtitle: '上线后的日常维护',
+      description: '网站上线后，还需要监控访问状态、定期备份、查看日志，并根据数据持续优化。'
+    }
+  ],
+
+  siteTypes: [
+    { id: 'blog', name: '个人博客', desc: '分享文章、记录生活，内容更新频繁', icon: '📝' },
+    { id: 'ecommerce', name: '电商网站', desc: '在线销售商品，需要支付和订单功能', icon: '🛒' },
+    { id: 'corporate', name: '企业官网', desc: '展示公司形象、产品和服务信息', icon: '🏢' },
+    { id: 'portfolio', name: '作品集', desc: '展示设计、摄影、代码等个人作品', icon: '🎨' }
+  ],
+
+  techStacks: [
+    { id: 'static', name: '纯静态 HTML', desc: '适合简单页面，成本低，加载快', bestFor: ['blog', 'portfolio', 'corporate'], price: '低' },
+    { id: 'wordpress', name: 'WordPress', desc: '最流行的建站系统，插件丰富', bestFor: ['blog', 'corporate', 'ecommerce'], price: '中' },
+    { id: 'saas', name: '静态托管平台', desc: 'Vercel / Netlify / Cloudflare Pages，自动部署', bestFor: ['portfolio', 'blog', 'corporate'], price: '低-中' },
+    { id: 'vps', name: '自建服务器 / VPS', desc: '完全可控，适合有技术基础的用户', bestFor: ['ecommerce', 'corporate'], price: '高' }
+  ],
+
+  hostingOptions: [
+    { id: 'shared', name: '共享主机', desc: '多台网站共用一台服务器，价格便宜，适合新手', price: '¥30/月起', bestFor: ['wordpress'] },
+    { id: 'vps', name: 'VPS / 云服务器', desc: '独立资源，可安装任意环境，需要一定运维能力', price: '¥80/月起', bestFor: ['vps', 'static'] },
+    { id: 'static', name: '静态托管', desc: '专为静态网站设计，自动 CDN 加速，支持 Git 部署', price: '免费-¥50/月', bestFor: ['static', 'saas'] },
+    { id: 'paas', name: 'PaaS 平台', desc: '一键部署应用，无需管理服务器', price: '¥50/月起', bestFor: ['saas'] }
+  ],
+
+  domainPrices: {
+    'com': 68,
+    'cn': 35,
+    'net': 78,
+    'org': 88,
+    'io': 320,
+    'dev': 120
+  },
+
+  termDefinitions: {
+    '域名': '网站的地址名称，如 example.com，方便用户记忆和访问。',
+    'DNS': '域名系统（Domain Name System），负责把域名解析成服务器 IP 地址。',
+    'A 记录': 'DNS 记录类型，把域名指向一个 IPv4 地址。',
+    'CNAME': 'DNS 记录类型，把域名指向另一个域名。',
+    'SSL': '安全套接层协议，用于加密浏览器和服务器之间的通信。',
+    'HTTPS': 'HTTP + SSL/TLS，安全的网页传输协议。',
+    'VPS': '虚拟专用服务器，在一台物理机上虚拟出的独立服务器。',
+    'CDN': '内容分发网络，把网站内容缓存到全球各地的节点，加速访问。'
+  },
+
+  knowledgeCards: {
+    planning: '真实世界中，项目规划还包括竞品分析、内容规划和预算评估。技术选型会直接影响后续的维护成本。',
+    building: '初学者可以先从静态 HTML/CSS 入手，或使用 WordPress、Notion、Wix 等低代码工具快速搭建。',
+    domain: '常见域名注册商：阿里云、腾讯云、Namecheap、GoDaddy、Cloudflare Registrar。注册后需要实名认证。',
+    hosting: '主机选择要看流量预期、技术栈和预算。新手推荐虚拟主机或静态托管，流量大后再升级。',
+    dns: 'DNS 解析生效通常需要几分钟到 48 小时，这取决于 TTL 设置和各地 DNS 缓存。',
+    deploy: '现代前端常用 Git 推送自动部署；传统网站可用 FTP 工具如 FileZilla、WinSCP。',
+    ssl: 'Let\'s Encrypt 提供免费 SSL 证书，很多主机和 CDN 都支持一键申请和自动续期。',
+    test: '测试时建议清除浏览器缓存、使用不同网络、手机端也要检查响应式布局。',
+    ops: '常用监控工具：UptimeRobot、阿里云监控、Cloudflare Analytics。定期备份是防止数据丢失的关键。'
+  }
+};
+  </script>
+
+  <script>
+(function () {
+  const stepsConfig = window.SimData.stepsConfig;
+  const knowledgeCards = window.SimData.knowledgeCards;
+  const termDefinitions = window.SimData.termDefinitions;
+
+  const state = {
+    currentStep: 0,
+    completedSteps: new Set(),
+    siteType: null,
+    techStack: null,
+    siteName: '',
+    siteTagline: '',
+    siteColor: '#2563eb',
+    domain: null,
+    domainPrice: null,
+    domainPurchased: false,
+    hosting: null,
+    hostingConfigured: false,
+    serverIp: null,
+    dnsRecords: [],
+    dnsPropagated: false,
+    sslEnabled: false,
+    sslProvider: null,
+    deployed: false,
+    deployMethod: null,
+    tested: false,
+    badges: []
+  };
+
+  const stepModules = [];
+
+  function registerStep(module) {
+    stepModules[module.index] = module;
+  }
+
+  const STORAGE_KEY = 'website-simulation-progress';
+
+  function saveState() {
+    const data = {
+      ...state,
+      completedSteps: Array.from(state.completedSteps)
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadState() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      Object.assign(state, data);
+      state.completedSteps = new Set(data.completedSteps || []);
+    } catch (e) {
+      console.warn('Failed to load saved state', e);
+    }
+  }
+
+  function resetState() {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+
+  function completeStep(index) {
+    state.completedSteps.add(index);
+    renderNav();
+    updateProgress();
+    saveState();
+  }
+
+  function isStepComplete(index) {
+    return state.completedSteps.has(index);
+  }
+
+  function goToStep(index) {
+    if (index < 0 || index >= stepsConfig.length) return;
+    state.currentStep = index;
+    renderNav();
+    renderStep();
+    updateProgress();
+    saveState();
+  }
+
+  function addBadge(badge) {
+    if (!state.badges.includes(badge)) {
+      state.badges.push(badge);
+      renderBadges();
+      showToast('获得徽章：' + badge);
+      saveState();
+    }
+  }
+
+  function renderBadges() {
+    const el = document.getElementById('badges-display');
+    if (!el) return;
+    el.innerHTML = state.badges.map(function (b) { return '<span title="' + b + '">🏅</span>'; }).join('');
+  }
+
+  function updateProgress() {
+    const count = state.completedSteps.size;
+    const total = stepsConfig.length;
+    const pct = Math.round((count / total) * 100);
+    document.getElementById('progress-text').textContent = '进度 ' + count + '/' + total;
+    document.getElementById('progress-fill').style.width = pct + '%';
+
+    const nextBtn = document.getElementById('next-btn');
+    if (state.currentStep === total - 1) {
+      nextBtn.textContent = '完成学习';
+    } else {
+      nextBtn.textContent = '下一步';
+    }
+
+    const prevBtn = document.getElementById('prev-btn');
+    prevBtn.disabled = state.currentStep === 0;
+  }
+
+  function renderNav() {
+    const nav = document.getElementById('step-nav');
+    nav.innerHTML = stepsConfig.map(function (step, idx) {
+      const completed = state.completedSteps.has(idx);
+      const active = idx === state.currentStep;
+      const icon = completed ? '✓' : idx + 1;
+      return '<div class="step-item ' + (active ? 'active' : '') + ' ' + (completed ? 'completed' : '') + '" data-index="' + idx + '">' +
+        '<span class="step-number">' + icon + '</span>' +
+        '<div class="step-info">' +
+          '<div class="step-title">' + step.title + '</div>' +
+          '<div class="step-subtitle" style="font-size:12px;color:#6b7280;">' + step.subtitle + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    nav.querySelectorAll('.step-item').forEach(function (item) {
+      item.addEventListener('click', function () {
+        goToStep(parseInt(item.dataset.index, 10));
+      });
+    });
+  }
+
+  function renderStep() {
+    const config = stepsConfig[state.currentStep];
+    const header = document.getElementById('step-header');
+    header.innerHTML = '<h2>' + config.title + '</h2><p>' + config.description + '</p>';
+
+    const content = document.getElementById('step-content');
+    content.innerHTML = '';
+
+    const mod = stepModules[state.currentStep];
+    if (mod && mod.render) {
+      mod.render(content);
+    }
+
+    const knowledge = document.getElementById('knowledge-card');
+    knowledge.classList.add('hidden');
+
+    updateProgress();
+  }
+
+  function showKnowledgeCard(stepId, extra) {
+    extra = extra || '';
+    const text = knowledgeCards[stepId] || '';
+    const el = document.getElementById('knowledge-card');
+    el.innerHTML = '<h4>💡 知识点</h4><p>' + text + (extra ? '<br><br>' + extra : '') + '</p>';
+    el.classList.remove('hidden');
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    setTimeout(function () { toast.classList.add('hidden'); }, 3000);
+  }
+
+  function createElement(html) {
+    const div = document.createElement('div');
+    div.innerHTML = html.trim();
+    return div.firstChild;
+  }
+
+  function renderTermTooltip(term) {
+    return '<span class="tooltip" data-tip="' + getTermDefinition(term) + '">' + term + '</span>';
+  }
+
+  function getTermDefinition(term) {
+    return termDefinitions[term] || '暂无解释';
+  }
+
+  function bindEvents() {
+    document.getElementById('prev-btn').addEventListener('click', function () {
+      goToStep(state.currentStep - 1);
+    });
+    document.getElementById('next-btn').addEventListener('click', function () {
+      if (state.currentStep === stepsConfig.length - 1) {
+        showToast('恭喜！你已经完成了建站全流程仿真学习 🎉');
+        addBadge('🎓 建站大师');
+        return;
+      }
+      goToStep(state.currentStep + 1);
+    });
+    document.getElementById('reset-btn').addEventListener('click', function () {
+      if (confirm('确定要重置所有学习进度吗？')) {
+        resetState();
+      }
+    });
+  }
+
+  function init() {
+    loadState();
+    renderNav();
+    renderBadges();
+    renderStep();
+    bindEvents();
+  }
+
+  window.SimApp = {
+    state: state,
+    registerStep: registerStep,
+    completeStep: completeStep,
+    isStepComplete: isStepComplete,
+    goToStep: goToStep,
+    addBadge: addBadge,
+    showToast: showToast,
+    showKnowledgeCard: showKnowledgeCard,
+    createElement: createElement,
+    renderTermTooltip: renderTermTooltip,
+    getTermDefinition: getTermDefinition,
+    saveState: saveState,
+    init: init
+  };
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var Data = window.SimData;
+  var state = App.state;
+  var siteTypes = Data.siteTypes;
+  var techStacks = Data.techStacks;
+
+  App.registerStep({
+    index: 0,
+    render: function (container) {
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>第一步：选择网站类型</h3>' +
+          '<div class="grid-2" id="site-type-grid"></div>' +
+        '</div>' +
+        '<div class="card" id="tech-stack-card" style="opacity:0.6;pointer-events:none;">' +
+          '<h3>第二步：选择技术方案</h3>' +
+          '<p style="color:#6b7280;margin-top:0;">根据网站类型，我们会给出推荐方案，你也可以自由选择。</p>' +
+          '<div class="grid-2" id="tech-stack-grid"></div>' +
+          '<div id="recommendation" class="mt-2"></div>' +
+        '</div>' +
+        '<div class="card hidden" id="plan-summary">' +
+          '<h3>规划摘要</h3>' +
+          '<p id="plan-summary-text"></p>' +
+          '<button id="confirm-plan" class="btn btn-primary">确认规划</button>' +
+        '</div>';
+
+      renderSiteTypes();
+      renderTechStacks();
+
+      document.getElementById('confirm-plan').addEventListener('click', function () {
+        App.completeStep(0);
+        App.addBadge('📋 规划师');
+        App.showKnowledgeCard('planning');
+      });
+    }
+  });
+
+  function renderSiteTypes() {
+    var grid = document.getElementById('site-type-grid');
+    grid.innerHTML = siteTypes.map(function (t) {
+      return '<div class="option-card ' + (state.siteType === t.id ? 'selected' : '') + '" data-id="' + t.id + '">' +
+        '<div style="font-size:28px;margin-bottom:8px;">' + t.icon + '</div>' +
+        '<h4>' + t.name + '</h4>' +
+        '<p>' + t.desc + '</p>' +
+      '</div>';
+    }).join('');
+
+    grid.querySelectorAll('.option-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.siteType = card.dataset.id;
+        renderSiteTypes();
+        enableTechStack();
+        renderTechStacks();
+        updateSummary();
+      });
+    });
+  }
+
+  function enableTechStack() {
+    var card = document.getElementById('tech-stack-card');
+    card.style.opacity = '1';
+    card.style.pointerEvents = 'auto';
+  }
+
+  function renderTechStacks() {
+    var grid = document.getElementById('tech-stack-grid');
+    grid.innerHTML = techStacks.map(function (s) {
+      var recommended = state.siteType && s.bestFor.includes(state.siteType);
+      return '<div class="option-card ' + (state.techStack === s.id ? 'selected' : '') + '" data-id="' + s.id + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<h4>' + s.name + '</h4>' +
+          (recommended ? '<span class="badge">推荐</span>' : '') +
+        '</div>' +
+        '<p>' + s.desc + '</p>' +
+        '<p style="font-size:12px;color:#6b7280;">成本：' + s.price + '</p>' +
+      '</div>';
+    }).join('');
+
+    grid.querySelectorAll('.option-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.techStack = card.dataset.id;
+        renderTechStacks();
+        updateSummary();
+      });
+    });
+  }
+
+  function updateSummary() {
+    var summary = document.getElementById('plan-summary');
+    var text = document.getElementById('plan-summary-text');
+    if (state.siteType && state.techStack) {
+      var typeName = siteTypes.find(function (t) { return t.id === state.siteType; }).name;
+      var stackName = techStacks.find(function (s) { return s.id === state.techStack; }).name;
+      text.innerHTML = '你打算做一个 <strong>' + typeName + '</strong>，采用 <strong>' + stackName + '</strong> 技术方案。';
+      summary.classList.remove('hidden');
+    }
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  App.registerStep({
+    index: 1,
+    render: function (container) {
+      container.innerHTML =
+        '<div class="grid-2">' +
+          '<div class="card">' +
+            '<h3>网站编辑器</h3>' +
+            '<div class="form-group">' +
+              '<label>网站标题</label>' +
+              '<input type="text" id="site-name" placeholder="例如：我的个人博客" value="' + (state.siteName || '') + '">' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>副标题 / Slogan</label>' +
+              '<input type="text" id="site-tagline" placeholder="例如：记录生活，分享技术" value="' + (state.siteTagline || '') + '">' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>主题色</label>' +
+              '<input type="color" id="site-color" value="' + (state.siteColor || '#2563eb') + '" style="height:40px;cursor:pointer;">' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>编辑模式</label>' +
+              '<div class="flex gap-1">' +
+                '<button id="mode-visual" class="btn btn-primary">可视化</button>' +
+                '<button id="mode-code" class="btn btn-secondary">代码</button>' +
+              '</div>' +
+            '</div>' +
+            '<pre id="code-preview" class="hidden" style="background:#111827;color:#e5e7eb;padding:12px;border-radius:8px;font-size:12px;overflow:auto;"></pre>' +
+            '<button id="save-site" class="btn btn-success mt-2">保存网站</button>' +
+          '</div>' +
+          '<div class="card">' +
+            '<h3>实时预览</h3>' +
+            '<div class="browser-mock">' +
+              '<div class="browser-bar">' +
+                '<div class="browser-dots">' +
+                  '<span class="browser-dot red"></span>' +
+                  '<span class="browser-dot yellow"></span>' +
+                  '<span class="browser-dot green"></span>' +
+                '</div>' +
+                '<div class="browser-address">https://你的域名.com</div>' +
+              '</div>' +
+              '<div id="site-preview" class="browser-viewport"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      var updatePreview = function () {
+        var name = document.getElementById('site-name').value.trim() || '你的网站';
+        var tagline = document.getElementById('site-tagline').value.trim() || '这里是一段副标题';
+        var color = document.getElementById('site-color').value;
+        var preview = document.getElementById('site-preview');
+        preview.innerHTML =
+          '<div style="text-align:center;padding:40px 20px;color:' + color + ';">' +
+            '<h1 style="margin:0 0 16px;font-size:32px;">' + name + '</h1>' +
+            '<p style="margin:0;font-size:18px;color:#4b5563;">' + tagline + '</p>' +
+            '<div style="margin-top:24px;">' +
+              '<span style="display:inline-block;padding:10px 20px;background:' + color + ';color:white;border-radius:6px;">欢迎访问</span>' +
+            '</div>' +
+          '</div>';
+
+        var code = document.getElementById('code-preview');
+        code.textContent = generateCode(name, tagline, color);
+      };
+
+      updatePreview();
+
+      ['site-name', 'site-tagline', 'site-color'].forEach(function (id) {
+        document.getElementById(id).addEventListener('input', updatePreview);
+      });
+
+      document.getElementById('mode-visual').addEventListener('click', function () {
+        document.getElementById('code-preview').classList.add('hidden');
+        document.getElementById('mode-visual').classList.replace('btn-secondary', 'btn-primary');
+        document.getElementById('mode-code').classList.replace('btn-primary', 'btn-secondary');
+      });
+
+      document.getElementById('mode-code').addEventListener('click', function () {
+        document.getElementById('code-preview').classList.remove('hidden');
+        document.getElementById('mode-code').classList.replace('btn-secondary', 'btn-primary');
+        document.getElementById('mode-visual').classList.replace('btn-primary', 'btn-secondary');
+      });
+
+      document.getElementById('save-site').addEventListener('click', function () {
+        state.siteName = document.getElementById('site-name').value.trim() || '你的网站';
+        state.siteTagline = document.getElementById('site-tagline').value.trim() || '这里是一段副标题';
+        state.siteColor = document.getElementById('site-color').value;
+        App.completeStep(1);
+        App.addBadge('🎨 站长');
+        App.showToast('网站已保存');
+        App.showKnowledgeCard('building');
+      });
+    }
+  });
+
+  function generateCode(name, tagline, color) {
+    return '<!DOCTYPE html>\n<html>\n<head>\n  <title>' + name + '</title>\n</head>\n<body style="text-align:center;padding:40px;">\n  <h1 style="color:' + color + ';">' + name + '</h1>\n  <p>' + tagline + '</p>\n</body>\n</html>';
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+  var domainPrices = window.SimData.domainPrices;
+
+  App.registerStep({
+    index: 2,
+    render: function (container) {
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>模拟域名注册商</h3>' +
+          '<p>输入你想要的域名前缀，搜索可用的域名。</p>' +
+          '<div class="flex gap-1" style="margin-bottom:16px;">' +
+            '<input type="text" id="domain-keyword" placeholder="例如：myblog" style="flex:1;">' +
+            '<button id="search-domain" class="btn btn-primary">搜索域名</button>' +
+          '</div>' +
+          '<div id="domain-results"></div>' +
+        '</div>' +
+        '<div class="card ' + (state.domain ? '' : 'hidden') + '" id="cart-card">' +
+          '<h3>购物车</h3>' +
+          '<div id="cart-content"></div>' +
+          '<div id="checkout-form" class="hidden mt-2">' +
+            '<div class="form-group">' +
+              '<label>注册人姓名</label>' +
+              '<input type="text" id="registrant-name" placeholder="真实姓名">' +
+            '</div>' +
+            '<div class="form-group">' +
+              '<label>联系邮箱</label>' +
+              '<input type="email" id="registrant-email" placeholder="your@email.com">' +
+            '</div>' +
+            '<button id="pay-domain" class="btn btn-success">模拟支付并注册</button>' +
+          '</div>' +
+        '</div>';
+
+      if (state.domain) {
+        renderCart();
+      }
+
+      document.getElementById('search-domain').addEventListener('click', searchDomains);
+      document.getElementById('domain-keyword').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') searchDomains();
+      });
+
+      document.getElementById('pay-domain').addEventListener('click', function () {
+        var name = document.getElementById('registrant-name').value.trim();
+        var email = document.getElementById('registrant-email').value.trim();
+        if (!name || !email) {
+          App.showToast('请填写完整的注册信息');
+          return;
+        }
+        state.domainPurchased = true;
+        App.completeStep(2);
+        App.addBadge('🌐 域名持有者');
+        App.showToast('恭喜！域名 ' + state.domain + ' 注册成功');
+        App.showKnowledgeCard('domain', '注册人：' + name + '，联系邮箱：' + email);
+        renderCart();
+      });
+    }
+  });
+
+  function searchDomains() {
+    var keyword = document.getElementById('domain-keyword').value.trim().toLowerCase();
+    if (!keyword) {
+      App.showToast('请输入域名前缀');
+      return;
+    }
+
+    var results = document.getElementById('domain-results');
+    results.innerHTML = '<p class="pulse">正在查询域名可用性...</p>';
+
+    setTimeout(function () {
+      var tlds = Object.keys(domainPrices);
+      var suggestions = tlds.map(function (tld) {
+        return {
+          name: keyword + '.' + tld,
+          tld: tld,
+          price: domainPrices[tld],
+          available: Math.random() > 0.2 || tld === 'com'
+        };
+      });
+
+      results.innerHTML =
+        '<table class="table">' +
+          '<thead><tr><th>域名</th><th>价格/年</th><th>状态</th><th>操作</th></tr></thead>' +
+          '<tbody>' +
+            suggestions.map(function (d) {
+              return '<tr>' +
+                '<td>' + d.name + '</td>' +
+                '<td>¥' + d.price + '</td>' +
+                '<td>' + (d.available ? '<span class="status-tag success">可注册</span>' : '<span class="status-tag error">已注册</span>') + '</td>' +
+                '<td>' + (d.available ? '<button class="btn btn-primary add-to-cart" data-domain="' + d.name + '" data-price="' + d.price + '">加入购物车</button>' : '<button class="btn btn-secondary" disabled>不可用</button>') + '</td>' +
+              '</tr>';
+            }).join('') +
+          '</tbody>' +
+        '</table>';
+
+      results.querySelectorAll('.add-to-cart').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          state.domain = btn.dataset.domain;
+          state.domainPrice = parseInt(btn.dataset.price, 10);
+          document.getElementById('cart-card').classList.remove('hidden');
+          renderCart();
+        });
+      });
+    }, 800);
+  }
+
+  function renderCart() {
+    var cartContent = document.getElementById('cart-content');
+    var checkout = document.getElementById('checkout-form');
+    if (!state.domain) {
+      cartContent.innerHTML = '<p>购物车是空的</p>';
+      checkout.classList.add('hidden');
+      return;
+    }
+
+    cartContent.innerHTML =
+      '<p><strong>' + state.domain + '</strong> — ¥' + state.domainPrice + '/年 × 1 年</p>' +
+      (state.domainPurchased ? '<span class="status-tag success">已注册</span>' : '');
+
+    if (state.domainPurchased) {
+      checkout.classList.add('hidden');
+    } else {
+      checkout.classList.remove('hidden');
+    }
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var Data = window.SimData;
+  var state = App.state;
+  var hostingOptions = Data.hostingOptions;
+  var techStacks = Data.techStacks;
+
+  App.registerStep({
+    index: 3,
+    render: renderHosting
+  });
+
+  function generateIp() {
+    return '192.0.2.' + (Math.floor(Math.random() * 254) + 1);
+  }
+
+  function renderHosting(container) {
+    var stack = techStacks.find(function (s) { return s.id === state.techStack; });
+    var recommended = hostingOptions.filter(function (h) { return h.bestFor.includes(state.techStack); });
+
+    container.innerHTML =
+      '<div class="card">' +
+        '<h3>选择主机 / 服务器</h3>' +
+        '<p>你当前的技术方案是：<strong>' + (stack ? stack.name : '未选择') + '</strong>。下方标有"推荐"的选项更适合你的方案。</p>' +
+        '<div class="grid-2" id="hosting-grid">' +
+          hostingOptions.map(function (h) {
+            var isRec = recommended.some(function (r) { return r.id === h.id; });
+            return '<div class="option-card ' + (state.hosting === h.id ? 'selected' : '') + '" data-id="' + h.id + '">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<h4>' + h.name + '</h4>' +
+                (isRec ? '<span class="badge">推荐</span>' : '') +
+              '</div>' +
+              '<p>' + h.desc + '</p>' +
+              '<p style="font-size:13px;color:#6b7280;">参考价格：' + h.price + '</p>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="card ' + (state.hosting ? '' : 'hidden') + '" id="hosting-config">' +
+        '<h3>主机配置</h3>' +
+        '<div class="form-group">' +
+          '<label>服务器 IP 地址（模拟）</label>' +
+          '<input type="text" id="server-ip" value="' + (state.serverIp || '192.0.2.1') + '" placeholder="例如：192.0.2.1">' +
+        '</div>' +
+        '<p style="color:#6b7280;font-size:13px;">在真实场景中，主机会自动分配 IP 或提供默认域名，这里你只需确认即可。</p>' +
+        '<button id="confirm-hosting" class="btn btn-primary">确认主机配置</button>' +
+      '</div>';
+
+    document.getElementById('hosting-grid').querySelectorAll('.option-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.hosting = card.dataset.id;
+        state.serverIp = generateIp();
+        renderHosting(container);
+      });
+    });
+
+    document.getElementById('confirm-hosting').addEventListener('click', function () {
+      state.serverIp = document.getElementById('server-ip').value.trim();
+      if (!state.serverIp) {
+        App.showToast('请输入服务器 IP');
+        return;
+      }
+      state.hostingConfigured = true;
+      App.completeStep(3);
+      App.addBadge('🖥️ 主机管理员');
+      App.showToast('主机配置完成');
+      App.showKnowledgeCard('hosting', '你的模拟服务器 IP 是 ' + state.serverIp);
+    });
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  var RECORD_TYPES = ['A', 'CNAME', 'MX', 'TXT', 'NS'];
+
+  App.registerStep({
+    index: 4,
+    render: function (container) {
+      if (!state.domain || !state.hostingConfigured) {
+        container.innerHTML =
+          '<div class="card">' +
+            '<h3>需要先完成前置步骤</h3>' +
+            '<p>请先完成"购买域名"和"选择主机"步骤，才能进行 DNS 解析配置。</p>' +
+          '</div>';
+        return;
+      }
+
+      var nodeSpans = '';
+      for (var n = 0; n < 8; n++) {
+        nodeSpans += '<span class="dns-node" data-index="' + n + '" title="节点 ' + (n + 1) + '"></span>';
+      }
+
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>DNS 解析控制台</h3>' +
+          '<p>域名：<strong>' + state.domain + '</strong> · 主机 IP：<strong>' + state.serverIp + '</strong></p>' +
+          '<div class="form-group">' +
+            '<label>记录类型</label>' +
+            '<select id="record-type">' +
+              RECORD_TYPES.map(function (t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label>主机记录（如 @、www、blog）</label>' +
+            '<input type="text" id="record-host" placeholder="@">' +
+          '</div>' +
+          '<div class="form-group">' +
+            '<label>记录值（IP 或目标域名）</label>' +
+            '<input type="text" id="record-value" placeholder="例如：' + state.serverIp + '">' +
+          '</div>' +
+          '<button id="add-record" class="btn btn-primary">添加记录</button>' +
+          '<h4 style="margin-top:24px;">当前记录</h4>' +
+          '<table class="table" id="records-table">' +
+            '<thead><tr><th>类型</th><th>主机</th><th>记录值</th><th>操作</th></tr></thead>' +
+            '<tbody></tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h3>解析传播模拟</h3>' +
+          '<p style="color:#6b7280;">DNS 修改后，全球各地的 DNS 服务器需要一段时间才能同步。点击下方按钮模拟传播过程。</p>' +
+          '<div class="dns-propagation" id="dns-propagation">' + nodeSpans + '</div>' +
+          '<button id="propagate-dns" class="btn btn-warning mt-2" disabled>开始解析传播</button>' +
+          '<p id="propagation-status" class="mt-2"></p>' +
+        '</div>';
+
+      renderRecords();
+
+      document.getElementById('add-record').addEventListener('click', function () {
+        var type = document.getElementById('record-type').value;
+        var host = document.getElementById('record-host').value.trim() || '@';
+        var value = document.getElementById('record-value').value.trim();
+
+        if (!value) {
+          App.showToast('请输入记录值');
+          return;
+        }
+
+        state.dnsRecords.push({ type: type, host: host, value: value });
+        renderRecords();
+        document.getElementById('record-value').value = '';
+        checkDnsComplete();
+      });
+
+      document.getElementById('propagate-dns').addEventListener('click', function () {
+        var nodes = document.querySelectorAll('.dns-node');
+        var status = document.getElementById('propagation-status');
+        status.textContent = '解析传播中...';
+        nodes.forEach(function (n) { n.classList.remove('active'); });
+
+        var i = 0;
+        var interval = setInterval(function () {
+          if (i >= nodes.length) {
+            clearInterval(interval);
+            status.innerHTML = '<span class="status-tag success">全球解析已生效</span>';
+            state.dnsPropagated = true;
+            checkDnsComplete();
+            return;
+          }
+          nodes[i].classList.add('active');
+          i++;
+        }, 400);
+      });
+    }
+  });
+
+  function renderRecords() {
+    var tbody = document.querySelector('#records-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = state.dnsRecords.map(function (r, idx) {
+      return '<tr>' +
+        '<td>' + r.type + '</td>' +
+        '<td>' + r.host + '</td>' +
+        '<td>' + r.value + '</td>' +
+        '<td><button class="btn btn-ghost delete-record" data-index="' + idx + '" style="width:auto;padding:4px 10px;">删除</button></td>' +
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll('.delete-record').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state.dnsRecords.splice(parseInt(btn.dataset.index, 10), 1);
+        renderRecords();
+        checkDnsComplete();
+      });
+    });
+
+    var propagateBtn = document.getElementById('propagate-dns');
+    if (propagateBtn) {
+      propagateBtn.disabled = state.dnsRecords.length === 0;
+    }
+  }
+
+  function checkDnsComplete() {
+    var hasRootA = state.dnsRecords.some(function (r) {
+      return r.type === 'A' && (r.host === '@' || r.host === state.domain) && r.value === state.serverIp;
+    });
+    var hasWww = state.dnsRecords.some(function (r) {
+      return r.type === 'A' && r.host === 'www' && r.value === state.serverIp;
+    });
+    var correct = hasRootA && hasWww;
+
+    if (correct && state.dnsPropagated && !App.isStepComplete(4)) {
+      App.completeStep(4);
+      App.addBadge('🔧 DNS 工程师');
+      App.showToast('DNS 解析配置正确并已生效');
+      App.showKnowledgeCard('dns');
+    }
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  App.registerStep({
+    index: 5,
+    render: renderDeploy
+  });
+
+  function renderDeploy(container) {
+    if (!state.hostingConfigured) {
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>需要先完成主机配置</h3>' +
+          '<p>请先完成"选择主机"步骤。</p>' +
+        '</div>';
+      return;
+    }
+
+    var methods = [
+      { id: 'git', name: 'Git 推送', desc: 'git push origin main', icon: '🔄' },
+      { id: 'ftp', name: 'FTP 上传', desc: '通过 FTP 客户端上传文件', icon: '📤' },
+      { id: 'cli', name: '命令行部署', desc: 'scp / rsync / ssh', icon: '⌨️' }
+    ];
+
+    container.innerHTML =
+      '<div class="card">' +
+        '<h3>部署网站</h3>' +
+        '<p>将你在第二步建好的网站文件上传到主机。请选择一种部署方式开始模拟。</p>' +
+        '<div class="grid-3" id="deploy-methods">' +
+          methods.map(function (m) {
+            return '<div class="option-card ' + (state.deployMethod === m.id ? 'selected' : '') + '" data-id="' + m.id + '">' +
+              '<div style="font-size:28px;margin-bottom:8px;">' + m.icon + '</div>' +
+              '<h4>' + m.name + '</h4>' +
+              '<p>' + m.desc + '</p>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="card ' + (state.deployMethod ? '' : 'hidden') + '" id="deploy-terminal-card">' +
+        '<h3>部署控制台</h3>' +
+        '<div class="terminal" id="deploy-terminal">' +
+          '<div class="line dim">等待部署指令...</div>' +
+        '</div>' +
+        '<button id="start-deploy" class="btn btn-primary mt-2">开始部署</button>' +
+      '</div>';
+
+    document.getElementById('deploy-methods').querySelectorAll('.option-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.deployMethod = card.dataset.id;
+        renderDeploy(container);
+      });
+    });
+
+    document.getElementById('start-deploy').addEventListener('click', function () {
+      runDeployment(state.deployMethod);
+    });
+  }
+
+  function runDeployment(method) {
+    var terminal = document.getElementById('deploy-terminal');
+    var btn = document.getElementById('start-deploy');
+    btn.disabled = true;
+    terminal.innerHTML = '';
+
+    var logs = getDeploymentLogs(method);
+    var i = 0;
+
+    var interval = setInterval(function () {
+      if (i >= logs.length) {
+        clearInterval(interval);
+        state.deployed = true;
+        App.completeStep(5);
+        App.addBadge('🚀 部署专家');
+        App.showToast('网站部署成功');
+        App.showKnowledgeCard('deploy');
+        return;
+      }
+      var line = document.createElement('div');
+      line.className = 'line ' + logs[i].type;
+      line.textContent = logs[i].text;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+      i++;
+    }, 600);
+  }
+
+  function getDeploymentLogs(method) {
+    var site = state.siteName || '你的网站';
+    var base = [
+      { text: 'Connecting to ' + state.serverIp + '...', type: 'dim' },
+      { text: 'Connection established.', type: 'success' }
+    ];
+
+    if (method === 'git') {
+      return base.concat([
+        { text: 'git remote add origin https://git.hosting.com/user/site.git', type: 'cmd' },
+        { text: 'git add .', type: 'cmd' },
+        { text: 'git commit -m "Deploy: initial site"', type: 'cmd' },
+        { text: 'git push origin main', type: 'cmd' },
+        { text: 'Enumerating objects: 12, done.', type: 'dim' },
+        { text: 'Writing objects: 100% (12/12), 1.2 KiB, done.', type: 'dim' },
+        { text: 'Build started...', type: 'dim' },
+        { text: 'Build completed in 8s.', type: 'success' },
+        { text: 'Site "' + site + '" is now live.', type: 'success' }
+      ]);
+    }
+
+    if (method === 'ftp') {
+      return base.concat([
+        { text: 'USER ftpuser', type: 'cmd' },
+        { text: 'PASS ********', type: 'cmd' },
+        { text: 'Login successful.', type: 'success' },
+        { text: 'Uploading index.html...', type: 'dim' },
+        { text: 'Uploading styles.css...', type: 'dim' },
+        { text: 'Uploading assets...', type: 'dim' },
+        { text: 'Transfer complete: 3 files, 24 KB.', type: 'success' },
+        { text: 'Site "' + site + '" is now live.', type: 'success' }
+      ]);
+    }
+
+    return base.concat([
+      { text: 'scp -r ./site/ root@' + state.serverIp + ':/var/www/html/', type: 'cmd' },
+      { text: 'index.html                           100%  1.2KB   0.2KB/s   0:00:05', type: 'dim' },
+      { text: 'styles.css                           100%  3.4KB   0.6KB/s   0:00:05', type: 'dim' },
+      { text: 'Restarting nginx...', type: 'dim' },
+      { text: 'nginx restarted successfully.', type: 'success' },
+      { text: 'Site "' + site + '" is now live.', type: 'success' }
+    ]);
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  App.registerStep({
+    index: 6,
+    render: renderSsl
+  });
+
+  function renderSsl(container) {
+    if (!state.deployed) {
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>需要先完成部署</h3>' +
+          '<p>请先完成"部署网站"步骤。</p>' +
+        '</div>';
+      return;
+    }
+
+    container.innerHTML =
+      '<div class="card">' +
+        '<h3>SSL / HTTPS 配置</h3>' +
+        '<p>为 <strong>' + (state.domain || '你的网站') + '</strong> 申请 SSL 证书，启用 HTTPS 安全访问。</p>' +
+        '<div class="grid-2" id="ssl-options">' +
+          '<div class="option-card ' + (state.sslProvider === 'letsencrypt' ? 'selected' : '') + '" data-provider="letsencrypt">' +
+            '<h4>Let\'s Encrypt（免费）</h4>' +
+            '<p>最流行的免费 SSL 证书，有效期 90 天，支持自动续期。</p>' +
+          '</div>' +
+          '<div class="option-card ' + (state.sslProvider === 'commercial' ? 'selected' : '') + '" data-provider="commercial">' +
+            '<h4>商业证书</h4>' +
+            '<p>企业级证书，附带保险和更好的兼容性，适合电商等场景。</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card ' + (state.sslProvider ? '' : 'hidden') + '" id="ssl-process-card">' +
+        '<h3>证书申请过程</h3>' +
+        '<div class="terminal" id="ssl-terminal">' +
+          '<div class="line dim">等待开始 SSL 申请...</div>' +
+        '</div>' +
+        '<button id="apply-ssl" class="btn btn-success mt-2">申请并安装证书</button>' +
+      '</div>';
+
+    document.getElementById('ssl-options').querySelectorAll('.option-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        state.sslProvider = card.dataset.provider;
+        renderSsl(container);
+      });
+    });
+
+    document.getElementById('apply-ssl').addEventListener('click', function () {
+      runSslProcess();
+    });
+  }
+
+  function runSslProcess() {
+    var terminal = document.getElementById('ssl-terminal');
+    var btn = document.getElementById('apply-ssl');
+    btn.disabled = true;
+    terminal.innerHTML = '';
+
+    var logs = [
+      { text: 'Requesting certificate for ' + state.domain + '...', type: 'dim' },
+      { text: 'Generating private key...', type: 'dim' },
+      { text: 'Creating CSR (Certificate Signing Request)...', type: 'dim' },
+      { text: 'Verifying domain ownership via HTTP challenge...', type: 'dim' },
+      { text: 'Downloading challenge file to http://' + state.domain + '/.well-known/acme-challenge/...', type: 'cmd' },
+      { text: 'Domain verification successful.', type: 'success' },
+      { text: 'Issuing certificate...', type: 'dim' },
+      { text: 'Certificate issued successfully.', type: 'success' },
+      { text: 'Configuring web server to use HTTPS...', type: 'dim' },
+      { text: 'Redirecting HTTP to HTTPS...', type: 'dim' },
+      { text: 'SSL configuration complete.', type: 'success' }
+    ];
+
+    var i = 0;
+    var interval = setInterval(function () {
+      if (i >= logs.length) {
+        clearInterval(interval);
+        state.sslEnabled = true;
+        App.completeStep(6);
+        App.addBadge('🔒 安全专家');
+        App.showToast('HTTPS 已启用');
+        App.showKnowledgeCard('ssl');
+        return;
+      }
+      var line = document.createElement('div');
+      line.className = 'line ' + logs[i].type;
+      line.textContent = logs[i].text;
+      terminal.appendChild(line);
+      terminal.scrollTop = terminal.scrollHeight;
+      i++;
+    }, 600);
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  App.registerStep({
+    index: 7,
+    render: function (container) {
+      if (!state.sslEnabled) {
+        container.innerHTML =
+          '<div class="card">' +
+            '<h3>需要先启用 SSL</h3>' +
+            '<p>请先完成"SSL / HTTPS"步骤。</p>' +
+          '</div>';
+        return;
+      }
+
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>访问测试</h3>' +
+          '<p>在浏览器中输入你的域名，验证网站是否可以正常访问。</p>' +
+          '<div class="browser-mock">' +
+            '<div class="browser-bar">' +
+              '<div class="browser-dots">' +
+                '<span class="browser-dot red"></span>' +
+                '<span class="browser-dot yellow"></span>' +
+                '<span class="browser-dot green"></span>' +
+              '</div>' +
+              '<input type="text" id="test-address" class="browser-address" value="https://' + state.domain + '" placeholder="https://yourdomain.com">' +
+              '<button id="go-test" class="btn btn-primary" style="padding:4px 12px;">访问</button>' +
+            '</div>' +
+            '<div id="test-viewport" class="browser-viewport">' +
+              '<p class="text-center" style="color:#9ca3af;">在地址栏输入域名并点击"访问"开始测试</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h3>测试结果</h3>' +
+          '<div id="test-results">' +
+            '<p style="color:#6b7280;">尚未开始测试...</p>' +
+          '</div>' +
+        '</div>';
+
+      document.getElementById('go-test').addEventListener('click', runTest);
+      document.getElementById('test-address').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') runTest();
+      });
+    }
+  });
+
+  function runTest() {
+    var address = document.getElementById('test-address').value.trim();
+    var viewport = document.getElementById('test-viewport');
+    var results = document.getElementById('test-results');
+
+    viewport.innerHTML = '<p class="text-center pulse" style="color:#6b7280;">正在解析域名并建立安全连接...</p>';
+    results.innerHTML = '<p class="pulse">正在执行测试...</p>';
+
+    setTimeout(function () {
+      var isCorrectDomain = address.includes(state.domain);
+      var isHttps = address.startsWith('https://');
+      var dnsOk = state.dnsPropagated;
+      var sslOk = state.sslEnabled;
+
+      if (isCorrectDomain && isHttps && dnsOk && sslOk) {
+        viewport.innerHTML =
+          '<div style="text-align:center;padding:40px 20px;color:' + state.siteColor + ';">' +
+            '<div style="font-size:48px;margin-bottom:16px;">🎉</div>' +
+            '<h1 style="margin:0 0 16px;">' + state.siteName + '</h1>' +
+            '<p style="margin:0;color:#4b5563;">' + state.siteTagline + '</p>' +
+            '<div style="margin-top:24px;">' +
+              '<span style="display:inline-block;padding:10px 20px;background:' + state.siteColor + ';color:white;border-radius:6px;">欢迎访问</span>' +
+            '</div>' +
+          '</div>';
+
+        results.innerHTML =
+          '<ul style="line-height:2;">' +
+            '<li>✅ DNS 解析正常：域名已指向 ' + state.serverIp + '</li>' +
+            '<li>✅ HTTPS 连接安全：证书有效</li>' +
+            '<li>✅ 网页内容正常加载：' + state.siteName + '</li>' +
+            '<li>✅ 响应状态：200 OK</li>' +
+          '</ul>' +
+          '<button id="finish-test" class="btn btn-success mt-2">确认测试通过</button>';
+
+        document.getElementById('finish-test').addEventListener('click', function () {
+          state.tested = true;
+          App.completeStep(7);
+          App.addBadge('✅ 测试工程师');
+          App.showToast('访问测试通过，网站已上线！');
+          App.showKnowledgeCard('test');
+        });
+      } else {
+        viewport.innerHTML =
+          '<div style="text-align:center;padding:40px 20px;">' +
+            '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
+            '<h2 style="color:#dc2626;">无法访问</h2>' +
+            '<p style="color:#6b7280;">请检查域名、HTTPS、DNS 和 SSL 配置。</p>' +
+          '</div>';
+
+        var issues = [];
+        if (!isCorrectDomain) issues.push('地址栏中的域名与你注册的域名不一致');
+        if (!isHttps) issues.push('未使用 https:// 协议');
+        if (!dnsOk) issues.push('DNS 解析尚未完成传播');
+        if (!sslOk) issues.push('SSL 证书未启用');
+
+        results.innerHTML =
+          '<ul style="line-height:2;color:#dc2626;">' +
+            issues.map(function (i) { return '<li>❌ ' + i + '</li>'; }).join('') +
+          '</ul>';
+
+        App.showToast('测试未通过，请检查配置');
+      }
+    }, 1500);
+  }
+})();
+  </script>
+
+  <script>
+(function () {
+  var App = window.SimApp;
+  var state = App.state;
+
+  App.registerStep({
+    index: 8,
+    render: function (container) {
+      container.innerHTML =
+        '<div class="card">' +
+          '<h3>运维监控中心</h3>' +
+          '<p>网站上线后，需要持续关注运行状态、访问数据和备份情况。</p>' +
+          '<div class="grid-3">' +
+            '<div class="card" style="margin:0;">' +
+              '<h4>⏱️ 可用性监控</h4>' +
+              '<p style="font-size:32px;margin:12px 0;color:#16a34a;font-weight:700;">99.9%</p>' +
+              '<p style="color:#6b7280;font-size:13px;">过去 30 天正常运行时间</p>' +
+              '<button id="check-uptime" class="btn btn-primary mt-2" style="width:100%;">立即探测</button>' +
+            '</div>' +
+            '<div class="card" style="margin:0;">' +
+              '<h4>📊 今日访问</h4>' +
+              '<p style="font-size:32px;margin:12px 0;color:#2563eb;font-weight:700;">1,248</p>' +
+              '<p style="color:#6b7280;font-size:13px;">独立访客数</p>' +
+              '<div class="mt-2" style="height:40px;background:#e5e7eb;border-radius:4px;overflow:hidden;">' +
+                '<div style="width:65%;height:100%;background:#3b82f6;"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="card" style="margin:0;">' +
+              '<h4>💾 备份状态</h4>' +
+              '<p id="backup-status" style="font-size:16px;margin:12px 0;color:#f59e0b;font-weight:600;">未备份</p>' +
+              '<p style="color:#6b7280;font-size:13px;">建议每周至少备份一次</p>' +
+              '<button id="run-backup" class="btn btn-warning mt-2" style="width:100%;">执行备份</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h3>访问日志（模拟）</h3>' +
+          '<div class="terminal" id="ops-logs">' +
+            '<div class="line dim">192.0.2.10 - - [16/Jun/2026:10:23:11 +0800] "GET / HTTP/1.1" 200 1420</div>' +
+            '<div class="line dim">192.0.2.45 - - [16/Jun/2026:10:24:02 +0800] "GET /styles.css HTTP/1.1" 200 384</div>' +
+            '<div class="line dim">198.51.100.7 - - [16/Jun/2026:10:25:33 +0800] "GET / HTTP/1.1" 200 1420</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<h3>运维检查清单</h3>' +
+          '<div id="ops-checklist">' +
+            '<label class="check-label"><input type="checkbox" class="ops-check" data-id="monitor"><span>已配置可用性监控告警</span></label>' +
+            '<label class="check-label"><input type="checkbox" class="ops-check" data-id="backup"><span>已执行定期备份</span></label>' +
+            '<label class="check-label"><input type="checkbox" class="ops-check" data-id="logs"><span>已查看访问日志</span></label>' +
+            '<label class="check-label"><input type="checkbox" class="ops-check" data-id="update"><span>已计划定期安全更新</span></label>' +
+          '</div>' +
+          '<button id="finish-ops" class="btn btn-success mt-2" disabled>完成运维学习</button>' +
+        '</div>';
+
+      document.getElementById('check-uptime').addEventListener('click', function () {
+        App.showToast('探测结果：网站运行正常 ✅');
+        addLog('Monitoring probe: https://' + (state.domain || 'example.com') + ' - UP (200 OK)');
+      });
+
+      document.getElementById('run-backup').addEventListener('click', function () {
+        document.getElementById('backup-status').textContent = '已备份（刚刚）';
+        document.getElementById('backup-status').style.color = '#16a34a';
+        App.showToast('备份完成 ✅');
+        addLog('Backup completed: site_backup_20260616.tar.gz (12.4 MB)');
+      });
+
+      var checkboxes = document.querySelectorAll('.ops-check');
+      checkboxes.forEach(function (cb) {
+        cb.addEventListener('change', updateOpsButton);
+      });
+
+      document.getElementById('finish-ops').addEventListener('click', function () {
+        App.completeStep(8);
+        App.addBadge('🛡️ 运维工程师');
+        App.showToast('运维监控学习完成');
+        App.showKnowledgeCard('ops');
+      });
+    }
+  });
+
+  function addLog(message) {
+    var logs = document.getElementById('ops-logs');
+    if (!logs) return;
+    var line = document.createElement('div');
+    line.className = 'line dim';
+    line.textContent = message;
+    logs.appendChild(line);
+    logs.scrollTop = logs.scrollHeight;
+  }
+
+  function updateOpsButton() {
+    var all = document.querySelectorAll('.ops-check');
+    var checked = document.querySelectorAll('.ops-check:checked');
+    document.getElementById('finish-ops').disabled = checked.length !== all.length;
+  }
+})();
+  </script>
+
+  <script>
+window.SimApp.init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网络基础与协议 — 交互式学习</title>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --accent: #f59e0b;
+  --success: #10b981;
+  --error: #ef4444;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --transition: .25s cubic-bezier(.4,0,.2,1);
+}
+[data-theme="dark"] {
+  --primary: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-dark: #6366f1;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #334155;
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --shadow: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.3);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,.3);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 16px;
+  transition: background var(--transition), color var(--transition);
+}
+.container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+/* ---- Progress Bar ---- */
+.progress-bar-wrap {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 4px; background: var(--border);
+}
+.progress-bar { height: 100%; width: 0; background: var(--primary); transition: width .15s; }
+/* ---- Header ---- */
+header {
+  padding: 48px 0 32px;
+  text-align: center;
+  position: relative;
+}
+header h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+header p { color: var(--text-muted); margin-top: 8px; font-size: 1.05rem; }
+.theme-toggle {
+  position: fixed; top: 16px; right: 24px; z-index: 101;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 50%; width: 40px; height: 40px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; box-shadow: var(--shadow); transition: all var(--transition);
+}
+.theme-toggle:hover { box-shadow: var(--shadow-md); transform: scale(1.1); }
+/* ---- Nav ---- */
+nav.jump-links {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin-bottom: 40px;
+}
+nav.jump-links a {
+  padding: 6px 16px; border-radius: 20px; font-size: .85rem; font-weight: 600;
+  text-decoration: none; color: var(--primary); border: 1.5px solid var(--primary);
+  transition: all var(--transition);
+}
+nav.jump-links a:hover { background: var(--primary); color: #fff; }
+/* ---- Sections ---- */
+section { margin-bottom: 56px; }
+section > h2 {
+  font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;
+  padding-bottom: 8px; border-bottom: 3px solid var(--primary);
+  display: inline-block;
+}
+section > h2 .badge {
+  font-size: .7rem; vertical-align: middle; padding: 2px 8px;
+  background: var(--primary); color: #fff; border-radius: 10px; margin-left: 8px;
+}
+/* ---- Cards ---- */
+.card {
+  background: var(--surface); border-radius: var(--radius); padding: 24px;
+  box-shadow: var(--shadow); margin-bottom: 16px;
+  border: 1px solid var(--border); transition: all var(--transition);
+}
+.card:hover { box-shadow: var(--shadow-md); }
+/* ---- OSI Tower ---- */
+.osi-tower { display: flex; flex-direction: column; gap: 6px; margin-bottom: 32px; }
+.osi-layer {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 20px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all var(--transition);
+  border: 2px solid transparent; position: relative;
+  overflow: hidden;
+}
+.osi-layer::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  border-radius: 3px 0 0 3px;
+}
+.osi-layer:hover { transform: translateX(4px); box-shadow: var(--shadow-md); }
+.osi-layer.active { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+.osi-layer .num {
+  font-size: 1.6rem; font-weight: 800; min-width: 36px;
+  opacity: .7; text-align: center;
+}
+.osi-layer .info { flex: 1; }
+.osi-layer .info h3 { font-size: 1rem; font-weight: 700; }
+.osi-layer .info .en { font-size: .8rem; color: var(--text-muted); }
+.osi-layer .pdu-tag {
+  font-size: .72rem; font-weight: 600; padding: 3px 10px;
+  border-radius: 12px; white-space: nowrap;
+}
+.osi-detail {
+  max-height: 0; overflow: hidden; transition: max-height .4s ease, padding .3s;
+  background: var(--surface-alt); border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  margin-top: -6px; margin-bottom: 6px;
+}
+.osi-detail.open { max-height: 500px; padding: 20px; }
+.osi-detail .proto-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.osi-detail .proto-chip {
+  padding: 4px 12px; border-radius: 14px; font-size: .78rem; font-weight: 600;
+  background: var(--primary); color: #fff; opacity: .85;
+}
+/* layer colors */
+.l7 { background: #eff6ff; } .l7::before { background: #3b82f6; } .l7 .pdu-tag { background: #dbeafe; color: #1e40af; }
+.l6 { background: #f0fdf4; } .l6::before { background: #22c55e; } .l6 .pdu-tag { background: #dcfce7; color: #166534; }
+.l5 { background: #fefce8; } .l5::before { background: #eab308; } .l5 .pdu-tag { background: #fef9c3; color: #854d0e; }
+.l4 { background: #fdf2f8; } .l4::before { background: #ec4899; } .l4 .pdu-tag { background: #fce7f3; color: #9d174d; }
+.l3 { background: #f5f3ff; } .l3::before { background: #8b5cf6; } .l3 .pdu-tag { background: #ede9fe; color: #5b21b6; }
+.l2 { background: #fff7ed; } .l2::before { background: #f97316; } .l2 .pdu-tag { background: #ffedd5; color: #9a3412; }
+.l1 { background: #fef2f2; } .l1::before { background: #ef4444; } .l1 .pdu-tag { background: #fee2e2; color: #991b1b; }
+[data-theme="dark"] .osi-layer { background: var(--surface); }
+[data-theme="dark"] .osi-layer.l7,
+[data-theme="dark"] .osi-layer.l6,
+[data-theme="dark"] .osi-layer.l5,
+[data-theme="dark"] .osi-layer.l4,
+[data-theme="dark"] .osi-layer.l3,
+[data-theme="dark"] .osi-layer.l2,
+[data-theme="dark"] .osi-layer.l1 { background: var(--surface); }
+[data-theme="dark"] .pdu-tag { opacity: .9; }
+/* ---- Comparison Table ---- */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: .9rem; }
+.cmp-table th, .cmp-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+.cmp-table th { background: var(--primary); color: #fff; font-weight: 600; }
+.cmp-table tr:hover td { background: var(--surface-alt); }
+/* ---- Encapsulation Animation ---- */
+.encap-stage { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
+.encap-block {
+  padding: 10px 18px; border-radius: var(--radius-sm); font-size: .82rem; font-weight: 600;
+  color: #fff; opacity: 0; transform: scale(.8);
+  transition: all .4s cubic-bezier(.34,1.56,.64,1);
+}
+.encap-block.show { opacity: 1; transform: scale(1); }
+.encap-arrow { font-size: 1.2rem; color: var(--text-muted); opacity: 0; transition: opacity .3s; }
+.encap-arrow.show { opacity: 1; }
+.encap-ctrl { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.btn {
+  padding: 10px 24px; border-radius: var(--radius-sm); font-size: .9rem; font-weight: 600;
+  border: none; cursor: pointer; transition: all var(--transition);
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+.btn-outline:hover { background: var(--primary); color: #fff; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+/* ---- Subnet Calculator ---- */
+.subnet-calc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+@media (max-width: 600px) { .subnet-calc { grid-template-columns: 1fr; } }
+.subnet-calc label { font-weight: 600; font-size: .88rem; display: block; margin-bottom: 4px; }
+.subnet-calc input, .subnet-calc select {
+  width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 1rem; background: var(--surface); color: var(--text); transition: border var(--transition);
+}
+.subnet-calc input:focus, .subnet-calc select:focus { outline: none; border-color: var(--primary); }
+.result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+.result-card {
+  background: var(--surface-alt); border-radius: var(--radius-sm); padding: 16px; text-align: center;
+  border: 1px solid var(--border);
+}
+.result-card .label { font-size: .78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.result-card .value { font-size: 1.1rem; font-weight: 700; margin-top: 4px; font-family: "Cascadia Code", "Fira Code", monospace; }
+/* ---- Routing Sim ---- */
+.route-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .88rem; }
+.route-table th { background: var(--surface-alt); padding: 10px; text-align: left; font-weight: 600; border: 1px solid var(--border); }
+.route-table td { padding: 10px; border: 1px solid var(--border); font-family: "Cascadia Code", "Fira Code", monospace; font-size: .85rem; }
+.route-input { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+.route-input input {
+  padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 1rem; background: var(--surface); color: var(--text); flex: 1; min-width: 200px;
+}
+.route-input input:focus { outline: none; border-color: var(--primary); }
+.route-result {
+  padding: 16px; border-radius: var(--radius-sm); margin-top: 12px;
+  font-family: "Cascadia Code", "Fira Code", monospace; font-size: .9rem;
+  line-height: 1.8;
+}
+.route-result.correct { background: #f0fdf4; border: 2px solid var(--success); color: #166534; }
+.route-result.wrong { background: #fef2f2; border: 2px solid var(--error); color: #991b1b; }
+[data-theme="dark"] .route-result.correct { background: #052e16; }
+[data-theme="dark"] .route-result.wrong { background: #450a0a; }
+/* ---- Quiz ---- */
+.quiz-q {
+  background: var(--surface); border-radius: var(--radius); padding: 20px;
+  margin-bottom: 14px; border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.quiz-q h4 { font-size: .95rem; margin-bottom: 12px; }
+.quiz-opts { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt {
+  padding: 10px 16px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; transition: all var(--transition); font-size: .9rem;
+}
+.quiz-opt:hover { border-color: var(--primary-light); background: var(--surface-alt); }
+.quiz-opt.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+.quiz-opt.correct { border-color: var(--success); background: #dcfce7; color: #166534; }
+.quiz-opt.wrong { border-color: var(--error); background: #fee2e2; color: #991b1b; }
+.quiz-opt.disabled { pointer-events: none; }
+.quiz-explain {
+  margin-top: 10px; padding: 12px; background: var(--surface-alt);
+  border-radius: var(--radius-sm); font-size: .85rem; display: none;
+}
+.quiz-explain.show { display: block; }
+.quiz-score {
+  text-align: center; padding: 24px; background: var(--surface);
+  border-radius: var(--radius); box-shadow: var(--shadow-md); margin-top: 20px;
+}
+.quiz-score .num { font-size: 3rem; font-weight: 800; color: var(--primary); }
+/* ---- Glossary ---- */
+.glossary { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 12px; }
+.glossary-item {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 16px; cursor: pointer; transition: all var(--transition);
+}
+.glossary-item:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.glossary-item .term { font-weight: 700; font-size: .95rem; }
+.glossary-item .def { font-size: .82rem; color: var(--text-muted); margin-top: 6px; max-height: 0; overflow: hidden; transition: max-height .3s; }
+.glossary-item.open .def { max-height: 200px; }
+/* ---- Level Badge ---- */
+.level-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  padding: 16px 20px; background: var(--surface); border-radius: var(--radius);
+  border-left: 5px solid var(--primary); box-shadow: var(--shadow);
+}
+.level-header .stars { font-size: 1.2rem; }
+.level-header .meta h3 { font-size: 1.1rem; font-weight: 700; }
+.level-header .meta p { font-size: .82rem; color: var(--text-muted); }
+.level-header .time-badge {
+  margin-left: auto; font-size: .78rem; padding: 4px 12px;
+  background: var(--accent); color: #fff; border-radius: 12px; font-weight: 600; white-space: nowrap;
+}
+/* ---- Hint ---- */
+.hint-toggle {
+  font-size: .85rem; color: var(--primary); cursor: pointer; font-weight: 600;
+  margin-top: 12px; display: inline-block; border: none; background: none;
+}
+.hint-box { max-height: 0; overflow: hidden; transition: max-height .3s; font-size: .88rem; color: var(--text-muted); }
+.hint-box.open { max-height: 300px; padding-top: 8px; }
+/* ---- Footer ---- */
+footer {
+  text-align: center; padding: 40px 0; color: var(--text-muted); font-size: .85rem;
+  border-top: 1px solid var(--border); margin-top: 40px;
+}
+/* ---- Practice Subnet Q ---- */
+.practice-q {
+  background: var(--surface); border-radius: var(--radius); padding: 24px;
+  border: 1px solid var(--border); box-shadow: var(--shadow); margin: 16px 0;
+}
+.practice-q .q-text { font-size: 1rem; font-weight: 600; margin-bottom: 16px; }
+.practice-q .q-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .practice-q .q-inputs { grid-template-columns: 1fr; } }
+.practice-q .q-inputs label { font-size: .82rem; color: var(--text-muted); font-weight: 600; }
+.practice-q .q-inputs input {
+  width: 100%; padding: 8px 12px; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  font-family: "Cascadia Code", "Fira Code", monospace; font-size: .9rem;
+  background: var(--surface); color: var(--text);
+}
+.practice-q .q-inputs input:focus { outline: none; border-color: var(--primary); }
+.feedback { margin-top: 12px; padding: 12px; border-radius: var(--radius-sm); font-size: .88rem; display: none; }
+.feedback.ok { display: block; background: #dcfce7; color: #166534; border: 1px solid var(--success); }
+.feedback.no { display: block; background: #fee2e2; color: #991b1b; border: 1px solid var(--error); }
+[data-theme="dark"] .feedback.ok { background: #052e16; }
+[data-theme="dark"] .feedback.no { background: #450a0a; }
+/* ---- Code block ---- */
+.code-block {
+  background: #1e293b; color: #e2e8f0; padding: 16px 20px; border-radius: var(--radius-sm);
+  font-family: "Cascadia Code", "Fira Code", monospace; font-size: .85rem;
+  overflow-x: auto; line-height: 1.6; margin: 12px 0; position: relative;
+}
+.code-block .copy-btn {
+  position: absolute; top: 8px; right: 8px; background: #475569; color: #e2e8f0;
+  border: none; border-radius: 6px; padding: 4px 10px; font-size: .75rem; cursor: pointer;
+}
+.code-block .copy-btn:hover { background: #64748b; }
+/* responsive */
+@media (max-width: 600px) {
+  header h1 { font-size: 1.6rem; }
+  .osi-layer .num { font-size: 1.2rem; min-width: 28px; }
+  .osi-layer { padding: 10px 14px; gap: 10px; }
+  .container { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+<!-- Progress bar -->
+<div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+<!-- Theme toggle -->
+<button class="theme-toggle" id="themeToggle" aria-label="切换主题">🌙</button>
+
+<div class="container">
+<!-- ===== HEADER ===== -->
+<header>
+  <h1>网络基础与协议</h1>
+  <p>从 OSI 七层模型到子网计算 — 交互式深度学习</p>
+</header>
+
+<nav class="jump-links">
+  <a href="#knowledge-map">知识图谱</a>
+  <a href="#level1">Level 1 认识</a>
+  <a href="#level2">Level 2 实践</a>
+  <a href="#level3">Level 3 独立</a>
+  <a href="#level4">Level 4 挑战</a>
+  <a href="#quiz">自测</a>
+  <a href="#glossary">术语表</a>
+</nav>
+
+<!-- ===== KNOWLEDGE MAP ===== -->
+<section id="knowledge-map">
+<h2>知识图谱 <span class="badge">点击探索</span></h2>
+
+<p style="margin-bottom:20px;color:var(--text-muted);">网络通信的核心在于分层架构。每一层各司其职，上层依赖下层提供的服务。点击下方每一层，了解它的职责、关键协议和数据单元。</p>
+
+<div class="osi-tower" id="osiTower">
+  <!-- Layer 7 -->
+  <div class="osi-layer l7" data-layer="7" onclick="toggleOsi(this)">
+    <span class="num">7</span>
+    <div class="info"><h3>应用层</h3><span class="en">Application</span></div>
+    <span class="pdu-tag">Data</span>
+  </div>
+  <div class="osi-detail" id="detail-7">
+    <p>直接面向用户的最高层，提供网络服务接口。你每天使用的浏览器、邮件客户端、SSH 终端都工作在这一层。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>HTTP 请求/响应、SMTP 邮件收发、DNS 域名解析、文件传输</p>
+    <div class="proto-list">
+      <span class="proto-chip">HTTP/HTTPS</span>
+      <span class="proto-chip">DNS</span>
+      <span class="proto-chip">SMTP</span>
+      <span class="proto-chip">FTP</span>
+      <span class="proto-chip">SSH</span>
+      <span class="proto-chip">DHCP</span>
+    </div>
+  </div>
+  <!-- Layer 6 -->
+  <div class="osi-layer l6" data-layer="6" onclick="toggleOsi(this)">
+    <span class="num">6</span>
+    <div class="info"><h3>表示层</h3><span class="en">Presentation</span></div>
+    <span class="pdu-tag">Data</span>
+  </div>
+  <div class="osi-detail" id="detail-6">
+    <p>负责数据的"翻译"工作 — 确保一个系统的信息能被另一个系统正确理解。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>编码转换（ASCII/Unicode）、数据压缩（gzip）、加密/解密（TLS/SSL）</p>
+    <div class="proto-list">
+      <span class="proto-chip">TLS/SSL</span>
+      <span class="proto-chip">JPEG</span>
+      <span class="proto-chip">MPEG</span>
+      <span class="proto-chip">ASCII</span>
+    </div>
+  </div>
+  <!-- Layer 5 -->
+  <div class="osi-layer l5" data-layer="5" onclick="toggleOsi(this)">
+    <span class="num">5</span>
+    <div class="info"><h3>会话层</h3><span class="en">Session</span></div>
+    <span class="pdu-tag">Data</span>
+  </div>
+  <div class="osi-detail" id="detail-5">
+    <p>管理通信双方之间的"对话"（会话）。建立、维护和终止会话连接，并处理同步与检查点。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>会话建立/终止、检查点与恢复、身份验证</p>
+    <div class="proto-list">
+      <span class="proto-chip">NetBIOS</span>
+      <span class="proto-chip">RPC</span>
+      <span class="proto-chip">PPTP</span>
+    </div>
+  </div>
+  <!-- Layer 4 -->
+  <div class="osi-layer l4" data-layer="4" onclick="toggleOsi(this)">
+    <span class="num">4</span>
+    <div class="info"><h3>传输层</h3><span class="en">Transport</span></div>
+    <span class="pdu-tag">Segment</span>
+  </div>
+  <div class="osi-detail" id="detail-4">
+    <p>端到端通信的关键 — 负责数据的可靠传输、流量控制和差错恢复。<strong>TCP</strong> 提供可靠连接，<strong>UDP</strong> 提供快速无连接传输。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>端口寻址、分段重组、流量控制（滑动窗口）、拥塞控制</p>
+    <div class="proto-list">
+      <span class="proto-chip">TCP</span>
+      <span class="proto-chip">UDP</span>
+      <span class="proto-chip">SCTP</span>
+    </div>
+    <p style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:8px;font-size:.85rem">
+      <strong>TCP vs UDP：</strong>TCP 像打电话（建立连接→通话→挂断），保证顺序和完整性；UDP 像寄明信片（发出即忘），速度快但不保证送达。视频流、DNS 查询常用 UDP；网页、文件传输用 TCP。
+    </p>
+  </div>
+  <!-- Layer 3 -->
+  <div class="osi-layer l3" data-layer="3" onclick="toggleOsi(this)">
+    <span class="num">3</span>
+    <div class="info"><h3>网络层</h3><span class="en">Network</span></div>
+    <span class="pdu-tag">Packet</span>
+  </div>
+  <div class="osi-detail" id="detail-3">
+    <p>负责跨网络的<strong>路由选择</strong>和<strong>逻辑寻址</strong>（IP 地址）。决定了数据包从源到目的地的最佳路径。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>IP 寻址、路由选择（OSPF/BGP）、分片与重组、ICMP 差错报告</p>
+    <div class="proto-list">
+      <span class="proto-chip">IPv4/IPv6</span>
+      <span class="proto-chip">ICMP</span>
+      <span class="proto-chip">OSPF</span>
+      <span class="proto-chip">BGP</span>
+      <span class="proto-chip">RIP</span>
+      <span class="proto-chip">ARP</span>
+    </div>
+  </div>
+  <!-- Layer 2 -->
+  <div class="osi-layer l2" data-layer="2" onclick="toggleOsi(this)">
+    <span class="num">2</span>
+    <div class="info"><h3>数据链路层</h3><span class="en">Data Link</span></div>
+    <span class="pdu-tag">Frame</span>
+  </div>
+  <div class="osi-detail" id="detail-2">
+    <p>在<strong>同一物理网络</strong>内的节点之间提供可靠的数据传输。使用 MAC 地址进行物理寻址，并通过帧校验保证本地传输正确。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>MAC 寻址、帧封装、差错检测（CRC）、介质访问控制（CSMA/CD）</p>
+    <div class="proto-list">
+      <span class="proto-chip">Ethernet</span>
+      <span class="proto-chip">Wi-Fi (802.11)</span>
+      <span class="proto-chip">PPP</span>
+      <span class="proto-chip">VLAN (802.1Q)</span>
+      <span class="proto-chip">STP</span>
+    </div>
+  </div>
+  <!-- Layer 1 -->
+  <div class="osi-layer l1" data-layer="1" onclick="toggleOsi(this)">
+    <span class="num">1</span>
+    <div class="info"><h3>物理层</h3><span class="en">Physical</span></div>
+    <span class="pdu-tag">Bit</span>
+  </div>
+  <div class="osi-detail" id="detail-1">
+    <p>最底层 — 负责在物理介质上传输<strong>原始比特流</strong>。定义电压、频率、接口标准等硬件特性。</p>
+    <p style="margin-top:8px"><strong>核心功能：</strong>比特编码、信号调制、物理接口（RJ45、光纤）、传输模式（全双工/半双工）</p>
+    <div class="proto-list">
+      <span class="proto-chip">Ethernet PHY</span>
+      <span class="proto-chip">USB</span>
+      <span class="proto-chip">Bluetooth</span>
+      <span class="proto-chip">DSL</span>
+    </div>
+  </div>
+</div>
+
+<!-- OSI vs TCP/IP Comparison -->
+<h3 style="margin:32px 0 12px;font-size:1.15rem;">OSI 七层 vs TCP/IP 四层</h3>
+<p style="color:var(--text-muted);margin-bottom:12px;font-size:.9rem;">实际工程中 TCP/IP 模型更为常用，它将 OSI 的上三层合并为"应用层"，下两层合并为"网络接口层"。</p>
+<table class="cmp-table">
+  <thead><tr><th>OSI 层</th><th>TCP/IP 层</th><th>典型协议</th></tr></thead>
+  <tbody>
+    <tr><td>7 应用 + 6 表示 + 5 会话</td><td><strong>应用层</strong></td><td>HTTP, DNS, SMTP, FTP</td></tr>
+    <tr><td>4 传输</td><td><strong>传输层</strong></td><td>TCP, UDP</td></tr>
+    <tr><td>3 网络</td><td><strong>网际层</strong></td><td>IP, ICMP, ARP</td></tr>
+    <tr><td>2 数据链路 + 1 物理</td><td><strong>网络接口层</strong></td><td>Ethernet, Wi-Fi</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ===== LEVEL 1: COGNITION ===== -->
+<section id="level1">
+<h2>Level 1: 认识 <span class="badge">数据封装</span></h2>
+
+<div class="level-header">
+  <span class="stars">⭐</span>
+  <div class="meta">
+    <h3>数据封装之旅</h3>
+    <p>观察一条消息如何从应用层一路向下，在每一层被"包裹"上头部信息</p>
+  </div>
+  <span class="time-badge">~15 分钟</span>
+</div>
+
+<div class="card">
+  <p style="margin-bottom:16px;">当你在浏览器输入 <code>https://example.com</code> 并按下回车，一条 HTTP 请求就从应用层出发了。在到达物理线路之前，它要经过每一层的"打包" — 每层添加自己的控制信息（头部），就像俄罗斯套娃一样层层嵌套。</p>
+  
+  <p style="font-weight:600;margin-bottom:10px;">点击「下一步」观察封装过程：</p>
+  
+  <div id="encapContainer">
+    <div class="encap-stage" id="encapStage"></div>
+  </div>
+  
+  <div class="encap-ctrl">
+    <button class="btn btn-primary" id="encapNext" onclick="encapStep()">下一步 ▶</button>
+    <button class="btn btn-outline" id="encapReset" onclick="encapReset()">重置</button>
+  </div>
+  
+  <div id="encapExplain" style="margin-top:16px;font-size:.9rem;color:var(--text-muted);"></div>
+</div>
+
+<div class="card">
+  <h3 style="font-size:1.05rem;margin-bottom:12px;">三次握手 — TCP 建立连接</h3>
+  <p style="font-size:.9rem;color:var(--text-muted);margin-bottom:16px;">TCP 在传输数据之前需要先"打招呼"建立连接，这就是经典的三次握手（Three-Way Handshake）。</p>
+  <div id="handshakeArea" style="position:relative;min-height:200px;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:20px;">
+      <div style="text-align:center;font-weight:700;font-size:.9rem;">客户端 (Client)</div>
+      <div style="text-align:center;font-weight:700;font-size:.9rem;">服务端 (Server)</div>
+    </div>
+    <div id="handshakeLines"></div>
+  </div>
+  <button class="btn btn-primary" id="hsBtn" onclick="startHandshake()">演示三次握手</button>
+</div>
+</section>
+
+<!-- ===== LEVEL 2: GUIDED PRACTICE ===== -->
+<section id="level2">
+<h2>Level 2: 引导实践 <span class="badge">子网计算</span></h2>
+
+<div class="level-header">
+  <span class="stars">⭐⭐</span>
+  <div class="meta">
+    <h3>子网划分练习</h3>
+    <p>掌握 IP 地址与子网掩码的核心计算 — 网工必备基本功</p>
+  </div>
+  <span class="time-badge">~25 分钟</span>
+</div>
+
+<div class="card">
+  <h3 style="font-size:1.05rem;margin-bottom:8px;">子网计算器</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">输入 IP 地址和 CIDR 前缀，即时查看子网信息。</p>
+  
+  <div class="subnet-calc">
+    <div>
+      <label for="ipInput">IP 地址</label>
+      <input id="ipInput" type="text" value="192.168.1.100" placeholder="例如: 192.168.1.100">
+    </div>
+    <div>
+      <label for="cidrInput">CIDR 前缀长度</label>
+      <select id="cidrInput">
+        <option value="8">/8</option><option value="16">/16</option>
+        <option value="20">/20</option><option value="22">/22</option>
+        <option value="24" selected>/24</option><option value="25">/25</option>
+        <option value="26">/26</option><option value="27">/27</option>
+        <option value="28">/28</option><option value="30">/30</option>
+      </select>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="calcSubnet()">计算</button>
+  <div class="result-grid" id="subnetResults"></div>
+  
+  <button class="hint-toggle" onclick="toggleHint(this)">💡 查看计算方法</button>
+  <div class="hint-box">
+    <p><strong>子网掩码</strong>：CIDR /N 表示前 N 位为 1。如 /24 = 11111111.11111111.11111111.00000000 = 255.255.255.0</p>
+    <p><strong>网络地址</strong>：IP AND 子网掩码（逐位与运算）</p>
+    <p><strong>广播地址</strong>：网络地址的主机位全部置 1</p>
+    <p><strong>可用主机数</strong>：2^(32-N) - 2（减去网络地址和广播地址）</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="font-size:1.05rem;margin-bottom:12px;">动手练习</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">用上面的计算器验证你的答案，然后完成下面的练习题。</p>
+  
+  <div class="practice-q" id="pq1">
+    <div class="q-text">题目 1：IP 地址 <code>10.0.5.73/22</code>，请计算网络地址和可用主机数。</div>
+    <div class="q-inputs">
+      <div><label>网络地址</label><input id="pq1_net" placeholder="x.x.x.x"></div>
+      <div><label>可用主机数</label><input id="pq1_hosts" placeholder="数字"></div>
+    </div>
+    <button class="btn btn-outline" style="margin-top:12px" onclick="checkPQ1()">检查答案</button>
+    <div class="feedback" id="pq1_fb"></div>
+  </div>
+  
+  <div class="practice-q" id="pq2">
+    <div class="q-text">题目 2：要将 <code>172.16.0.0/16</code> 划分为至少 10 个子网，子网掩码应选什么？</div>
+    <div class="q-inputs">
+      <div><label>CIDR 前缀</label><input id="pq2_cidr" placeholder="/?"></div>
+      <div><label>每个子网可用主机数</label><input id="pq2_hosts" placeholder="数字"></div>
+    </div>
+    <button class="btn btn-outline" style="margin-top:12px" onclick="checkPQ2()">检查答案</button>
+    <div class="feedback" id="pq2_fb"></div>
+  </div>
+</div>
+</section>
+
+<!-- ===== LEVEL 3: INDEPENDENT ===== -->
+<section id="level3">
+<h2>Level 3: 独立实现 <span class="badge">路由决策</span></h2>
+
+<div class="level-header">
+  <span class="stars">⭐⭐⭐</span>
+  <div class="meta">
+    <h3>路由决策模拟器</h3>
+    <p>给定路由表和目标 IP，判断数据包应该发往哪个下一跳</p>
+  </div>
+  <span class="time-badge">~20 分钟</span>
+</div>
+
+<div class="card">
+  <p style="margin-bottom:12px;">路由器根据<strong>最长前缀匹配</strong>（Longest Prefix Match）原则选择路由条目 — 在所有匹配项中，选择子网掩码最长（最精确）的那条。</p>
+  
+  <h4 style="margin:16px 0 8px;font-size:.95rem;">路由表</h4>
+  <table class="route-table">
+    <thead><tr><th>目标网络</th><th>子网掩码</th><th>下一跳</th><th>接口</th></tr></thead>
+    <tbody>
+      <tr><td>10.0.0.0</td><td>255.0.0.0 (/8)</td><td>192.168.1.1</td><td>eth0</td></tr>
+      <tr><td>10.1.0.0</td><td>255.255.0.0 (/16)</td><td>192.168.1.2</td><td>eth1</td></tr>
+      <tr><td>10.1.2.0</td><td>255.255.255.0 (/24)</td><td>192.168.1.3</td><td>eth2</td></tr>
+      <tr><td>172.16.0.0</td><td>255.255.0.0 (/16)</td><td>192.168.1.4</td><td>eth0</td></tr>
+      <tr><td>0.0.0.0</td><td>0.0.0.0 (/0)</td><td>192.168.1.254</td><td>eth0</td></tr>
+    </tbody>
+  </table>
+  
+  <div class="route-input">
+    <input id="routeDest" placeholder="输入目标 IP，例如 10.1.2.55">
+    <button class="btn btn-primary" onclick="checkRoute()">查询路由</button>
+  </div>
+  <div id="routeResult"></div>
+  
+  <button class="hint-toggle" onclick="toggleHint(this)">💡 最长前缀匹配思路</button>
+  <div class="hint-box">
+    <p>对路由表中每条记录，检查：目标 IP AND 该条目的子网掩码 == 该条目的网络地址？如果匹配，记录下来。最终从所有匹配项中选 CIDR 前缀最长的那条。</p>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="font-size:1.05rem;margin-bottom:12px;">挑战：试试这些 IP</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;">依次输入以下 IP，思考它们分别会匹配哪条路由：</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+    <span class="proto-chip" style="cursor:pointer" onclick="document.getElementById('routeDest').value='10.1.2.55';checkRoute()">10.1.2.55</span>
+    <span class="proto-chip" style="cursor:pointer" onclick="document.getElementById('routeDest').value='10.1.3.10';checkRoute()">10.1.3.10</span>
+    <span class="proto-chip" style="cursor:pointer" onclick="document.getElementById('routeDest').value='10.5.0.1';checkRoute()">10.5.0.1</span>
+    <span class="proto-chip" style="cursor:pointer" onclick="document.getElementById('routeDest').value='172.16.5.5';checkRoute()">172.16.5.5</span>
+    <span class="proto-chip" style="cursor:pointer" onclick="document.getElementById('routeDest').value='8.8.8.8';checkRoute()">8.8.8.8</span>
+  </div>
+</div>
+</section>
+
+<!-- ===== LEVEL 4: EXTENSION ===== -->
+<section id="level4">
+<h2>Level 4: 进阶挑战 <span class="badge">网络排障</span></h2>
+
+<div class="level-header">
+  <span class="stars">⭐⭐⭐⭐</span>
+  <div class="meta">
+    <h3>故障排查推理</h3>
+    <p>根据现象分析网络故障的可能原因 — 真正的网工实战能力</p>
+  </div>
+  <span class="time-badge">~20 分钟</span>
+</div>
+
+<div class="card" id="scenario1">
+  <h3 style="font-size:1.05rem;margin-bottom:8px;">场景 1：能 ping 通 IP 但打不开网页</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">用户可以 <code>ping 8.8.8.8</code> 成功，但浏览器访问任何网站都显示"无法解析域名"。</p>
+  
+  <p style="font-weight:600;margin-bottom:8px;">你的分析是？</p>
+  <div class="quiz-opts" id="s1opts">
+    <div class="quiz-opt" onclick="checkScenario('s1', this, false)">A. 物理层故障 — 网线断了</div>
+    <div class="quiz-opt" onclick="checkScenario('s1', this, true)">B. DNS 配置错误 — 无法将域名解析为 IP</div>
+    <div class="quiz-opt" onclick="checkScenario('s1', this, false)">C. 路由表缺失 — 没有默认路由</div>
+    <div class="quiz-opt" onclick="checkScenario('s1', this, false)">D. TCP 三次握手失败</div>
+  </div>
+  <div class="quiz-explain" id="s1-explain">
+    <strong>解析：</strong>能 ping 通 8.8.8.8 说明 IP 层及以下（物理层、数据链路层、网络层）都正常，TCP 也工作正常。问题出在域名到 IP 的转换 — 这是 DNS（应用层）的职责。检查 DNS 服务器配置即可。
+  </div>
+</div>
+
+<div class="card" id="scenario2">
+  <h3 style="font-size:1.05rem;margin-bottom:8px;">场景 2：同一交换机上的两台 PC 无法通信</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">PC-A (192.168.1.10/24) 和 PC-B (192.168.2.10/24) 连接在同一台交换机上，互相 ping 不通。</p>
+  
+  <p style="font-weight:600;margin-bottom:8px;">最可能的原因是？</p>
+  <div class="quiz-opts" id="s2opts">
+    <div class="quiz-opt" onclick="checkScenario('s2', this, false)">A. 交换机坏了</div>
+    <div class="quiz-opt" onclick="checkScenario('s2', this, true)">B. 两台 PC 不在同一子网，且没有配置路由</div>
+    <div class="quiz-opt" onclick="checkScenario('s2', this, false)">C. 使用了交叉线而不是直通线</div>
+    <div class="quiz-opt" onclick="checkScenario('s2', this, false)">D. PC-A 的防火墙阻止了 ICMP</div>
+  </div>
+  <div class="quiz-explain" id="s2-explain">
+    <strong>解析：</strong>192.168.1.0/24 和 192.168.2.0/24 是两个不同的子网。即使物理上连在同一交换机，如果没配置 VLAN 间路由（或路由器），它们无法直接通信。解决方案：将两台 PC 改到同一子网，或配置路由器/三层交换机做子网间路由。
+  </div>
+</div>
+
+<div class="card" id="scenario3">
+  <h3 style="font-size:1.05rem;margin-bottom:8px;">场景 3：间歇性丢包</h3>
+  <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:16px;">网络时好时坏，<code>ping</code> 目标有时延迟突然飙到 500ms+，有时正常。同一时段其他同事也有类似反馈。</p>
+  
+  <p style="font-weight:600;margin-bottom:8px;">你首先排查什么？</p>
+  <div class="quiz-opts" id="s3opts">
+    <div class="quiz-opt" onclick="checkScenario('s3', this, false)">A. DNS 缓存过期</div>
+    <div class="quiz-opt" onclick="checkScenario('s3', this, false)">B. SSL 证书过期</div>
+    <div class="quiz-opt" onclick="checkScenario('s3', this, true)">C. 网络拥塞或交换机端口错误/环路</div>
+    <div class="quiz-opt" onclick="checkScenario('s3', this, false)">D. 子网掩码配置错误</div>
+  </div>
+  <div class="quiz-explain" id="s3-explain">
+    <strong>解析：</strong>间歇性 + 多人受影响 + 延迟飙升，这是典型的网络拥塞或二层环路特征。检查交换机端口错误计数、是否有广播风暴、STP 是否正常工作。如果是环路，启用 STP 或排查冗余链路。
+  </div>
+</div>
+</section>
+
+<!-- ===== QUIZ ===== -->
+<section id="quiz">
+<h2>自测测验 <span class="badge">10 题</span></h2>
+<p style="color:var(--text-muted);margin-bottom:20px;font-size:.9rem;">检验你对网络基础与协议的理解程度，每题点击选项后即时反馈。</p>
+
+<div id="quizContainer"></div>
+
+<div class="quiz-score" id="quizScore" style="display:none">
+  <p style="font-size:.9rem;color:var(--text-muted);">你的得分</p>
+  <div class="num" id="quizScoreNum">0/10</div>
+  <button class="btn btn-outline" style="margin-top:12px" onclick="resetQuiz()">重新测试</button>
+</div>
+</section>
+
+<!-- ===== GLOSSARY ===== -->
+<section id="glossary">
+<h2>核心术语表 <span class="badge">点击展开</span></h2>
+<div class="glossary" id="glossaryGrid"></div>
+</section>
+
+<footer>
+  网络基础与协议 · 交互式学习页面 · 生成于 2026-06-30
+</footer>
+</div><!-- /container -->
+
+<script>
+/* ===== Theme ===== */
+const themeBtn = document.getElementById('themeToggle');
+let dark = false;
+themeBtn.addEventListener('click', () => {
+  dark = !dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+  themeBtn.textContent = dark ? '☀️' : '🌙';
+});
+
+/* ===== Progress Bar ===== */
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+});
+
+/* ===== OSI Toggle ===== */
+function toggleOsi(el) {
+  const layer = el.dataset.layer;
+  const detail = document.getElementById('detail-' + layer);
+  const isOpen = detail.classList.contains('open');
+  // close all
+  document.querySelectorAll('.osi-detail').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.osi-layer').forEach(l => l.classList.remove('active'));
+  if (!isOpen) {
+    detail.classList.add('open');
+    el.classList.add('active');
+  }
+}
+
+/* ===== Hint Toggle ===== */
+function toggleHint(btn) {
+  const box = btn.nextElementSibling;
+  box.classList.toggle('open');
+}
+
+/* ===== Encapsulation Animation ===== */
+const encapSteps = [
+  { label: 'HTTP 请求', color: '#3b82f6', explain: '应用层：浏览器生成 HTTP GET 请求报文。' },
+  { label: '+ TLS 头', color: '#22c55e', explain: '表示层：对数据进行 TLS 加密，添加安全头部。' },
+  { label: '+ 会话', color: '#eab308', explain: '会话层：建立并管理本次通信会话。' },
+  { label: '+ TCP 头', color: '#ec4899', explain: '传输层：添加 TCP 头部（源端口、目标端口、序列号），形成 Segment（段）。' },
+  { label: '+ IP 头', color: '#8b5cf6', explain: '网络层：添加 IP 头部（源 IP、目标 IP、TTL），形成 Packet（包）。' },
+  { label: '+ 帧头/尾', color: '#f97316', explain: '数据链路层：添加以太网帧头（MAC 地址）和帧尾（FCS 校验），形成 Frame（帧）。' },
+  { label: '→ 比特流', color: '#ef4444', explain: '物理层：将帧转换为电信号/光信号，以比特流形式在线路上传输。' }
+];
+let encapIdx = 0;
+function encapStep() {
+  if (encapIdx >= encapSteps.length) return;
+  const s = encapSteps[encapIdx];
+  const stage = document.getElementById('encapStage');
+  
+  if (encapIdx > 0) {
+    const arrow = document.createElement('span');
+    arrow.className = 'encap-arrow';
+    arrow.textContent = '→';
+    stage.appendChild(arrow);
+    requestAnimationFrame(() => arrow.classList.add('show'));
+  }
+  
+  const block = document.createElement('span');
+  block.className = 'encap-block';
+  block.style.background = s.color;
+  block.textContent = s.label;
+  stage.appendChild(block);
+  requestAnimationFrame(() => block.classList.add('show'));
+  
+  document.getElementById('encapExplain').innerHTML = '<strong>第 ' + (encapIdx+1) + ' 步：</strong>' + s.explain;
+  encapIdx++;
+  if (encapIdx >= encapSteps.length) {
+    document.getElementById('encapNext').disabled = true;
+    document.getElementById('encapExplain').innerHTML += '<br><br>🎉 封装完成！数据已经可以在线路上传输了。到达接收端后，会进行相反的"解封装"过程 — 从物理层逐层向上剥离头部。';
+  }
+}
+function encapReset() {
+  encapIdx = 0;
+  document.getElementById('encapStage').innerHTML = '';
+  document.getElementById('encapExplain').innerHTML = '';
+  document.getElementById('encapNext').disabled = false;
+}
+
+/* ===== TCP Handshake ===== */
+function startHandshake() {
+  document.getElementById('hsBtn').disabled = true;
+  const container = document.getElementById('handshakeLines');
+  const msgs = [
+    { from: 'left', text: 'SYN (seq=100)', color: '#3b82f6', delay: 0 },
+    { from: 'right', text: 'SYN-ACK (seq=300, ack=101)', color: '#22c55e', delay: 900 },
+    { from: 'left', text: 'ACK (ack=301)', color: '#f59e0b', delay: 1800 },
+  ];
+  msgs.forEach((m, i) => {
+    setTimeout(() => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:center;margin:8px 0;opacity:0;transform:translateY(-10px);transition:all .5s;';
+      const arrow = m.from === 'left' ? '→→→' : '←←←';
+      row.innerHTML = '<span style="flex:1;text-align:' + (m.from==='left'?'right':'left') + ';font-family:monospace;font-size:.82rem;padding:0 10px;color:' + m.color + '"><strong>' + arrow + '</strong> ' + m.text + '</span>';
+      container.appendChild(row);
+      requestAnimationFrame(() => { row.style.opacity = '1'; row.style.transform = 'translateY(0)'; });
+      if (i === 2) {
+        setTimeout(() => {
+          const ok = document.createElement('div');
+          ok.style.cssText = 'text-align:center;margin-top:16px;padding:12px;background:var(--success);color:#fff;border-radius:8px;font-weight:700;font-size:.95rem;opacity:0;transition:opacity .5s;';
+          ok.textContent = '✅ 连接建立成功！可以开始传输数据了。';
+          container.appendChild(ok);
+          requestAnimationFrame(() => { ok.style.opacity = '1'; });
+        }, 600);
+      }
+    }, m.delay);
+  });
+}
+
+/* ===== Subnet Calculator ===== */
+function ipToInt(ip) {
+  return ip.split('.').reduce((a, o) => (a << 8) + parseInt(o), 0) >>> 0;
+}
+function intToIp(n) {
+  return [(n>>>24)&255, (n>>>16)&255, (n>>>8)&255, n&255].join('.');
+}
+function calcSubnet() {
+  const ip = document.getElementById('ipInput').value.trim();
+  const cidr = parseInt(document.getElementById('cidrInput').value);
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) { alert('请输入有效的 IP 地址'); return; }
+  
+  const ipInt = ipToInt(ip);
+  const mask = cidr === 0 ? 0 : (~0 << (32 - cidr)) >>> 0;
+  const net = (ipInt & mask) >>> 0;
+  const bcast = (net | (~mask >>> 0)) >>> 0;
+  const first = cidr >= 31 ? net : (net + 1) >>> 0;
+  const last = cidr >= 31 ? bcast : (bcast - 1) >>> 0;
+  const hosts = cidr >= 31 ? (cidr === 32 ? 1 : 2) : Math.pow(2, 32 - cidr) - 2;
+  
+  document.getElementById('subnetResults').innerHTML = `
+    <div class="result-card"><div class="label">子网掩码</div><div class="value">${intToIp(mask)}</div></div>
+    <div class="result-card"><div class="label">网络地址</div><div class="value">${intToIp(net)}</div></div>
+    <div class="result-card"><div class="label">广播地址</div><div class="value">${intToIp(bcast)}</div></div>
+    <div class="result-card"><div class="label">第一个可用</div><div class="value">${intToIp(first)}</div></div>
+    <div class="result-card"><div class="label">最后可用</div><div class="value">${intToIp(last)}</div></div>
+    <div class="result-card"><div class="label">可用主机数</div><div class="value">${hosts.toLocaleString()}</div></div>
+  `;
+}
+calcSubnet(); // init
+
+/* ===== Practice Questions ===== */
+function checkPQ1() {
+  const net = document.getElementById('pq1_net').value.trim();
+  const hosts = document.getElementById('pq1_hosts').value.trim();
+  const fb = document.getElementById('pq1_fb');
+  // 10.0.5.73/22: mask=255.255.252.0, network=10.0.4.0, hosts=2^10-2=1022
+  if (net === '10.0.4.0' && hosts === '1022') {
+    fb.className = 'feedback ok';
+    fb.textContent = '✅ 正确！/22 的掩码是 255.255.252.0，5 AND 252 = 4，所以网络地址是 10.0.4.0。主机位 10 位，2^10 - 2 = 1022。';
+  } else {
+    fb.className = 'feedback no';
+    fb.textContent = '❌ 再想想。提示：/22 掩码 = 255.255.252.0。第三个字节 5 的二进制是 00000101，和 11111100 (252) 做 AND 得到 00000100 = 4。';
+  }
+}
+function checkPQ2() {
+  const cidr = document.getElementById('pq2_cidr').value.trim();
+  const hosts = document.getElementById('pq2_hosts').value.trim();
+  const fb = document.getElementById('pq2_fb');
+  // Need 10+ subnets from /16: borrow 4 bits → /20, each subnet 2^12-2=4094 hosts
+  const cMatch = cidr === '/20' || cidr === '20';
+  const hMatch = hosts === '4094';
+  if (cMatch && hMatch) {
+    fb.className = 'feedback ok';
+    fb.textContent = '✅ 正确！借 4 位（2^4=16 个子网 ≥ 10），CIDR 变为 /20。每个子网 12 位主机位，4094 个可用地址。';
+  } else {
+    fb.className = 'feedback no';
+    fb.textContent = '❌ 提示：从 /16 借 N 位子网位，需要 2^N ≥ 10 → N=4。新前缀 = 16+4 = /20。剩余主机位 = 32-20 = 12。';
+  }
+}
+
+/* ===== Routing Simulator ===== */
+const routeTable = [
+  { net: '10.0.0.0', cidr: 8, next: '192.168.1.1', iface: 'eth0' },
+  { net: '10.1.0.0', cidr: 16, next: '192.168.1.2', iface: 'eth1' },
+  { net: '10.1.2.0', cidr: 24, next: '192.168.1.3', iface: 'eth2' },
+  { net: '172.16.0.0', cidr: 16, next: '192.168.1.4', iface: 'eth0' },
+  { net: '0.0.0.0', cidr: 0, next: '192.168.1.254', iface: 'eth0' },
+];
+function checkRoute() {
+  const dest = document.getElementById('routeDest').value.trim();
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(dest)) { document.getElementById('routeResult').innerHTML = '<div class="route-result wrong">请输入有效的 IP 地址</div>'; return; }
+  const destInt = ipToInt(dest);
+  let best = null;
+  let matchLog = '';
+  routeTable.forEach(r => {
+    const mask = r.cidr === 0 ? 0 : (~0 << (32 - r.cidr)) >>> 0;
+    const netInt = ipToInt(r.net);
+    if ((destInt & mask) >>> 0 === netInt) {
+      matchLog += '✓ 匹配 ' + r.net + '/' + r.cidr + ' → ' + r.next + ' (' + r.iface + ')\n';
+      if (!best || r.cidr > best.cidr) best = r;
+    } else {
+      matchLog += '✗ 不匹配 ' + r.net + '/' + r.cidr + '\n';
+    }
+  });
+  const div = document.getElementById('routeResult');
+  if (best) {
+    div.innerHTML = '<div class="route-result correct"><pre style="white-space:pre-wrap;font-size:.85rem">' + matchLog + '\n<strong>🎯 最长前缀匹配: ' + best.net + '/' + best.cidr + '</strong>\n→ 下一跳: ' + best.next + '  接口: ' + best.iface + '</pre></div>';
+  } else {
+    div.innerHTML = '<div class="route-result wrong">没有匹配的路由条目（不含默认路由）</div>';
+  }
+}
+
+/* ===== Scenario Checks ===== */
+function checkScenario(id, el, correct) {
+  const opts = document.querySelectorAll('#' + id + 'opts .quiz-opt');
+  opts.forEach(o => {
+    o.classList.add('disabled');
+    o.style.opacity = '.7';
+  });
+  if (correct) {
+    el.classList.add('correct');
+    el.style.opacity = '1';
+  } else {
+    el.classList.add('wrong');
+    el.style.opacity = '1';
+    // highlight correct
+    opts.forEach(o => { if (o.getAttribute('onclick').includes('true')) { o.classList.add('correct'); o.style.opacity = '1'; }});
+  }
+  document.getElementById(id + '-explain').classList.add('show');
+}
+
+/* ===== Quiz ===== */
+const quizData = [
+  { q: 'OSI 模型中，负责将数据从应用层格式转换为通用格式的是哪一层？', opts: ['网络层','表示层','传输层','会话层'], ans: 1, explain: '表示层（Presentation Layer）负责数据编码转换、加密和压缩。' },
+  { q: 'TCP 三次握手的正确顺序是？', opts: ['ACK → SYN → SYN-ACK','SYN → ACK → SYN-ACK','SYN → SYN-ACK → ACK','SYN-ACK → SYN → ACK'], ans: 2, explain: '客户端发 SYN → 服务端回 SYN-ACK → 客户端发 ACK，连接建立。' },
+  { q: '以下哪个协议工作在传输层？', opts: ['HTTP','IP','UDP','Ethernet'], ans: 2, explain: 'UDP（User Datagram Protocol）是传输层协议，提供无连接的快速数据传输。' },
+  { q: '子网 192.168.10.0/28 有多少个可用主机地址？', opts: ['14','16','30','6'], ans: 0, explain: '/28 有 4 位主机位，2^4 - 2 = 14 个可用地址。' },
+  { q: 'ARP 协议的作用是？', opts: ['将域名解析为 IP','将 IP 解析为 MAC 地址','动态分配 IP 地址','路由选择'], ans: 1, explain: 'ARP（Address Resolution Protocol）将已知的 IP 地址解析为对应的 MAC 物理地址。' },
+  { q: '路由器的"最长前缀匹配"原则意味着？', opts: ['选择数值最大的 IP','选择子网掩码最长的匹配路由','选择跳数最少的路径','选择带宽最大的链路'], ans: 1, explain: '在所有匹配的路由条目中，选择 CIDR 前缀最长（子网掩码最大）的那条，因为它最精确。' },
+  { q: 'DHCP 的工作流程（DORA）正确顺序是？', opts: ['Discover → Offer → Request → Ack','Request → Offer → Discover → Ack','Offer → Discover → Ack → Request','Discover → Request → Offer → Ack'], ans: 0, explain: '客户端 Discover（广播寻找）→ 服务器 Offer（提供 IP）→ 客户端 Request（请求使用）→ 服务器 Ack（确认分配）。' },
+  { q: '数据链路层的 PDU（协议数据单元）是什么？', opts: ['Bit','Packet','Frame','Segment'], ans: 2, explain: '数据链路层的数据单元是 Frame（帧），物理层是 Bit，网络层是 Packet，传输层是 Segment。' },
+  { q: '192.168.1.0/24 的广播地址是？', opts: ['192.168.1.254','192.168.1.255','192.168.0.255','192.168.255.255'], ans: 1, explain: '/24 网络的主机位全 1 就是广播地址：192.168.1.255。' },
+  { q: 'NAT（网络地址转换）主要解决什么问题？', opts: ['加快路由收敛','IPv4 地址不足','数据加密','域名解析'], ans: 1, explain: 'NAT 允许多个内网设备共享少量公网 IP，缓解了 IPv4 地址空间不足的问题。' },
+];
+let quizAnswered = 0, quizCorrect = 0;
+function renderQuiz() {
+  const container = document.getElementById('quizContainer');
+  container.innerHTML = '';
+  quizAnswered = 0; quizCorrect = 0;
+  document.getElementById('quizScore').style.display = 'none';
+  quizData.forEach((q, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-q';
+    div.innerHTML = '<h4>' + (qi+1) + '. ' + q.q + '</h4><div class="quiz-opts" id="qopts' + qi + '">' +
+      q.opts.map((o, oi) => '<div class="quiz-opt" onclick="answerQuiz(' + qi + ',' + oi + ',this)">' + String.fromCharCode(65+oi) + '. ' + o + '</div>').join('') +
+      '</div><div class="quiz-explain" id="qexp' + qi + '">' + q.explain + '</div>';
+    container.appendChild(div);
+  });
+}
+function answerQuiz(qi, oi, el) {
+  const opts = document.querySelectorAll('#qopts' + qi + ' .quiz-opt');
+  if (opts[0].classList.contains('disabled')) return;
+  opts.forEach(o => o.classList.add('disabled'));
+  const correct = quizData[qi].ans;
+  if (oi === correct) {
+    el.classList.add('correct');
+    quizCorrect++;
+  } else {
+    el.classList.add('wrong');
+    opts[correct].classList.add('correct');
+  }
+  document.getElementById('qexp' + qi).classList.add('show');
+  quizAnswered++;
+  if (quizAnswered === quizData.length) {
+    const scoreDiv = document.getElementById('quizScore');
+    scoreDiv.style.display = 'block';
+    document.getElementById('quizScoreNum').textContent = quizCorrect + '/' + quizData.length;
+    scoreDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+function resetQuiz() { renderQuiz(); }
+renderQuiz();
+
+/* ===== Glossary ===== */
+const glossaryData = [
+  { term: 'OSI 模型', def: '开放系统互联参考模型，由 ISO 制定的七层网络架构标准，从物理层到应用层逐层抽象。' },
+  { term: 'TCP/IP', def: '互联网核心协议族，包含传输控制协议（TCP）和网际协议（IP），实际工程中比 OSI 更常用。' },
+  { term: 'IP 地址', def: '网络层逻辑地址（IPv4 32位 / IPv6 128位），用于在网络中唯一标识设备。' },
+  { term: 'MAC 地址', def: '数据链路层物理地址（48位），烧录在网卡中，用于同一局域网内的设备识别。' },
+  { term: '子网掩码', def: '与 IP 地址配合使用，区分网络部分和主机部分。CIDR 表示法如 /24 等价于 255.255.255.0。' },
+  { term: 'CIDR', def: '无类别域间路由（Classless Inter-Domain Routing），用 /N 表示前缀长度，取代了传统的 A/B/C 类划分。' },
+  { term: 'ARP', def: '地址解析协议 — 将已知的 IP 地址映射到对应的 MAC 物理地址。' },
+  { term: 'DNS', def: '域名系统 — 将人类可读的域名（如 google.com）解析为机器可用的 IP 地址。' },
+  { term: 'DHCP', def: '动态主机配置协议 — 自动为网络中的设备分配 IP 地址、子网掩码、网关等参数。' },
+  { term: 'NAT', def: '网络地址转换 — 将内网私有 IP 映射到公网 IP，允许多设备共享一个公网地址上网。' },
+  { term: 'VLAN', def: '虚拟局域网 — 在一台物理交换机上逻辑划分出多个独立的广播域，提高安全性和管理灵活性。' },
+  { term: 'STP', def: '生成树协议 — 防止二层网络中出现环路导致的广播风暴，自动阻塞冗余路径。' },
+  { term: 'BGP', def: '边界网关协议 — 互联网核心路由协议，用于不同自治系统（AS）之间交换路由信息。' },
+  { term: 'ICMP', def: '互联网控制消息协议 — 用于网络设备间的差错报告和诊断，ping 命令就基于此协议。' },
+  { term: 'MTU', def: '最大传输单元 — 一个数据帧能承载的最大数据量，以太网默认为 1500 字节。' },
+  { term: 'TTL', def: '生存时间 — IP 包的最大跳数限制，每经过一个路由器减 1，到 0 时被丢弃，防止包无限循环。' },
+];
+function renderGlossary() {
+  const grid = document.getElementById('glossaryGrid');
+  grid.innerHTML = glossaryData.map(g =>
+    '<div class="glossary-item" onclick="this.classList.toggle(\'open\')"><div class="term">' + g.term + '</div><div class="def">' + g.def + '</div></div>'
+  ).join('');
+}
+renderGlossary();
+</script>
+</body>
+</html>

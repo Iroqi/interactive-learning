@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>变频器交互式学习</title>
+<style>
+:root {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-bg: #eef2ff;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --accent: #f59e0b;
+  --accent-bg: #fffbeb;
+  --success: #10b981;
+  --success-bg: #ecfdf5;
+  --error: #ef4444;
+  --error-bg: #fef2f2;
+  --border: #e2e8f0;
+  --code-bg: #1e293b;
+  --code-text: #e2e8f0;
+  --shadow: 0 4px 24px rgba(0,0,0,0.06);
+  --radius: 12px;
+}
+[data-theme="dark"] {
+  --primary: #818cf8;
+  --primary-light: #a5b4fc;
+  --primary-bg: #1e1b4b;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #fbbf24;
+  --accent-bg: #451a03;
+  --success: #34d399;
+  --success-bg: #064e3b;
+  --error: #f87171;
+  --error-bg: #7f1d1d;
+  --border: #334155;
+  --code-bg: #0f172a;
+  --code-text: #e2e8f0;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* Progress Bar */
+#progressBar {
+  position: fixed; top: 0; left: 0; height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 1000; transition: width 0.2s; border-radius: 0 2px 2px 0;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  color: white; padding: 3rem 2rem 2.5rem; text-align: center; position: relative;
+}
+.header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 700; }
+.header p { opacity: 0.9; font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+.header-controls { position: absolute; top: 1rem; right: 1.5rem; display: flex; gap: 0.5rem; }
+.icon-btn {
+  background: rgba(255,255,255,0.15); border: none; color: white;
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+  font-size: 1.2rem; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.25); }
+
+/* Nav */
+.nav {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0.8rem 2rem; display: flex; gap: 0.5rem; overflow-x: auto;
+  position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow);
+}
+.nav a {
+  padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem;
+  text-decoration: none; color: var(--text-muted); white-space: nowrap;
+  transition: all 0.2s; border: 1px solid transparent;
+}
+.nav a:hover { color: var(--primary); background: var(--primary-bg); }
+.nav a.active { color: var(--primary); background: var(--primary-bg); border-color: var(--primary); font-weight: 600; }
+
+/* Container */
+.container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+/* Section */
+.section { margin-bottom: 3rem; }
+.section-title {
+  font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.section-title .badge {
+  font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px;
+  font-weight: 600;
+}
+.badge-star { background: var(--accent-bg); color: var(--accent); }
+.badge-level { background: var(--primary-bg); color: var(--primary); }
+
+/* Flow Diagram */
+.flow-diagram {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; padding: 2rem 1rem; overflow-x: auto; flex-wrap: wrap;
+}
+.flow-node {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 1.2rem 1.5rem; text-align: center;
+  cursor: pointer; transition: all 0.3s; min-width: 140px; position: relative;
+}
+.flow-node:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow); }
+.flow-node.active { border-color: var(--primary); background: var(--primary-bg); }
+.flow-node .node-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.flow-node .node-label { font-weight: 600; font-size: 0.95rem; }
+.flow-node .node-sub { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+.flow-arrow {
+  font-size: 1.5rem; color: var(--primary); margin: 0 0.3rem;
+  flex-shrink: 0; font-weight: 700;
+}
+.flow-detail {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  margin-top: 1rem; padding: 0 1rem;
+}
+.flow-node.active .flow-detail { max-height: 300px; padding: 1rem; }
+.flow-detail-text { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+
+/* Concept Tree */
+.concept-tree { padding: 0.5rem 0; }
+.tree-node {
+  background: var(--surface); border-left: 4px solid var(--primary);
+  border-radius: 0 var(--radius) var(--radius) 0; padding: 1rem 1.2rem;
+  margin: 0.6rem 0; cursor: pointer; transition: all 0.3s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.tree-node:hover { transform: translateX(4px); box-shadow: var(--shadow); }
+.tree-node.expanded { border-left-color: var(--accent); }
+.tree-node-title { font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+.tree-node-title .arrow { transition: transform 0.3s; font-size: 0.8rem; }
+.tree-node.expanded .arrow { transform: rotate(90deg); }
+.tree-node-body {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  font-size: 0.92rem; color: var(--text-muted); line-height: 1.7;
+}
+.tree-node.expanded .tree-node-body { max-height: 600px; padding-top: 0.8rem; }
+.tree-children { margin-left: 1.5rem; }
+
+/* Card Grid */
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.flip-card {
+  perspective: 1000px; height: 180px; cursor: pointer;
+}
+.flip-card-inner {
+  position: relative; width: 100%; height: 100%;
+  transition: transform 0.6s; transform-style: preserve-3d;
+}
+.flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back {
+  position: absolute; inset: 0; backface-visibility: hidden;
+  border-radius: var(--radius); padding: 1.2rem; display: flex;
+  flex-direction: column; justify-content: center;
+  box-shadow: var(--shadow);
+}
+.flip-card-front {
+  background: var(--surface); border: 2px solid var(--border);
+  align-items: center; text-align: center;
+}
+.flip-card-front .card-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.flip-card-front .card-title { font-weight: 700; font-size: 1rem; }
+.flip-card-front .card-hint { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem; }
+.flip-card-back {
+  background: var(--primary-bg); border: 2px solid var(--primary);
+  transform: rotateY(180deg); font-size: 0.88rem; line-height: 1.6;
+}
+
+/* Task Cards */
+.task-card {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin: 1.5rem 0;
+  box-shadow: var(--shadow); transition: border-color 0.3s;
+}
+.task-card.completed { border-color: var(--success); }
+.task-card h3 { margin-bottom: 0.8rem; }
+.task-card .task-meta {
+  display: flex; gap: 1rem; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;
+}
+.task-card .task-meta span { display: flex; align-items: center; gap: 0.3rem; }
+.task-desc { margin-bottom: 1rem; font-size: 0.95rem; }
+
+/* Interactive Controls */
+.param-group {
+  background: var(--bg); border-radius: 8px; padding: 1.2rem;
+  margin: 1rem 0; border: 1px solid var(--border);
+}
+.param-group label {
+  display: block; font-weight: 600; margin-bottom: 0.4rem; font-size: 0.9rem;
+}
+.param-row {
+  display: flex; align-items: center; gap: 1rem; margin: 0.6rem 0; flex-wrap: wrap;
+}
+.param-row input[type="range"] {
+  flex: 1; min-width: 150px; accent-color: var(--primary); height: 6px;
+}
+.param-row .param-val {
+  font-weight: 700; color: var(--primary); min-width: 60px;
+  text-align: right; font-size: 1.1rem; font-variant-numeric: tabular-nums;
+}
+.param-row .param-unit { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Motor Simulation */
+.motor-sim {
+  display: flex; align-items: center; justify-content: center;
+  gap: 2rem; padding: 2rem; background: var(--bg); border-radius: var(--radius);
+  margin: 1rem 0; flex-wrap: wrap;
+}
+.motor-visual {
+  width: 160px; height: 160px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.motor-ring {
+  width: 140px; height: 140px; border-radius: 50%;
+  border: 6px solid var(--border); position: absolute;
+  transition: border-color 0.3s;
+}
+.motor-ring.spinning { border-color: var(--primary); border-top-color: var(--accent); }
+.motor-shaft {
+  width: 20px; height: 80px; background: var(--text-muted);
+  border-radius: 4px; position: relative; transition: all 0.3s;
+}
+.motor-shaft::after {
+  content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 8px; background: var(--primary); border-radius: 4px;
+}
+.motor-info {
+  display: grid; grid-template-columns: auto auto; gap: 0.5rem 1.5rem;
+  font-size: 0.9rem;
+}
+.motor-info .label { color: var(--text-muted); }
+.motor-info .value { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--primary); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinning-anim { animation: spin var(--spin-duration, 2s) linear infinite; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.6rem 1.2rem; border-radius: 8px; border: none;
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+.btn-outline {
+  background: transparent; color: var(--primary);
+  border: 2px solid var(--primary);
+}
+.btn-outline:hover { background: var(--primary-bg); }
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
+.btn-success { background: var(--success); color: white; }
+
+/* Hint Panel */
+.hint-panel {
+  max-height: 0; overflow: hidden; transition: max-height 0.4s ease;
+  background: var(--accent-bg); border-radius: 8px; margin: 0.5rem 0;
+  padding: 0 1rem; font-size: 0.9rem;
+}
+.hint-panel.show { max-height: 400px; padding: 1rem; }
+.hint-panel pre {
+  background: var(--code-bg); color: var(--code-text);
+  padding: 0.8rem; border-radius: 6px; overflow-x: auto;
+  font-size: 0.85rem; margin-top: 0.5rem;
+}
+
+/* Quiz */
+.quiz-card {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin: 1rem 0;
+}
+.quiz-question { font-weight: 700; margin-bottom: 1rem; font-size: 1rem; }
+.quiz-option {
+  display: block; width: 100%; text-align: left;
+  padding: 0.8rem 1rem; margin: 0.5rem 0; border: 2px solid var(--border);
+  border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  background: var(--surface); font-size: 0.92rem; font-family: inherit; color: var(--text);
+}
+.quiz-option:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-bg); }
+.quiz-option.correct { border-color: var(--success); background: var(--success-bg); }
+.quiz-option.wrong { border-color: var(--error); background: var(--error-bg); }
+.quiz-option:disabled { cursor: default; opacity: 0.7; }
+.quiz-feedback {
+  margin-top: 0.8rem; padding: 0.8rem; border-radius: 8px;
+  font-size: 0.9rem; display: none;
+}
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct { background: var(--success-bg); color: var(--success); }
+.quiz-feedback.wrong { background: var(--error-bg); color: var(--error); }
+.quiz-score {
+  text-align: center; padding: 1.5rem; background: var(--primary-bg);
+  border-radius: var(--radius); margin-top: 1rem;
+}
+.quiz-score .score-num { font-size: 2rem; font-weight: 800; color: var(--primary); }
+
+/* Glossary */
+.glossary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.8rem;
+}
+.term {
+  display: inline-block; background: var(--primary-bg); color: var(--primary);
+  padding: 0.4rem 1rem; border-radius: 20px; margin: 0.3rem;
+  cursor: help; font-size: 0.88rem; font-weight: 600; transition: all 0.2s;
+  border: 1px solid transparent; position: relative;
+}
+.term:hover { background: var(--primary); color: white; }
+.term-tooltip {
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); background: var(--surface); color: var(--text);
+  padding: 0.8rem; border-radius: 8px; font-size: 0.82rem; font-weight: 400;
+  width: 220px; box-shadow: var(--shadow); border: 1px solid var(--border);
+  z-index: 10; line-height: 1.5;
+}
+.term:hover .term-tooltip { display: block; }
+
+/* Comparison Table */
+.comp-table {
+  width: 100%; border-collapse: collapse; margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.comp-table th {
+  background: var(--primary); color: white; padding: 0.8rem 1rem;
+  text-align: left; font-weight: 600;
+}
+.comp-table td {
+  padding: 0.7rem 1rem; border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+.comp-table tr:hover td { background: var(--primary-bg); }
+.comp-table th:first-child { border-radius: 8px 0 0 0; }
+.comp-table th:last-child { border-radius: 0 8px 0 0; }
+
+/* Wiring Diagram (SVG-like) */
+.wiring-box {
+  background: var(--bg); border: 2px dashed var(--border);
+  border-radius: var(--radius); padding: 1.5rem; margin: 1rem 0;
+  font-family: 'Courier New', monospace; font-size: 0.85rem;
+  line-height: 1.4; overflow-x: auto; white-space: pre;
+  color: var(--text);
+}
+
+/* Scenario Card */
+.scenario-card {
+  background: linear-gradient(135deg, var(--primary-bg), var(--surface));
+  border: 2px solid var(--primary); border-radius: var(--radius);
+  padding: 1.5rem; margin: 1rem 0;
+}
+.scenario-card h4 { color: var(--primary); margin-bottom: 0.5rem; }
+
+/* Checklist */
+.checklist { list-style: none; }
+.checklist li {
+  padding: 0.5rem 0; display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.92rem;
+}
+.checklist li::before {
+  content: '☐'; font-size: 1.1rem; color: var(--text-muted); flex-shrink: 0;
+}
+.checklist li.done::before { content: '☑'; color: var(--success); }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .header h1 { font-size: 1.6rem; }
+  .flow-diagram { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+  .card-grid { grid-template-columns: 1fr; }
+  .motor-sim { flex-direction: column; }
+  .nav { padding: 0.5rem 1rem; }
+}
+
+@media print {
+  .nav, .header-controls, .btn, .hint-panel { display: none !important; }
+  .tree-node-body, .flow-detail { max-height: none !important; }
+}
+</style>
+</head>
+<body>
+<div id="progressBar" style="width:0%"></div>
+
+<div class="header">
+  <div class="header-controls">
+    <button class="icon-btn" onclick="toggleTheme()" title="切换主题">🌓</button>
+  </div>
+  <h1>变频器（VFD）完全学习指南</h1>
+  <p>从原理到实战，掌握变频器的核心知识 — 结合农业灌溉场景的交互式学习</p>
+</div>
+
+<nav class="nav" id="mainNav">
+  <a href="#knowledge-map" class="active">知识地图</a>
+  <a href="#principle">工作原理</a>
+  <a href="#structure">核心结构</a>
+  <a href="#parameters">关键参数</a>
+  <a href="#wiring">接线方法</a>
+  <a href="#level1">Level 1</a>
+  <a href="#level2">Level 2</a>
+  <a href="#level3">Level 3</a>
+  <a href="#level4">Level 4</a>
+  <a href="#quiz">自测</a>
+  <a href="#glossary">术语表</a>
+</nav>
+
+<div class="container">
+
+<!-- ============ KNOWLEDGE MAP ============ -->
+<section class="section" id="knowledge-map">
+  <div class="section-title">知识地图</div>
+  <p style="color:var(--text-muted);margin-bottom:1.5rem;">点击各节点展开，了解变频器的完整知识体系</p>
+
+  <div class="concept-tree">
+    <div class="tree-node" onclick="toggleNode(this)">
+      <div class="tree-node-title"><span class="arrow">▶</span> 变频器基础</div>
+      <div class="tree-node-body">
+        变频器（Variable Frequency Drive, VFD）是通过改变电机供电频率来控制交流电动机转速和转矩的电力电子设备。核心原理：n = 60f/p（转速=60×频率÷极对数），改变频率f即可改变转速n。
+        <div class="tree-children">
+          <div class="tree-node" onclick="event.stopPropagation();toggleNode(this)">
+            <div class="tree-node-title"><span class="arrow">▶</span> 为什么需要变频器？</div>
+            <div class="tree-node-body">
+              直接启动电机的 drawbacks：启动电流为额定电流的5-7倍，对电网冲击大；无法调速，只能在额定转速运行；机械冲击大，缩短设备寿命。变频器可以实现软启动（启动电流限制在150%以内）、无级调速、节能运行（风机水泵类负载节能20%-50%）。
+            </div>
+          </div>
+          <div class="tree-node" onclick="event.stopPropagation();toggleNode(this)">
+            <div class="tree-node-title"><span class="arrow">▶</span> 应用领域</div>
+            <div class="tree-node-body">
+              工业：风机、水泵、压缩机、传送带、起重机。<br>
+              农业：灌溉水泵（恒压供水）、温室通风、饲料加工。<br>
+              楼宇：中央空调、电梯、供水系统。<br>
+              交通：电动汽车、轨道交通。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleNode(this)">
+      <div class="tree-node-title"><span class="arrow">▶</span> 工作原理与结构</div>
+      <div class="tree-node-body">
+        变频器将工频交流电（50Hz）经过"整流→滤波→逆变"三步转换为可变频率交流电。核心由整流桥、直流母线、IGBT逆变桥和控制电路四部分组成。
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleNode(this)">
+      <div class="tree-node-title"><span class="arrow">▶</span> 参数设置与编程</div>
+      <div class="tree-node-body">
+        变频器有数百个功能参数，常用的包括：频率设定、加减速时间、V/F曲线、电机参数（额定电流/功率/转速）、保护参数（过流/过压/欠压阈值）、PID控制参数等。通过面板、通讯或模拟量输入进行设定。
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleNode(this)">
+      <div class="tree-node-title"><span class="arrow">▶</span> 通讯与集成</div>
+      <div class="tree-node-body">
+        变频器通常支持 Modbus RTU（RS485）、Profibus、CANopen 等通讯协议，可与PLC/HMI组成自动化系统。在农业灌溉中，变频器+PLC+压力传感器可实现恒压供水闭环控制。
+      </div>
+    </div>
+
+    <div class="tree-node" onclick="toggleNode(this)">
+      <div class="tree-node-title"><span class="arrow">▶</span> 故障诊断与维护</div>
+      <div class="tree-node-body">
+        常见故障：过流（OC）、过压（OV）、欠压（UV）、过热（OH）、接地故障（GF）。维护要点：定期清灰、检查散热风扇、检测电解电容容量（寿命约5年）、紧固接线端子。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORKING PRINCIPLE ============ -->
+<section class="section" id="principle">
+  <div class="section-title">工作原理 <span class="badge badge-star">核心</span></div>
+  <p style="color:var(--text-muted);margin-bottom:1rem;">点击每个环节查看详细过程</p>
+
+  <div class="flow-diagram" id="flowDiagram">
+    <div class="flow-node" onclick="toggleFlow(this)" data-step="1">
+      <div class="node-icon">⚡</div>
+      <div class="node-label">工频输入</div>
+      <div class="node-sub">AC 380V / 50Hz</div>
+      <div class="flow-detail">
+        <div class="flow-detail-text">三相交流电（380V, 50Hz）从电网输入变频器。经过输入端子和断路器/接触器接入。部分变频器也支持单相220V输入（输出三相220V，适用于小功率电机）。</div>
+      </div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" onclick="toggleFlow(this)" data-step="2">
+      <div class="node-icon">🔌</div>
+      <div class="node-label">整流</div>
+      <div class="node-sub">AC → DC</div>
+      <div class="flow-detail">
+        <div class="flow-detail-text">三相整流桥（6个二极管）将交流电转换为脉动直流电。直流母线电压约为输入电压的√2倍：380V × 1.414 ≈ 540V DC。整流桥是不可控的，只要上电就在工作。</div>
+      </div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" onclick="toggleFlow(this)" data-step="3">
+      <div class="node-icon">🔋</div>
+      <div class="node-label">滤波</div>
+      <div class="node-sub">平滑直流</div>
+      <div class="flow-detail">
+        <div class="flow-detail-text">大容量电解电容（通常400V/470μF × 多个串并联）将脉动直流滤波为平滑直流。电容是变频器中最易老化的元件，高温环境下寿命约5年。电容老化会导致直流母线电压纹波增大，引发过压/欠压报警。</div>
+      </div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" onclick="toggleFlow(this)" data-step="4">
+      <div class="node-icon">🔄</div>
+      <div class="node-label">逆变</div>
+      <div class="node-sub">DC → 可变AC</div>
+      <div class="flow-detail">
+        <div class="flow-detail-text">IGBT逆变桥（6个IGBT管）通过PWM（脉宽调制）技术将直流电逆变为可变频率、可变电压的三相交流电。CPU以微秒级速度控制IGBT的通断，模拟出正弦波输出。开关频率（载波频率）通常2-16kHz，频率越高输出波形越接近正弦波，但发热越大。</div>
+      </div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" onclick="toggleFlow(this)" data-step="5">
+      <div class="node-icon">⚙️</div>
+      <div class="node-label">电机输出</div>
+      <div class="node-sub">可变频率AC</div>
+      <div class="flow-detail">
+        <div class="flow-detail-text">输出可变频率（0-400Hz）和可变电压的交流电驱动电机。根据V/F控制或矢量控制策略，电压和频率按一定比例变化，保证电机在不同转速下都有合适的磁通量，从而实现恒转矩或变转矩运行。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario-card" style="margin-top:1.5rem;">
+    <h4>核心公式</h4>
+    <p style="font-size:1.1rem;text-align:center;margin:0.8rem 0;font-weight:700;">n = 60 × f ÷ p</p>
+    <p style="font-size:0.9rem;color:var(--text-muted);">其中 n=转速(rpm)、f=频率(Hz)、p=电机极对数。例如4极电机(p=2)，50Hz时转速=60×50÷2=1500rpm；调到30Hz则转速=900rpm。</p>
+  </div>
+</section>
+
+<!-- ============ STRUCTURE ============ -->
+<section class="section" id="structure">
+  <div class="section-title">核心结构</div>
+  <p style="color:var(--text-muted);margin-bottom:1rem;">点击卡片翻转查看详细说明</p>
+
+  <div class="card-grid">
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">🔌</div>
+          <div class="card-title">整流桥</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>整流桥（Rectifier）</strong><br>
+          由6个功率二极管组成的三相全波整流电路，将AC转换为脉动DC。是不可控器件，上电即工作。损坏原因：过压击穿、过热烧毁。检测：万用表二极管挡，正向0.3-0.7V，反向OL。
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">🔋</div>
+          <div class="card-title">直流母线电容</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>滤波电容（DC Bus Capacitor）</strong><br>
+          大容量铝电解电容，平滑直流电压、储存能量。电压等级通常为400V或450V。寿命受温度影响大（每升高10°C寿命减半）。老化表现：容量下降、ESR增大、外观鼓包。更换时注意极性！
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">🔄</div>
+          <div class="card-title">IGBT逆变桥</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>IGBT（绝缘栅双极型晶体管）</strong><br>
+          核心功率器件，6个IGBT按PWM信号高速通断，将DC逆变为可变频率AC。开关速度达微秒级。驱动电路（Gate Driver）为IGBT提供15V/-8V的栅极驱动信号。IGBT损坏通常表现为短路（C-E极间），可用万用表检测。
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">🧠</div>
+          <div class="card-title">控制电路</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>控制板（Control Board）</strong><br>
+          包含MCU（微控制器）、驱动芯片、通讯接口、I/O电路等。负责：PWM信号生成、参数运算、保护检测、通讯处理。通过面板或通讯设置参数。部分变频器采用DSP+FPGA双芯片架构，实现高性能矢量控制。
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">🌀</div>
+          <div class="card-title">散热系统</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>散热器 + 风扇</strong><br>
+          IGBT和整流桥产生的热量通过铝散热器+风扇排出。散热不良是变频器故障的主要原因之一。环境温度要求通常-10~40°C，每升高1°C需降额1-2%使用。定期清灰、检查风扇运转是维护重点。
+        </div>
+      </div>
+    </div>
+
+    <div class="flip-card" onclick="this.classList.toggle('flipped')">
+      <div class="flip-card-inner">
+        <div class="flip-card-front">
+          <div class="card-icon">📟</div>
+          <div class="card-title">操作面板</div>
+          <div class="card-hint">点击翻转</div>
+        </div>
+        <div class="flip-card-back">
+          <strong>HMI操作面板（Keypad）</strong><br>
+          LCD/LED显示屏+按键，用于参数设定、状态监控、故障查看。通常可拆卸，支持面板/远程控制切换。显示内容：运行频率、电流、电压、故障码等。部分高端型号支持中文菜单和图形显示。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KEY PARAMETERS ============ -->
+<section class="section" id="parameters">
+  <div class="section-title">关键参数</div>
+  <p style="color:var(--text-muted);margin-bottom:1rem;">变频器有上百个参数，以下是最常用的核心参数</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>参数</th><th>说明</th><th>典型值</th><th>影响</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>运行频率</strong></td><td>电机运行频率设定</td><td>0 ~ 400 Hz</td><td>直接控制电机转速</td></tr>
+      <tr><td><strong>加速时间</strong></td><td>从0Hz加速到最大频率的时间</td><td>0.1 ~ 3600 s</td><td>太短→过流报警；太长→响应慢</td></tr>
+      <tr><td><strong>减速时间</strong></td><td>从最大频率减速到0Hz的时间</td><td>0.1 ~ 3600 s</td><td>太短→过压报警（再生能量）</td></tr>
+      <tr><td><strong>最大频率</strong></td><td>允许输出的最高频率</td><td>50 / 60 Hz</td><td>限制电机最高转速</td></tr>
+      <tr><td><strong>V/F曲线</strong></td><td>电压与频率的对应关系</td><td>线性/平方/自定义</td><td>风机水泵用平方曲线，恒转矩用线性</td></tr>
+      <tr><td><strong>电机额定电流</strong></td><td>所接电机的铭牌额定电流</td><td>按电机铭牌</td><td>过载保护基准，必须正确设置</td></tr>
+      <tr><td><strong>启动频率</strong></td><td>启动时的初始频率</td><td>0.5 ~ 5 Hz</td><td>太低可能启动无力</td></tr>
+      <tr><td><strong>载波频率</strong></td><td>IGBT开关频率</td><td>2 ~ 16 kHz</td><td>高→噪音小、发热大；低→噪音大</td></tr>
+      <tr><td><strong>控制模式</strong></td><td>V/F控制 / 矢量控制</td><td>V/F</td><td>矢量控制精度更高但需电机参数</td></tr>
+      <tr><td><strong>频率给定方式</strong></td><td>面板/模拟量/通讯/多段速</td><td>面板设定</td><td>决定频率指令来源</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ WIRING ============ -->
+<section class="section" id="wiring">
+  <div class="section-title">接线方法</div>
+  <p style="color:var(--text-muted);margin-bottom:1rem;">变频器典型接线示意图</p>
+
+  <div class="wiring-box">
+┌─────────────────────────────────────────────────────────────────┐
+│                        变频器接线图                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  【主电路】                                                      │
+│  R ──┐                          ┌── U                           │
+│  S ──┤  三相电源输入    变频器    ├── V ──→ 三相电机              │
+│  T ──┘  (380V/50Hz)            └── W                           │
+│  PE ───────── 接地 ─────── PE ─── 接地                          │
+│                                                                 │
+│  【控制电路】                                                    │
+│  FWD (正转) ←── 按钮/PLC触点                                    │
+│  REV (反转) ←── 按钮/PLC触点                                    │
+│  COM (公共端)                                                    │
+│  AI1 (模拟输入1) ←── 0-10V / 4-20mA (压力/温度传感器)           │
+│  AO1 (模拟输出1) ──→ 频率/电流显示                              │
+│  TA/TC (继电器输出) ──→ 故障信号给PLC                           │
+│                                                                 │
+│  【通讯接口】                                                    │
+│  RS485+ ←── PLC Modbus RTU                                      │
+│  RS485- ←── PLC Modbus RTU                                      │
+│  SG (屏蔽) ←── 屏蔽层接地                                       │
+│                                                                 │
+│  【制动】(可选)                                                  │
+│  P+ ── 制动电阻 ── PB    (减速时释放再生能量)                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+  </div>
+
+  <div class="scenario-card">
+    <h4>农业灌溉场景接线要点</h4>
+    <p style="font-size:0.92rem;margin-top:0.5rem;">
+      <strong>恒压供水系统</strong>：压力传感器(4-20mA) → 变频器AI1 → 变频器内置PID运算 → 自动调节频率 → 恒压输出。PLC通过Modbus读取变频器运行状态（频率/电流/故障），并发送启停和频率设定指令。模拟量信号必须使用屏蔽电缆，屏蔽层单端接地。
+    </p>
+  </div>
+</section>
+
+<!-- ============ LEVEL 1: COGNITION ============ -->
+<section class="section" id="level1">
+  <div class="section-title">Level 1: 认识变频器 <span class="badge badge-level">⭐ 入门</span></div>
+
+  <div class="task-card">
+    <h3>任务 1.1：体验变频调速效果</h3>
+    <div class="task-meta">
+      <span>🎯 目标：直观理解频率变化如何影响电机转速</span>
+      <span>⏱ 预计 5 分钟</span>
+    </div>
+    <p class="task-desc">拖动下方滑块改变输出频率，观察4极电机（p=2）的转速变化：</p>
+
+    <div class="param-group">
+      <label>输出频率调节</label>
+      <div class="param-row">
+        <input type="range" id="freqSlider" min="0" max="60" value="50" step="1" oninput="updateMotor()">
+        <span class="param-val" id="freqVal">50</span>
+        <span class="param-unit">Hz</span>
+      </div>
+    </div>
+
+    <div class="motor-sim">
+      <div class="motor-visual">
+        <div class="motor-ring" id="motorRing"></div>
+        <div class="motor-shaft" id="motorShaft"></div>
+      </div>
+      <div class="motor-info">
+        <span class="label">频率</span>
+        <span class="value" id="infoFreq">50 Hz</span>
+        <span class="label">转速</span>
+        <span class="value" id="infoRPM">1500 rpm</span>
+        <span class="label">输出电压</span>
+        <span class="value" id="infoVolt">380 V</span>
+        <span class="label">同步转速</span>
+        <span class="value" id="infoSync">1500 rpm</span>
+        <span class="label">转差率</span>
+        <span class="value" id="infoSlip">~3%</span>
+      </div>
+    </div>
+
+    <div class="scenario-card" style="margin-top:1rem;">
+      <h4>观察与思考</h4>
+      <p style="font-size:0.9rem;">
+        <strong>试一试</strong>：将频率从50Hz降到25Hz，观察转速如何变化？<br>
+        <strong>关键发现</strong>：频率减半，转速也减半。同时输出电压也按比例降低（V/F=常数），这就是变频调速的基本原理——保持电压与频率的比值恒定，使电机磁通不变，从而在不同转速下都能输出额定转矩。
+      </p>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <h3>任务 1.2：理解V/F控制</h3>
+    <div class="task-meta">
+      <span>🎯 目标：理解电压/频率比值的意义</span>
+      <span>⏱ 预计 8 分钟</span>
+    </div>
+    <p class="task-desc">V/F控制是最基本的变频控制方式。核心思想：保持 V÷F = 常数，确保电机磁通恒定。</p>
+
+    <div class="param-group">
+      <label>频率 (Hz)</label>
+      <div class="param-row">
+        <input type="range" id="vfFreq" min="5" max="60" value="50" step="1" oninput="updateVF()">
+        <span class="param-val" id="vfFreqVal">50</span>
+        <span class="param-unit">Hz</span>
+      </div>
+      <label style="margin-top:0.5rem;">V/F曲线类型</label>
+      <div class="param-row">
+        <select id="vfCurve" onchange="updateVF()" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+          <option value="linear">线性（恒转矩负载）</option>
+          <option value="square">平方（风机水泵）</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>计算结果</label>
+      <div class="param-row">
+        <span style="flex:1">输出电压</span>
+        <span class="param-val" id="vfVolt">380</span>
+        <span class="param-unit">V</span>
+      </div>
+      <div class="param-row">
+        <span style="flex:1">V/F 比值</span>
+        <span class="param-val" id="vfRatio">7.6</span>
+        <span class="param-unit">V/Hz</span>
+      </div>
+      <div class="param-row">
+        <span style="flex:1">相对转矩能力</span>
+        <span class="param-val" id="vfTorque">100</span>
+        <span class="param-unit">%</span>
+      </div>
+    </div>
+
+    <button class="btn btn-outline btn-sm" onclick="toggleHint('hint-vf')">💡 提示：为什么低频时需要电压补偿？</button>
+    <div class="hint-panel" id="hint-vf">
+      <p>低频时输出电压很低，定子电阻压降的占比变大，导致实际加在电机磁路上的电压不足，磁通下降，转矩能力降低。因此很多变频器在低频段有"转矩提升"功能，适当提高输出电压来补偿电阻压降。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LEVEL 2: GUIDED PRACTICE ============ -->
+<section class="section" id="level2">
+  <div class="section-title">Level 2: 参数配置实践 <span class="badge badge-level">⭐⭐ 进阶</span></div>
+
+  <div class="task-card">
+    <h3>任务 2.1：配置灌溉水泵变频器参数</h3>
+    <div class="task-meta">
+      <span>🎯 目标：为7.5kW灌溉水泵设定变频器参数</span>
+      <span>⏱ 预计 15 分钟</span>
+    </div>
+
+    <div class="scenario-card">
+      <h4>场景描述</h4>
+      <p style="font-size:0.92rem;">你正在为一个农业灌溉项目调试变频器。系统使用一台7.5kW、4极三相异步电机驱动离心水泵，额定电压380V，额定电流15.6A。变频器品牌为常见的国产通用型。</p>
+    </div>
+
+    <p class="task-desc" style="margin-top:1rem;">请根据电机铭牌和应用需求，设定以下关键参数。设定后点击"检查参数"验证是否合理：</p>
+
+    <div class="param-group">
+      <label>P0.01 — 运行频率给定方式</label>
+      <div class="param-row">
+        <select id="p_freqSource" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;flex:1;">
+          <option value="">-- 请选择 --</option>
+          <option value="panel">面板电位器</option>
+          <option value="ai">模拟量输入 (AI1)</option>
+          <option value="modbus">Modbus通讯</option>
+          <option value="multi">多段速</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P0.03 — 最大频率</label>
+      <div class="param-row">
+        <input type="number" id="p_maxFreq" placeholder="输入数值" style="flex:1;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">Hz</span>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P0.10 — 加速时间（0→最大频率）</label>
+      <div class="param-row">
+        <input type="number" id="p_accTime" placeholder="输入数值" style="flex:1;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">秒</span>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P0.11 — 减速时间（最大频率→0）</label>
+      <div class="param-row">
+        <input type="number" id="p_decTime" placeholder="输入数值" style="flex:1;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">秒</span>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P2.01 — 电机额定功率</label>
+      <div class="param-row">
+        <input type="number" id="p_motorPower" placeholder="输入数值" style="flex:1;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">kW</span>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P2.02 — 电机额定电流</label>
+      <div class="param-row">
+        <input type="number" id="p_motorCurrent" step="0.1" placeholder="输入数值" style="flex:1;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">A</span>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>P0.08 — V/F曲线类型</label>
+      <div class="param-row">
+        <select id="p_vfCurve" style="padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;flex:1;">
+          <option value="">-- 请选择 --</option>
+          <option value="linear">线性V/F（恒转矩）</option>
+          <option value="square">平方V/F（变转矩）</option>
+          <option value="custom">自定义V/F</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.8rem;margin-top:1rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="checkParams()">✅ 检查参数</button>
+      <button class="btn btn-outline" onclick="toggleHint('hint-params')">💡 查看提示</button>
+      <button class="btn btn-outline" onclick="resetParams()">🔄 重置</button>
+    </div>
+
+    <div class="hint-panel" id="hint-params">
+      <p><strong>水泵属于变转矩负载</strong>，转矩与转速的平方成正比，功率与转速的立方成正比。建议选择平方V/F曲线，加减速时间可设长一些（10-30秒），频率给定方式根据控制系统选择（单独运行用面板，PLC控制用通讯或模拟量）。电机参数必须按铭牌设定。</p>
+    </div>
+
+    <div id="paramResult" style="margin-top:1rem;"></div>
+  </div>
+</section>
+
+<!-- ============ LEVEL 3: INDEPENDENT ============ -->
+<section class="section" id="level3">
+  <div class="section-title">Level 3: 恒压供水系统设计 <span class="badge badge-level">⭐⭐⭐ 独立</span></div>
+
+  <div class="task-card">
+    <h3>任务 3.1：设计PID闭环恒压供水方案</h3>
+    <div class="task-meta">
+      <span>🎯 目标：独立完成一个完整的变频器应用方案设计</span>
+      <span>⏱ 预计 20 分钟</span>
+    </div>
+
+    <div class="scenario-card">
+      <h4>项目需求</h4>
+      <p style="font-size:0.92rem;">
+        某农场需要一套恒压灌溉供水系统。管网目标压力0.4MPa，使用15kW离心泵一台（4极，380V，30.5A）。系统需要：
+      </p>
+      <ul class="checklist" style="margin-top:0.8rem;">
+        <li>压力传感器反馈（4-20mA信号）实现恒压控制</li>
+        <li>PLC通过Modbus RTU监控变频器状态</li>
+        <li>HMI触摸屏显示实时压力、频率、电流</li>
+        <li>过压、欠压、过流保护</li>
+        <li>手动/自动切换功能</li>
+      </ul>
+    </div>
+
+    <p class="task-desc" style="margin-top:1rem;">请完成以下设计，填写每一项：</p>
+
+    <div class="param-group">
+      <label>1. 变频器选型 — 额定功率和额定电流</label>
+      <div class="param-row">
+        <input type="text" id="design_vfd" placeholder="如：XX kW / XX A" style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>2. 压力传感器选型 — 量程和信号类型</label>
+      <div class="param-row">
+        <input type="text" id="design_sensor" placeholder="如：量程 XX MPa，信号 XX" style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>3. PID参数设定思路</label>
+      <div class="param-row">
+        <textarea id="design_pid" rows="3" placeholder="描述P、I、D各参数的作用和初始设定思路" style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>4. 变频器需要设定的关键参数（至少列出5个）</label>
+      <div class="param-row">
+        <textarea id="design_params" rows="4" placeholder="列出参数名称和设定值" style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <label>5. Modbus通讯配置</label>
+      <div class="param-row">
+        <textarea id="design_modbus" rows="3" placeholder="通讯参数（波特率/数据位/校验/地址）和读取的寄存器" style="flex:1;padding:0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:vertical;"></textarea>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.8rem;margin-top:1rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="checkDesign()">✅ 提交方案</button>
+      <button class="btn btn-outline" onclick="toggleHint('hint-design')">💡 查看参考方案</button>
+    </div>
+
+    <div class="hint-panel" id="hint-design">
+      <p><strong>参考方案要点：</strong></p>
+      <pre>
+1. 变频器：18.5kW（留20%余量），额定电流≥35A
+2. 传感器：0-1.0MPa，4-20mA输出，精度0.5%
+3. PID设定：
+   - P(比例): 初始50-100，越大响应越快但可能振荡
+   - I(积分): 初始1-5秒，消除稳态误差
+   - D(微分): 初始0，水泵系统一般不需要
+   - 目标值: 0.4MPa对应40%量程
+4. 变频器参数：
+   最大频率50Hz, 加速15s, 减速15s
+   V/F曲线=平方, 电机功率15kW, 电机电流30.5A
+   频率给定=AI1, PID使能=ON, 反馈源=AI1
+5. Modbus: 9600bps, 8N1, 从站地址1
+   读40001(频率), 40002(电流), 40003(故障码)
+   写40101(启停), 40102(目标频率)
+      </pre>
+    </div>
+
+    <div id="designResult" style="margin-top:1rem;"></div>
+  </div>
+</section>
+
+<!-- ============ LEVEL 4: CHALLENGE ============ -->
+<section class="section" id="level4">
+  <div class="section-title">Level 4: 进阶挑战 <span class="badge badge-level">⭐⭐⭐⭐ 挑战</span></div>
+
+  <div class="task-card">
+    <h3>任务 4.1：故障诊断推理</h3>
+    <div class="task-meta">
+      <span>🎯 目标：根据故障现象分析原因和解决方案</span>
+      <span>⏱ 预计 15 分钟</span>
+    </div>
+    <p class="task-desc">以下是实际工程中常见的变频器故障场景，尝试分析原因：</p>
+
+    <div class="quiz-card" style="margin-top:1rem;">
+      <div class="quiz-question">故障场景A：水泵运行中变频器报"OC"（过流）故障停机，但电机和管道外观正常。可能的原因有哪些？（多选）</div>
+      <button class="quiz-option" onclick="checkMulti(this, true, 'faultA')">管道阀门突然关闭，水泵堵转</button>
+      <button class="quiz-option" onclick="checkMulti(this, true, 'faultA')">电机绕组绝缘老化，匝间短路</button>
+      <button class="quiz-option" onclick="checkMulti(this, false, 'faultA')">电网电压偏高</button>
+      <button class="quiz-option" onclick="checkMulti(this, true, 'faultA')">加速时间设置过短</button>
+      <button class="quiz-option" onclick="checkMulti(this, false, 'faultA')">减速时间设置过长</button>
+      <div class="quiz-feedback" id="faultA-feedback">
+        <strong>分析</strong>：电网电压偏高导致的是过压（OV）而非过流；减速时间过长不会导致过流。堵转、绕组短路、加速过快都会导致电流异常增大触发OC保护。
+      </div>
+    </div>
+
+    <div class="quiz-card" style="margin-top:1rem;">
+      <div class="quiz-question">故障场景B：变频器启动时直流母线电压正常，但输出端无电压，电机不转，变频器报"输出缺相"。最可能的原因是？</div>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultB')">整流桥损坏</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultB')">滤波电容失效</button>
+      <button class="quiz-option" onclick="checkAnswer(this, true, 'faultB')">IGBT逆变管损坏或驱动电路故障</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultB')">电机接线松动</button>
+      <div class="quiz-feedback" id="faultB-feedback">
+        <strong>分析</strong>：直流母线正常说明整流和滤波没问题。输出缺相且无电压，说明逆变桥未正常工作——最可能是某个IGBT管损坏或其驱动电路故障。电机接线松动会导致"缺相"但不导致"无输出电压"。
+      </div>
+    </div>
+
+    <div class="quiz-card" style="margin-top:1rem;">
+      <div class="quiz-question">故障场景C：灌溉系统在用水量很小时，变频器频繁在"运行"和"休眠"之间切换（5分钟内启停了8次）。如何解决？</div>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultC')">增大P参数</button>
+      <button class="quiz-option" onclick="checkAnswer(this, true, 'faultC')">设置休眠频率和唤醒压力差，增加启停间隔时间</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultC')">减小电机功率</button>
+      <button class="quiz-option" onclick="checkAnswer(this, false, 'faultC')">缩短加减速时间</button>
+      <div class="quiz-feedback" id="faultC-feedback">
+        <strong>分析</strong>：频繁启停（"喘振"）是恒压供水系统的典型问题。解决方案：设休眠频率（如10Hz以下进入休眠），设唤醒偏差（如压力下降0.05MPa再唤醒），设最小运行时间和最小停机时间（如各30秒）。频繁启停会缩短电机和变频器寿命。
+      </div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <h3>任务 4.2：节能计算</h3>
+    <div class="task-meta">
+      <span>🎯 目标：计算变频改造后的节能效果</span>
+      <span>⏱ 预计 10 分钟</span>
+    </div>
+
+    <div class="scenario-card">
+      <h4>节能场景</h4>
+      <p style="font-size:0.92rem;">
+        一台30kW离心泵，原工频运行每天24小时。现改为变频运行，根据灌溉需求：<br>
+        — 80%流量运行 10小时/天（频率约45Hz）<br>
+        — 60%流量运行 8小时/天（频率约38Hz）<br>
+        — 40%流量运行 6小时/天（频率约30Hz）<br>
+        水泵属于变转矩负载，功率与转速的立方成正比：P₂/P₁ = (n₂/n₁)³
+      </p>
+    </div>
+
+    <div class="param-group" style="margin-top:1rem;">
+      <label>请输入你的计算结果</label>
+      <div class="param-row">
+        <span style="flex:1">工频日耗电量</span>
+        <input type="number" id="calc_fixed" placeholder="kWh" style="width:100px;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">kWh</span>
+      </div>
+      <div class="param-row">
+        <span style="flex:1">变频日耗电量</span>
+        <input type="number" id="calc_vfd" placeholder="kWh" style="width:100px;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">kWh</span>
+      </div>
+      <div class="param-row">
+        <span style="flex:1">日节电率</span>
+        <input type="number" id="calc_save" placeholder="%" style="width:100px;padding:0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;">
+        <span class="param-unit">%</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="checkCalc()">✅ 检查计算</button>
+      <button class="btn btn-outline" onclick="toggleHint('hint-calc')">💡 计算提示</button>
+    </div>
+
+    <div class="hint-panel" id="hint-calc">
+      <pre>
+工频日耗电 = 30kW × 24h = 720 kWh
+
+变频各段功率（P₂ = P₁ × (f₂/50)³）：
+  45Hz段：30 × (45/50)³ = 30 × 0.729 = 21.87 kW
+  38Hz段：30 × (38/50)³ = 30 × 0.439 = 13.17 kW
+  30Hz段：30 × (30/50)³ = 30 × 0.216 = 6.48 kW
+
+变频日耗电 = 21.87×10 + 13.17×8 + 6.48×6
+           = 218.7 + 105.4 + 38.9 = 363 kWh
+
+节电率 = (720-363)/720 × 100% ≈ 49.6%
+      </pre>
+    </div>
+
+    <div id="calcResult" style="margin-top:1rem;"></div>
+  </div>
+</section>
+
+<!-- ============ QUIZ ============ -->
+<section class="section" id="quiz">
+  <div class="section-title">自测测验 <span class="badge badge-star">10题</span></div>
+  <p style="color:var(--text-muted);margin-bottom:1.5rem;">检验你对变频器知识的掌握程度</p>
+
+  <div id="quizContainer"></div>
+
+  <div class="quiz-score" id="quizScore" style="display:none;">
+    <div class="score-num" id="scoreNum">0/10</div>
+    <p id="scoreMsg" style="margin-top:0.5rem;"></p>
+    <button class="btn btn-primary" onclick="resetQuiz()" style="margin-top:1rem;">重新测验</button>
+  </div>
+</section>
+
+<!-- ============ GLOSSARY ============ -->
+<section class="section" id="glossary">
+  <div class="section-title">术语表</div>
+  <p style="color:var(--text-muted);margin-bottom:1rem;">悬停查看术语释义</p>
+
+  <div class="glossary-grid">
+    <span class="term">VFD<span class="term-tooltip">Variable Frequency Drive，变频器。通过改变电机供电频率来控制交流电机转速的电力电子设备。</span></span>
+    <span class="term">IGBT<span class="term-tooltip">Insulated Gate Bipolar Transistor，绝缘栅双极型晶体管。变频器逆变桥的核心功率器件，负责将DC逆变为可变频率AC。</span></span>
+    <span class="term">PWM<span class="term-tooltip">Pulse Width Modulation，脉宽调制。通过调节脉冲宽度来模拟正弦波输出的技术，是变频器逆变的核心原理。</span></span>
+    <span class="term">V/F控制<span class="term-tooltip">电压/频率控制。保持输出电压与频率的比值恒定，使电机磁通恒定，是最基本的变频控制方式。</span></span>
+    <span class="term">矢量控制<span class="term-tooltip">将电机电流分解为磁通分量和转矩分量分别控制，实现类似直流电机的精确调速性能。需要电机参数自学习。</span></span>
+    <span class="term">载波频率<span class="term-tooltip">IGBT的开关频率，通常2-16kHz。越高输出波形越接近正弦波、电机噪音越小，但IGBT发热越大。</span></span>
+    <span class="term">直流母线<span class="term-tooltip">DC Bus，整流桥输出端的直流电压。380V输入的变频器，直流母线电压约为540V（380×√2）。</span></span>
+    <span class="term">制动电阻<span class="term-tooltip">电机减速时产生的再生能量通过制动电阻以热能形式消耗。重载或频繁减速的场合必须配置。</span></span>
+    <span class="term">PID控制<span class="term-tooltip">比例-积分-微分控制。变频器内置PID功能可实现恒压供水、恒温控制等闭环应用。</span></span>
+    <span class="term">Modbus RTU<span class="term-tooltip">基于RS485的串行通讯协议，工业中最常用的变频器通讯方式。PLC通过Modbus读写变频器参数和状态。</span></span>
+    <span class="term">转差率<span class="term-tooltip">同步转速与实际转速的差值占同步转速的百分比。异步电机必须存在转差才能产生转矩，通常2-5%。</span></span>
+    <span class="term">EMC<span class="term-tooltip">Electromagnetic Compatibility，电磁兼容性。变频器是强电磁干扰源，需要输入/输出电抗器、屏蔽电缆等EMC措施。</span></span>
+    <span class="term">输入电抗器<span class="term-tooltip">串联在电源与变频器输入端，抑制电网谐波和电压尖峰，保护整流桥。电网质量差时建议加装。</span></span>
+    <span class="term">输出电抗器<span class="term-tooltip">串联在变频器输出端，降低du/dt（电压变化率），减少电机绝缘应力和电缆分布电容的影响。长电缆时必需。</span></span>
+  </div>
+</section>
+
+<!-- ============ SUMMARY ============ -->
+<section class="section" style="text-align:center;padding:2rem 0;">
+  <div class="section-title" style="justify-content:center;">学习总结与下一步</div>
+  <p style="color:var(--text-muted);max-width:600px;margin:0 auto 1.5rem;">
+    恭喜完成变频器学习之旅！从基本原理到系统设计，你已经掌握了VFD的核心知识。建议接下来在实际设备上练习参数设定，并结合PLC编程实现完整的自动化控制系统。
+  </p>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="window.scrollTo({top:0,behavior:'smooth'})">回到顶部</button>
+    <button class="btn btn-outline" onclick="toggleTheme()">切换主题</button>
+  </div>
+</section>
+
+</div>
+
+<script>
+// === Theme ===
+function toggleTheme() {
+  const t = document.body.dataset.theme;
+  document.body.dataset.theme = t === 'dark' ? '' : 'dark';
+}
+
+// === Scroll Progress ===
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+});
+
+// === Nav Active ===
+const sections = document.querySelectorAll('.section[id]');
+const navLinks = document.querySelectorAll('.nav a');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.nav a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+
+// === Concept Tree Toggle ===
+function toggleNode(el) { el.classList.toggle('expanded'); }
+
+// === Flow Diagram Toggle ===
+function toggleFlow(el) {
+  const wasActive = el.classList.contains('active');
+  document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('active'));
+  if (!wasActive) el.classList.add('active');
+}
+
+// === Motor Simulation (Level 1, Task 1.1) ===
+let motorAnimId = null;
+function updateMotor() {
+  const freq = parseInt(document.getElementById('freqSlider').value);
+  document.getElementById('freqVal').textContent = freq;
+
+  const syncRPM = 60 * freq / 2; // 4-pole motor, p=2
+  const slip = freq > 0 ? 0.03 : 0;
+  const actualRPM = Math.round(syncRPM * (1 - slip));
+  const volt = Math.round(380 * freq / 50);
+
+  document.getElementById('infoFreq').textContent = freq + ' Hz';
+  document.getElementById('infoRPM').textContent = actualRPM + ' rpm';
+  document.getElementById('infoVolt').textContent = Math.min(volt, 380) + ' V';
+  document.getElementById('infoSync').textContent = syncRPM + ' rpm';
+  document.getElementById('infoSlip').textContent = freq > 0 ? '~3%' : '—';
+
+  const ring = document.getElementById('motorRing');
+  const shaft = document.getElementById('motorShaft');
+  if (freq > 0) {
+    ring.classList.add('spinning');
+    shaft.classList.add('spinning-anim');
+    const duration = freq > 0 ? Math.max(0.1, 50 / freq * 2) : 2;
+    shaft.style.setProperty('--spin-duration', duration + 's');
+    ring.style.animation = `spin ${duration}s linear infinite`;
+  } else {
+    ring.classList.remove('spinning');
+    shaft.classList.remove('spinning-anim');
+    ring.style.animation = 'none';
+  }
+}
+updateMotor();
+
+// === V/F Calculator (Level 1, Task 1.2) ===
+function updateVF() {
+  const freq = parseInt(document.getElementById('vfFreq').value);
+  const curve = document.getElementById('vfCurve').value;
+  document.getElementById('vfFreqVal').textContent = freq;
+
+  const maxFreq = 50, maxVolt = 380;
+  let volt;
+  if (curve === 'square') {
+    volt = maxVolt * Math.pow(freq / maxFreq, 2);
+  } else {
+    volt = maxVolt * (freq / maxFreq);
+  }
+  volt = Math.min(Math.round(volt), 380);
+  const ratio = freq > 0 ? (volt / freq).toFixed(1) : '—';
+  const torque = freq > 0 ? Math.min(100, Math.round((volt / freq) / (380/50) * 100)) : 0;
+
+  document.getElementById('vfVolt').textContent = volt;
+  document.getElementById('vfRatio').textContent = ratio;
+  document.getElementById('vfTorque').textContent = torque;
+}
+
+// === Hint Toggle ===
+function toggleHint(id) { document.getElementById(id).classList.toggle('show'); }
+
+// === Parameter Check (Level 2) ===
+function checkParams() {
+  const checks = [];
+  let score = 0, total = 7;
+
+  const freqSource = document.getElementById('p_freqSource').value;
+  const maxFreq = parseFloat(document.getElementById('p_maxFreq').value);
+  const accTime = parseFloat(document.getElementById('p_accTime').value);
+  const decTime = parseFloat(document.getElementById('p_decTime').value);
+  const motorPower = parseFloat(document.getElementById('p_motorPower').value);
+  const motorCurrent = parseFloat(document.getElementById('p_motorCurrent').value);
+  const vfCurve = document.getElementById('p_vfCurve').value;
+
+  // Check each
+  if (['panel','ai','modbus','multi'].includes(freqSource)) {
+    checks.push({name:'频率给定方式', ok:true, msg:`✅ ${freqSource==='panel'?'面板':freqSource==='ai'?'模拟量':freqSource==='modbus'?'Modbus通讯':'多段速'} — 合理`});
+    score++;
+  } else {
+    checks.push({name:'频率给定方式', ok:false, msg:'❌ 请选择频率给定方式'});
+  }
+
+  if (maxFreq >= 45 && maxFreq <= 60) {
+    checks.push({name:'最大频率', ok:true, msg:`✅ ${maxFreq}Hz — 合理（水泵通常50Hz）`});
+    score++;
+  } else if (!isNaN(maxFreq) && maxFreq > 0) {
+    checks.push({name:'最大频率', ok:false, msg:`⚠️ ${maxFreq}Hz — 水泵通常设50Hz`});
+  } else {
+    checks.push({name:'最大频率', ok:false, msg:'❌ 请填写最大频率'});
+  }
+
+  if (accTime >= 5 && accTime <= 60) {
+    checks.push({name:'加速时间', ok:true, msg:`✅ ${accTime}秒 — 合理`});
+    score++;
+  } else if (!isNaN(accTime) && accTime > 0) {
+    checks.push({name:'加速时间', ok:false, msg:`⚠️ ${accTime}秒 — 水泵建议10-30秒`});
+  } else {
+    checks.push({name:'加速时间', ok:false, msg:'❌ 请填写加速时间'});
+  }
+
+  if (decTime >= 5 && decTime <= 60) {
+    checks.push({name:'减速时间', ok:true, msg:`✅ ${decTime}秒 — 合理`});
+    score++;
+  } else if (!isNaN(decTime) && decTime > 0) {
+    checks.push({name:'减速时间', ok:false, msg:`⚠️ ${decTime}秒 — 水泵建议10-30秒`});
+  } else {
+    checks.push({name:'减速时间', ok:false, msg:'❌ 请填写减速时间'});
+  }
+
+  if (Math.abs(motorPower - 7.5) < 0.1) {
+    checks.push({name:'电机功率', ok:true, msg:'✅ 7.5kW — 正确'});
+    score++;
+  } else if (!isNaN(motorPower)) {
+    checks.push({name:'电机功率', ok:false, msg:`⚠️ ${motorPower}kW — 题目给的是7.5kW`});
+  } else {
+    checks.push({name:'电机功率', ok:false, msg:'❌ 请填写电机功率'});
+  }
+
+  if (Math.abs(motorCurrent - 15.6) < 0.5) {
+    checks.push({name:'电机额定电流', ok:true, msg:'✅ 15.6A — 正确'});
+    score++;
+  } else if (!isNaN(motorCurrent)) {
+    checks.push({name:'电机额定电流', ok:false, msg:`⚠️ ${motorCurrent}A — 铭牌上标注的是15.6A`});
+  } else {
+    checks.push({name:'电机额定电流', ok:false, msg:'❌ 请填写电机额定电流'});
+  }
+
+  if (vfCurve === 'square') {
+    checks.push({name:'V/F曲线', ok:true, msg:'✅ 平方V/F曲线 — 正确（水泵是变转矩负载）'});
+    score++;
+  } else if (vfCurve === 'linear') {
+    checks.push({name:'V/F曲线', ok:false, msg:'⚠️ 线性V/F — 水泵是变转矩负载，建议用平方曲线'});
+  } else {
+    checks.push({name:'V/F曲线', ok:false, msg:'❌ 请选择V/F曲线类型'});
+  }
+
+  let html = `<div style="background:${score>=5?'var(--success-bg)':'var(--accent-bg)'};padding:1.2rem;border-radius:8px;">`;
+  html += `<strong>得分：${score}/${total}</strong><br><br>`;
+  checks.forEach(c => { html += `<div style="margin:0.3rem 0;font-size:0.9rem;">${c.msg}</div>`; });
+  html += '</div>';
+  document.getElementById('paramResult').innerHTML = html;
+}
+
+function resetParams() {
+  ['p_freqSource','p_maxFreq','p_accTime','p_decTime','p_motorPower','p_motorCurrent','p_vfCurve'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
+  });
+  document.getElementById('paramResult').innerHTML = '';
+}
+
+// === Design Check (Level 3) ===
+function checkDesign() {
+  const fields = ['design_vfd','design_sensor','design_pid','design_params','design_modbus'];
+  const labels = ['变频器选型','传感器选型','PID设定','参数列表','通讯配置'];
+  let filled = 0;
+  const results = [];
+
+  fields.forEach((id, i) => {
+    const val = document.getElementById(id).value.trim();
+    if (val.length > 5) {
+      filled++;
+      results.push(`✅ ${labels[i]}：已填写`);
+    } else if (val.length > 0) {
+      results.push(`⚠️ ${labels[i]}：内容较少，建议补充更多细节`);
+    } else {
+      results.push(`❌ ${labels[i]}：未填写`);
+    }
+  });
+
+  let html = `<div style="background:${filled>=4?'var(--success-bg)':'var(--accent-bg)'};padding:1.2rem;border-radius:8px;">`;
+  html += `<strong>完成度：${filled}/5</strong><br><br>`;
+  results.forEach(r => { html += `<div style="margin:0.3rem 0;font-size:0.9rem;">${r}</div>`; });
+  if (filled >= 4) html += '<br><p style="font-size:0.9rem;">🎉 方案设计完成！可以点击"查看参考方案"对比你的方案。</p>';
+  html += '</div>';
+  document.getElementById('designResult').innerHTML = html;
+}
+
+// === Quiz (Single Choice) ===
+function checkAnswer(btn, isCorrect, qId) {
+  const card = btn.closest('.quiz-card');
+  const opts = card.querySelectorAll('.quiz-option');
+  opts.forEach(o => { o.disabled = true; o.style.opacity = '0.6'; });
+  btn.style.opacity = '1';
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    opts.forEach(o => { if (o.getAttribute('onclick').includes('true')) o.classList.add('correct'); });
+  }
+  const fb = document.getElementById(qId + '-feedback');
+  if (fb) { fb.classList.add('show'); fb.classList.add(isCorrect ? 'correct' : 'wrong'); }
+  updateQuizScore(isCorrect);
+}
+
+// === Quiz (Multi Choice) ===
+const multiState = {};
+function checkMulti(btn, isCorrect, qId) {
+  if (!multiState[qId]) multiState[qId] = { answered: false, correct: 0, total: 0 };
+  const s = multiState[qId];
+  if (s.answered) return;
+
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  btn.disabled = true;
+  s.total++;
+  if (isCorrect) s.correct++;
+  else btn.classList.add('wrong');
+
+  // Check if all correct options found
+  const card = btn.closest('.quiz-card');
+  const allCorrect = [...card.querySelectorAll('.quiz-option')].filter(o => o.getAttribute('onclick').includes('true'));
+  const foundCorrect = [...card.querySelectorAll('.quiz-option.correct')].length;
+
+  if (foundCorrect >= allCorrect.length && s.total >= allCorrect.length) {
+    s.answered = true;
+    card.querySelectorAll('.quiz-option').forEach(o => { o.disabled = true; });
+    const fb = document.getElementById(qId + '-feedback');
+    if (fb) { fb.classList.add('show'); fb.classList.add('correct'); }
+    updateQuizScore(true);
+  } else if (!isCorrect) {
+    // Allow continue
+  }
+}
+
+// === Self-Test Quiz ===
+const quizQuestions = [
+  {
+    q: '变频器的核心功能是什么？',
+    opts: ['改变电压大小', '改变供电频率来控制电机转速', '改变电流方向', '增大电机功率'],
+    ans: 1,
+    explain: '变频器（VFD）通过改变电机供电频率来实现无级调速。'
+  },
+  {
+    q: '一台4极电机（p=2），在30Hz频率下运行，同步转速是多少？',
+    opts: ['1500 rpm', '900 rpm', '600 rpm', '1800 rpm'],
+    ans: 1,
+    explain: 'n = 60f/p = 60×30/2 = 900 rpm。'
+  },
+  {
+    q: '380V输入的变频器，直流母线电压大约是多少？',
+    opts: ['380V', '220V', '540V', '760V'],
+    ans: 2,
+    explain: '直流母线电压 = 输入电压 × √2 ≈ 380 × 1.414 ≈ 540V。'
+  },
+  {
+    q: '水泵类负载应选择哪种V/F曲线？',
+    opts: ['线性V/F', '平方V/F', '恒转矩V/F', '无V/F控制'],
+    ans: 1,
+    explain: '水泵是变转矩负载，转矩与转速平方成正比，应选平方V/F曲线。'
+  },
+  {
+    q: '变频器加速时间设置过短，最可能导致什么故障？',
+    opts: ['过压（OV）', '过流（OC）', '过热（OH）', '欠压（UV）'],
+    ans: 1,
+    explain: '加速过快导致电机电流急剧增大，触发过流（OC）保护。'
+  },
+  {
+    q: '变频器减速时间设置过短，最可能导致什么故障？',
+    opts: ['过流（OC）', '过压（OV）', '缺相', '过热（OH）'],
+    ans: 1,
+    explain: '减速过快时电机变成发电机，再生能量使直流母线电压升高，触发过压保护。'
+  },
+  {
+    q: '变频器与PLC通讯最常用的协议是？',
+    opts: ['HTTP', 'Modbus RTU', 'Bluetooth', 'USB'],
+    ans: 1,
+    explain: 'Modbus RTU基于RS485，是工业中最常用的变频器通讯协议。'
+  },
+  {
+    q: '变频器的IGBT位于哪个环节？',
+    opts: ['整流环节', '滤波环节', '逆变环节', '输入环节'],
+    ans: 2,
+    explain: 'IGBT构成逆变桥，将直流电逆变为可变频率的交流电输出。'
+  },
+  {
+    q: '变频器中电解电容的主要作用是什么？',
+    opts: ['整流', '滤波和储能', '逆变', '通讯'],
+    ans: 1,
+    explain: '直流母线上的电解电容用于平滑整流后的脉动直流，储存能量。'
+  },
+  {
+    q: '恒压供水系统中，变频器的频率给定信号来自？',
+    opts: ['面板电位器', '压力传感器的PID运算结果', '手动设定固定频率', '定时器'],
+    ans: 1,
+    explain: '恒压供水通过压力传感器反馈，PID运算后自动调节变频器输出频率。'
+  }
+];
+
+let quizScore = 0, quizAnswered = 0;
+
+function buildQuiz() {
+  const container = document.getElementById('quizContainer');
+  let html = '';
+  quizQuestions.forEach((q, i) => {
+    html += `<div class="quiz-card" id="quiz-q-${i}">`;
+    html += `<div class="quiz-question">Q${i+1}: ${q.q}</div>`;
+    q.opts.forEach((opt, j) => {
+      html += `<button class="quiz-option" onclick="answerQuiz(${i},${j})">${opt}</button>`;
+    });
+    html += `<div class="quiz-feedback" id="quiz-fb-${i}">${q.explain}</div>`;
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function answerQuiz(qIdx, optIdx) {
+  const card = document.getElementById(`quiz-q-${qIdx}`);
+  const opts = card.querySelectorAll('.quiz-option');
+  if (opts[0].disabled) return;
+
+  const isCorrect = optIdx === quizQuestions[qIdx].ans;
+  opts.forEach((o, j) => {
+    o.disabled = true; o.style.opacity = '0.6';
+    if (j === quizQuestions[qIdx].ans) { o.classList.add('correct'); o.style.opacity = '1'; }
+  });
+  opts[optIdx].style.opacity = '1';
+  if (!isCorrect) opts[optIdx].classList.add('wrong');
+
+  const fb = document.getElementById(`quiz-fb-${qIdx}`);
+  fb.classList.add('show');
+  fb.classList.add(isCorrect ? 'correct' : 'wrong');
+
+  quizAnswered++;
+  if (isCorrect) quizScore++;
+
+  if (quizAnswered === quizQuestions.length) {
+    const scoreDiv = document.getElementById('quizScore');
+    scoreDiv.style.display = 'block';
+    document.getElementById('scoreNum').textContent = `${quizScore}/${quizQuestions.length}`;
+    const pct = quizScore / quizQuestions.length;
+    document.getElementById('scoreMsg').textContent =
+      pct >= 0.9 ? '🎉 优秀！你对变频器知识掌握得非常扎实！' :
+      pct >= 0.7 ? '👍 不错！大部分知识点已掌握，可以回顾错误的题目。' :
+      pct >= 0.5 ? '📖 还可以，建议复习一下前面几个章节的内容。' :
+      '💪 需要加强，建议从头仔细阅读每个章节并完成练习。';
+    scoreDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function updateQuizScore(isCorrect) {
+  // For challenge-level questions, just visual feedback
+}
+
+function resetQuiz() {
+  quizScore = 0;
+  quizAnswered = 0;
+  document.getElementById('quizScore').style.display = 'none';
+  buildQuiz();
+}
+
+// === Energy Calculation Check (Level 4, Task 4.2) ===
+function checkCalc() {
+  const fixed = parseFloat(document.getElementById('calc_fixed').value);
+  const vfd = parseFloat(document.getElementById('calc_vfd').value);
+  const save = parseFloat(document.getElementById('calc_save').value);
+
+  const checks = [];
+  if (Math.abs(fixed - 720) < 5) checks.push('✅ 工频日耗电 720 kWh — 正确');
+  else if (!isNaN(fixed)) checks.push(`⚠️ 工频日耗电：你填的 ${fixed} kWh，正确答案是 30kW × 24h = 720 kWh`);
+  else checks.push('❌ 请填写工频日耗电量');
+
+  if (Math.abs(vfd - 363) < 10) checks.push('✅ 变频日耗电 ~363 kWh — 正确');
+  else if (!isNaN(vfd)) checks.push(`⚠️ 变频日耗电：你填的 ${vfd} kWh，正确答案约 363 kWh（21.87×10 + 13.17×8 + 6.48×6）`);
+  else checks.push('❌ 请填写变频日耗电量');
+
+  if (Math.abs(save - 49.6) < 3) checks.push('✅ 节电率 ~49.6% — 正确');
+  else if (!isNaN(save)) checks.push(`⚠️ 节电率：你填的 ${save}%，正确答案约 (720-363)/720 ≈ 49.6%`);
+  else checks.push('❌ 请填写节电率');
+
+  const ok = checks.filter(c => c.startsWith('✅')).length;
+  let html = `<div style="background:${ok>=2?'var(--success-bg)':'var(--accent-bg)'};padding:1.2rem;border-radius:8px;">`;
+  html += `<strong>得分：${ok}/3</strong><br><br>`;
+  checks.forEach(c => { html += `<div style="margin:0.3rem 0;font-size:0.9rem;">${c}</div>`; });
+  html += '</div>';
+  document.getElementById('calcResult').innerHTML = html;
+}
+
+// Init
+buildQuiz();
+
+// Smooth scroll for nav links
+document.querySelectorAll('.nav a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+</body>
+</html>

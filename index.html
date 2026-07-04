@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>交互式学习库</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0e14;
+      --bg-card: #12161f;
+      --bg-elevated: #181d28;
+      --text: #e4e6ea;
+      --text-secondary: #878da0;
+      --text-muted: #505668;
+      --accent: #d4a853;
+      --accent-dim: rgba(212, 168, 83, 0.12);
+      --border: #1f242f;
+      --border-hover: #2e3442;
+      --devops: #3ecfb4;
+      --cs: #918cf6;
+      --automation: #f0a04b;
+      --tools: #f06888;
+      --font-display: 'Fraunces', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Atmospheric background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 207, 180, 0.04), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(145, 140, 246, 0.04), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(212, 168, 83, 0.03), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 72px 40px 56px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.1s forwards;
+    }
+
+    .hero-badge::before, .hero-badge::after {
+      content: '';
+      width: 20px;
+      height: 1px;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(40px, 6vw, 62px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 18px;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.2s forwards;
+    }
+
+    .hero h1 em {
+      font-style: italic;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: var(--text-secondary);
+      max-width: 440px;
+      margin: 0 auto;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.3s forwards;
+    }
+
+    /* ── Stats bar ── */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      padding: 20px 40px 0;
+      opacity: 0;
+      animation: fadeUp 0.7s ease 0.4s forwards;
+    }
+
+    .stat { text-align: center; }
+
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--accent);
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .stat-divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    /* ── Thin accent line ── */
+    .divider-line {
+      height: 1px;
+      margin: 32px auto 0;
+      max-width: 720px;
+      background: linear-gradient(90deg, transparent, var(--border), var(--accent-dim), var(--border), transparent);
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 28px 40px 20px;
+      flex-wrap: wrap;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+      max-width: 260px;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 15px;
+      height: 15px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 9px 14px 9px 36px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus {
+      border-color: rgba(212, 168, 83, 0.4);
+      box-shadow: 0 0 0 3px rgba(212, 168, 83, 0.06);
+    }
+
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .pill {
+      padding: 5px 13px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-body);
+      transition: all 0.25s;
+      user-select: none;
+    }
+
+    .pill:hover {
+      border-color: var(--border-hover);
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+
+    .pill.active {
+      border-color: rgba(212, 168, 83, 0.5);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .pill .count {
+      display: inline-block;
+      margin-left: 3px;
+      font-weight: 400;
+      opacity: 0.6;
+      font-size: 11px;
+    }
+
+    /* ── Grid ── */
+    .grid-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 40px 64px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 1000px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .controls, .grid-wrap { padding-left: 24px; padding-right: 24px; }
+      .hero { padding-left: 24px; padding-right: 24px; }
+    }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .controls, .grid-wrap { padding-left: 16px; padding-right: 16px; }
+      .hero { padding-left: 16px; padding-right: 16px; }
+      .stats { gap: 24px; }
+    }
+
+    /* ── Card ── */
+    .card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px 24px 24px;
+      cursor: pointer;
+      transition: transform 0.35s cubic-bezier(.2,.8,.2,1),
+                  border-color 0.35s,
+                  box-shadow 0.35s;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      animation: fadeUp 0.55s ease forwards;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 24px; right: 24px;
+      height: 2px;
+      background: var(--cat-color);
+      border-radius: 0 0 2px 2px;
+      opacity: 0.5;
+      transition: opacity 0.3s, left 0.35s, right 0.35s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      border-color: var(--border-hover);
+      box-shadow:
+        0 12px 40px rgba(0,0,0,0.35),
+        0 0 0 1px rgba(255,255,255,0.03) inset;
+    }
+
+    .card:hover::before {
+      left: 0; right: 0;
+      opacity: 0.8;
+    }
+
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 5px;
+      line-height: 1.4;
+    }
+
+    .card-idx {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-muted);
+      opacity: 0.35;
+      line-height: 1;
+    }
+
+    .card h3 {
+      font-family: var(--font-body);
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.35;
+      letter-spacing: -0.01em;
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      flex: 1;
+    }
+
+    .card-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 22px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.02em;
+    }
+
+    .card-go {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cat-color, var(--accent));
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      opacity: 0;
+      transform: translateX(-6px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .card:hover .card-go {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .card-go svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    /* Category colors */
+    .card[data-cat="devops"]     { --cat-color: var(--devops); }
+    .card[data-cat="cs"]         { --cat-color: var(--cs); }
+    .card[data-cat="automation"] { --cat-color: var(--automation); }
+    .card[data-cat="tools"]      { --cat-color: var(--tools); }
+
+    .badge[data-b="devops"]     { background: rgba(62,207,180,0.1); color: var(--devops); }
+    .badge[data-b="cs"]         { background: rgba(145,140,246,0.1); color: var(--cs); }
+    .badge[data-b="automation"] { background: rgba(240,160,75,0.1); color: var(--automation); }
+    .badge[data-b="tools"]      { background: rgba(240,104,136,0.1); color: var(--tools); }
+
+    /* Hidden card animation */
+    .card.filtered-out {
+      opacity: 0 !important;
+      transform: scale(0.96) !important;
+      pointer-events: none;
+      position: absolute;
+      visibility: hidden;
+    }
+
+    /* ── Empty state ── */
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 72px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 40px;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Footer ── */
+    .foot {
+      text-align: center;
+      padding: 20px 40px 56px;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 7px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ── Selection ── */
+    ::selection { background: rgba(212, 168, 83, 0.25); }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- ── Hero ── -->
+    <header class="hero">
+      <div class="hero-badge">Interactive Learning</div>
+      <h1>交互式<em>学习</em>库</h1>
+      <p class="hero-sub">精心打造的互动学习体验，涵盖 DevOps、计算机科学、工业自动化与开发工具</p>
+    </header>
+
+    <!-- ── Stats ── -->
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-num">12</span>
+        <div class="stat-label">学习专题</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num">4</span>
+        <div class="stat-label">知识领域</div>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num">100%</span>
+        <div class="stat-label">互动体验</div>
+      </div>
+    </div>
+
+    <div class="divider-line"></div>
+
+    <!-- ── Controls ── -->
+    <div class="controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="search" class="search-input" placeholder="搜索课程..." autocomplete="off">
+      </div>
+      <div class="filters" id="filters">
+        <button class="pill active" data-cat="all">全部 <span class="count">12</span></button>
+        <button class="pill" data-cat="devops">DevOps <span class="count">5</span></button>
+        <button class="pill" data-cat="cs">CS 基础 <span class="count">2</span></button>
+        <button class="pill" data-cat="automation">自动化 <span class="count">3</span></button>
+        <button class="pill" data-cat="tools">开发工具 <span class="count">2</span></button>
+      </div>
+    </div>
+
+    <!-- ── Course Grid ── -->
+    <div class="grid-wrap">
+      <div class="grid" id="grid">
+
+        <a class="card" data-cat="devops" href="Cloudflare-Workers.html">
+          <div class="card-head">
+            <span class="badge" data-b="devops">DevOps</span>
+            <span class="card-idx">01</span>
+          </div>
+          <h3>Cloudflare Workers &amp; GitHub 生态</h3>
+          <p class="card-desc">Serverless Workers 部署、GitHub 生态集成，掌握边缘计算与现代化部署流程</p>
+          <div class="card-foot">
+            <span class="card-meta">~31 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="devops" href="docker-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="devops">DevOps</span>
+            <span class="card-idx">02</span>
+          </div>
+          <h3>Docker 入门：从镜像到容器</h3>
+          <p class="card-desc">理解容器化核心概念，掌握 Dockerfile 编写、镜像构建与容器编排</p>
+          <div class="card-foot">
+            <span class="card-meta">~62 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="devops" href="github-actions-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="devops">DevOps</span>
+            <span class="card-idx">03</span>
+          </div>
+          <h3>GitHub Actions 交互式学习</h3>
+          <p class="card-desc">CI/CD 流水线搭建，事件触发机制与作业可视化的完整实践</p>
+          <div class="card-foot">
+            <span class="card-meta">~70 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="devops" href="github-workflow-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="devops">DevOps</span>
+            <span class="card-idx">04</span>
+          </div>
+          <h3>GitHub Actions Workflow 互动学习</h3>
+          <p class="card-desc">工作流设计模式、多 Job 编排策略与条件执行的进阶探索</p>
+          <div class="card-foot">
+            <span class="card-meta">~64 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="devops" href="makefile-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="devops">DevOps</span>
+            <span class="card-idx">05</span>
+          </div>
+          <h3>Makefile 从零到实战</h3>
+          <p class="card-desc">构建自动化利器，从规则语法到复杂项目构建的完整学习路径</p>
+          <div class="card-foot">
+            <span class="card-meta">~73 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="cs" href="cs-fundamentals-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="cs">CS 基础</span>
+            <span class="card-idx">06</span>
+          </div>
+          <h3>CS 基础工具互动学习</h3>
+          <p class="card-desc">命令行、文件系统与常用开发工具的基础操作与概念认知</p>
+          <div class="card-foot">
+            <span class="card-meta">~48 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="cs" href="network-fundamentals-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="cs">CS 基础</span>
+            <span class="card-idx">07</span>
+          </div>
+          <h3>网络基础与协议</h3>
+          <p class="card-desc">TCP/IP、HTTP、DNS 等核心协议的运作原理与网络分层模型</p>
+          <div class="card-foot">
+            <span class="card-meta">~55 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="automation" href="n8n-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="automation">自动化</span>
+            <span class="card-idx">08</span>
+          </div>
+          <h3>n8n 工作流自动化</h3>
+          <p class="card-desc">从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑</p>
+          <div class="card-foot">
+            <span class="card-meta">~64 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="automation" href="pid-interactive-learning.html">
+          <div class="card-head">
+            <span class="badge" data-b="automation">自动化</span>
+            <span class="card-idx">09</span>
+          </div>
+          <h3>PID 控制系统互动学习</h3>
+          <p class="card-desc">比例-积分-微分控制器原理，含实时交互式仿真模拟器</p>
+          <div class="card-foot">
+            <span class="card-meta">~1.5 MB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="automation" href="vfd-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="automation">自动化</span>
+            <span class="card-idx">10</span>
+          </div>
+          <h3>变频器交互式学习</h3>
+          <p class="card-desc">变频驱动器工作原理、参数配置与电机控制实践</p>
+          <div class="card-foot">
+            <span class="card-meta">~75 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="tools" href="vscode-config-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="tools">开发工具</span>
+            <span class="card-idx">11</span>
+          </div>
+          <h3>VSCode 配置文件学习</h3>
+          <p class="card-desc">settings.json、快捷键、扩展管理与工作区配置的系统化学习</p>
+          <div class="card-foot">
+            <span class="card-meta">~66 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card" data-cat="tools" href="index-legacy.html">
+          <div class="card-head">
+            <span class="badge" data-b="tools">开发工具</span>
+            <span class="card-idx">12</span>
+          </div>
+          <h3>建站全流程仿真学习</h3>
+          <p class="card-desc">从域名注册、DNS 解析、部署到 SSL 配置的完整建站模拟</p>
+          <div class="card-foot">
+            <span class="card-meta">综合课程</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── Footer ── -->
+    <footer class="foot">12 INTERACTIVE COURSES &middot; 4 DOMAINS &middot; BUILT WITH INTERACTIVE-LEARNING SKILL</footer>
+
+  </div>
+
+  <script>
+    (function () {
+      var searchInput = document.getElementById('search');
+      var filterBtns = document.querySelectorAll('#filters .pill');
+      var cards = document.querySelectorAll('.card');
+      var grid = document.getElementById('grid');
+      var activeCat = 'all';
+
+      function filter() {
+        var query = searchInput.value.toLowerCase().trim();
+        var visible = 0;
+
+        cards.forEach(function (card) {
+          var cat = card.dataset.cat;
+          var title = card.querySelector('h3').textContent.toLowerCase();
+          var desc = card.querySelector('.card-desc').textContent.toLowerCase();
+          var matchCat = activeCat === 'all' || cat === activeCat;
+          var matchSearch = !query || title.indexOf(query) !== -1 || desc.indexOf(query) !== -1;
+          var show = matchCat && matchSearch;
+
+          if (show) {
+            card.classList.remove('filtered-out');
+            card.style.animation = 'none';
+            card.offsetHeight; /* force reflow */
+            card.style.animation = 'fadeUp 0.4s ease ' + (visible * 0.05) + 's forwards';
+            visible++;
+          } else {
+            card.classList.add('filtered-out');
+          }
+        });
+
+        /* Show empty state if no results */
+        var existing = grid.querySelector('.empty');
+        if (existing) existing.remove();
+
+        if (visible === 0) {
+          var empty = document.createElement('div');
+          empty.className = 'empty';
+          empty.innerHTML = '<div class="empty-icon">&#x2205;</div>' +
+            '<div class="empty-text">没有找到匹配的课程</div>';
+          grid.appendChild(empty);
+        }
+      }
+
+      filterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          filterBtns.forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          activeCat = btn.dataset.cat;
+          filter();
+        });
+      });
+
+      searchInput.addEventListener('input', filter);
+
+      /* Keyboard shortcut: / to focus search */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === '/' && document.activeElement !== searchInput) {
+          e.preventDefault();
+          searchInput.focus();
+        }
+        if (e.key === 'Escape' && document.activeElement === searchInput) {
+          searchInput.value = '';
+          searchInput.blur();
+          filter();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

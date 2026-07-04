@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare Workers & GitHub 生态 — 交互式学习</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --bg2: #1e293b;
+  --bg3: #334155;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --green: #4ade80;
+  --orange: #fb923c;
+  --pink: #f472b6;
+  --border: #475569;
+  --success: #22c55e;
+  --error: #ef4444;
+}
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg2: #ffffff;
+  --bg3: #e2e8f0;
+  --text: #1e293b;
+  --text2: #64748b;
+  --accent: #0284c7;
+  --accent2: #6366f1;
+  --border: #cbd5e1;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  transition: background 0.3s, color 0.3s;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 40px 20px 30px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+.header h1 { font-size: 2em; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header p { color: var(--text2); font-size: 1.05em; }
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed; top: 15px; right: 15px; z-index: 100;
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--text); width: 42px; height: 42px; border-radius: 50%;
+  cursor: pointer; font-size: 1.2em; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.theme-toggle:hover { background: var(--bg3); }
+
+/* Progress bar */
+.progress-bar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; margin: 0 -20px;
+}
+.progress-track {
+  height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+.progress-label { font-size: 0.85em; color: var(--text2); margin-top: 4px; text-align: center; }
+
+/* Section */
+.section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.section h2 {
+  font-size: 1.4em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section h2 .level-badge {
+  font-size: 0.65em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge-l1 { background: var(--green); color: #064e3b; }
+.badge-l2 { background: var(--accent); color: #0c4a6e; }
+.badge-l3 { background: var(--orange); color: #431407; }
+.badge-l4 { background: var(--pink); color: #50072d; }
+
+/* Knowledge map */
+.knowledge-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.km-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  transition: transform 0.2s, border-color 0.2s;
+  cursor: default;
+}
+.km-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.km-card .icon { font-size: 2em; margin-bottom: 8px; }
+.km-card h3 { font-size: 1em; margin-bottom: 6px; }
+.km-card p { font-size: 0.85em; color: var(--text2); }
+
+/* Comparison table */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.92em;
+}
+.comparison-table th, .comparison-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.comparison-table th { background: var(--bg3); font-weight: 600; }
+.comparison-table tr:hover td { background: var(--bg); }
+
+/* Code blocks */
+.code-block {
+  background: #0d1117;
+  color: #c9d1d9;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 12px 0;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.88em;
+  line-height: 1.6;
+  overflow-x: auto;
+  position: relative;
+}
+.code-block .copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); padding: 4px 10px; border-radius: 5px;
+  cursor: pointer; font-size: 0.8em;
+}
+.code-block .copy-btn:hover { background: var(--border); color: var(--text); }
+.code-comment { color: #8b949e; }
+.code-keyword { color: #ff7b72; }
+.code-string { color: #a5d6ff; }
+.code-func { color: #d2a8ff; }
+.code-todo { color: #f0883e; font-weight: bold; }
+
+/* Sandbox */
+.sandbox {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+@media (max-width: 700px) { .sandbox { grid-template-columns: 1fr; } }
+.sandbox-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sandbox-panel h4 {
+  background: var(--bg3);
+  padding: 8px 14px;
+  font-size: 0.85em;
+  color: var(--text2);
+}
+.sandbox-editor {
+  width: 100%;
+  min-height: 180px;
+  background: #0d1117;
+  color: #c9d1d9;
+  border: none;
+  padding: 14px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+.sandbox-output {
+  min-height: 100px;
+  padding: 14px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 250px;
+}
+.sandbox-actions {
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+.btn:hover { border-color: var(--accent); background: var(--border); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { opacity: 0.85; }
+
+/* Hint panel */
+.hint {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.hint summary {
+  padding: 10px 14px;
+  background: var(--bg3);
+  cursor: pointer;
+  font-size: 0.9em;
+  color: var(--text2);
+  user-select: none;
+}
+.hint summary:hover { color: var(--accent); }
+.hint-content { padding: 14px; }
+
+/* Test runner */
+.test-result {
+  padding: 8px 14px;
+  margin: 6px 0;
+  border-radius: 6px;
+  font-size: 0.88em;
+  font-family: monospace;
+}
+.test-pass { background: rgba(34,197,94,0.15); color: var(--success); border-left: 3px solid var(--success); }
+.test-fail { background: rgba(239,68,68,0.15); color: var(--error); border-left: 3px solid var(--error); }
+
+/* Checkbox for completion */
+.complete-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.complete-check input[type="checkbox"] {
+  width: 18px; height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.complete-check label { cursor: pointer; font-size: 0.92em; color: var(--text2); }
+.complete-check.checked { border-color: var(--green); background: rgba(74,222,128,0.08); }
+.complete-check.checked label { color: var(--green); text-decoration: line-through; }
+
+/* Summary */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.summary-item {
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+.summary-item h4 { margin-bottom: 6px; font-size: 0.95em; }
+.summary-item p { font-size: 0.85em; color: var(--text2); }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.section { animation: fadeIn 0.4s ease; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" onclick="toggleTheme()" title="切换主题">&#9790;</button>
+
+<div class="progress-bar">
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-label" id="progressLabel">已完成 0 / 4 个层级</div>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>Cloudflare Workers & GitHub 生态</h1>
+    <p>通过动手实践，理解 Serverless / 边缘计算 / CI/CD 的核心概念</p>
+  </div>
+
+  <!-- Knowledge Map -->
+  <div class="section">
+    <h2><span class="level-badge badge-l1">知识图谱</span> 你要学什么</h2>
+    <div class="knowledge-map">
+      <div class="km-card">
+        <div class="icon">⚡</div>
+        <h3>Cloudflare Workers</h3>
+        <p>边缘计算平台——在离用户最近的 CDN 节点运行代码，毫秒级响应</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🖇️</div>
+        <h3>Serverless 架构</h3>
+        <p>无需管理服务器，按调用付费，自动扩缩容的事件驱动架构</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">🔄</div>
+        <h3>GitHub Actions</h3>
+        <p>GitHub 上的 CI/CD 引擎——自动化构建、测试、部署流程</p>
+      </div>
+      <div class="km-card">
+        <div class="icon">📄</div>
+        <h3>GitHub Pages</h3>
+        <p>托管静态网站的平台——适合前端项目和文档站点</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison -->
+  <div class="section">
+    <h2>GitHub 没有叫 "Worker" 的产品</h2>
+    <p style="color:var(--text2);margin-bottom:12px;">很多人说的 "GitHub Worker" 实际上是指以下两者之一：</p>
+    <table class="comparison-table">
+      <thead>
+        <tr><th>特性</th><th>Cloudflare Workers</th><th>GitHub Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>定位</td><td>边缘计算 / Serverless 函数</td><td>CI/CD 自动化流水线</td></tr>
+        <tr><td>运行位置</td><td>Cloudflare 全球 300+ 节点</td><td>GitHub 托管的 Runner</td></tr>
+        <tr><td>语言</td><td>JavaScript/TypeScript, Rust, Wasm</td><td>任何语言（通过 Action 编排）</td></tr>
+        <tr><td>触发方式</td><td>HTTP 请求 / 定时任务</td><td>Push / PR / Issue / 定时</td></tr>
+        <tr><td>典型用途</td><td>API 代理、A/B 测试、身份验证</td><td>自动测试、发布、部署</td></tr>
+        <tr><td>免费额度</td><td>每天 10 万次请求</td><td>Ubuntu Runner 每月 2000 分钟</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== LEVEL 1 ==================== -->
+  <div class="section" id="level1">
+    <h2>
+      <span class="level-badge badge-l1">Level 1 — 认识</span>
+      <span style="font-size:0.6em;color:var(--text2)">~20 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>编写第一个 Cloudflare Worker 和 GitHub Actions 工作流，感受它们的运行机制。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 1：模拟一个 Cloudflare Worker</h3>
+    <p style="color:var(--text2);font-size:0.92em;">Cloudflare Worker 接收 HTTP 请求并返回响应。下面我们用浏览器模拟这个流程。</p>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>编辑器 — 修改下面的代码</h4>
+        <textarea class="sandbox-editor" id="editor1">// 这是一个 Cloudflare Worker 的简化模拟
+// TODO: 将响应状态改为 201，消息改为 "已创建"
+
+addEventListener("fetch", event => {
+  event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  const method = request.method;
+
+  // 根据路径和方法返回不同响应
+  if (url.pathname === "/api/hello") {
+    return new Response(
+      JSON.stringify({ message: "你好, World!", status: 200 }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // TODO: 添加 /api/echo 端点，原样返回请求方法和路径
+  // 例如 GET /api/echo 应返回 { method: "GET", path: "/api/echo" }
+
+  return new Response(
+    JSON.stringify({ error: "未找到", path: url.pathname }),
+    { status: 404, headers: { "Content-Type": "application/json" } }
+  );
+}
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="runLevel1()">▶ 运行代码</button>
+          <button class="btn" onclick="resetLevel1()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>输出</h4>
+        <div class="sandbox-output" id="output1">点击 "运行代码" 查看结果...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint1">
+      <summary>💡 需要提示？点击查看</summary>
+      <div class="hint-content">
+        <div class="code-block"><span class="code-comment">// 添加 /api/echo 端点的参考代码</span>
+<span class="code-keyword">else if</span> (url.pathname === <span class="code-string">"/api/echo"</span>) {
+  <span class="code-keyword">return new Response</span>(
+    <span class="code-func">JSON.stringify</span>({ method: method, path: url.pathname }),
+    { headers: { <span class="code-string">"Content-Type"</span>: <span class="code-string">"application/json"</span> } }
+  );
+}</div>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l1c1')">
+      <input type="checkbox" id="l1c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l1c1">我已成功让 Worker 返回了正确的 JSON 响应</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 2 ==================== -->
+  <div class="section" id="level2">
+    <h2>
+      <span class="level-badge badge-l2">Level 2 — 引导实践</span>
+      <span style="font-size:0.6em;color:var(--text2)">~25 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>理解 GitHub Actions 的工作流 YAML 语法，并编写一个完整的 CI 流水线。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 2：编写 GitHub Actions 工作流</h3>
+    <p style="color:var(--text2);font-size:0.92em;">GitHub Actions 用 YAML 定义。下面是模板，TODO 部分需要你填写。</p>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>YAML 编辑器</h4>
+        <textarea class="sandbox-editor" id="editor2" spellcheck="false"># 这是 GitHub Actions 工作流文件
+# 当代码推送到 main 分支时触发
+name: CI Pipeline
+
+on:
+  push:
+    # TODO 1: 指定触发分支为 "main"
+    branches: [ ??? ]
+
+jobs:
+  test:
+    # TODO 2: 指定运行环境为最新的 Ubuntu
+    runs-on: ubuntu-???
+
+    steps:
+      # TODO 3: 检出代码，使用 actions/checkout@v4
+      - name: Checkout code
+        uses: ???
+
+      # TODO 4: 设置 Node.js 20.x，使用 actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ???
+
+      # TODO 5: 安装依赖
+      - name: Install dependencies
+        run: ???
+
+      # TODO 6: 运行测试
+      - name: Run tests
+        run: ???
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="validateYAML()">✓ 验证工作流</button>
+          <button class="btn" onclick="resetLevel2()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>验证结果</h4>
+        <div id="yamlResults" style="padding:14px;font-size:0.9em;">点击 "验证工作流" 检查你的配置...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint2">
+      <summary>💡 需要提示？点击查看参考答案</summary>
+      <div class="hint-content">
+        <div class="code-block"><span class="code-keyword">branches:</span> [<span class="code-string">main</span>]
+<span class="code-keyword">runs-on:</span> <span class="code-string">ubuntu-latest</span>
+<span class="code-keyword">uses:</span> <span class="code-string">actions/checkout@v4</span>
+<span class="code-keyword">node-version:</span> <span class="code-string">20</span>
+<span class="code-keyword">run:</span> <span class="code-string">npm ci</span>
+<span class="code-keyword">run:</span> <span class="code-string">npm test</span></div>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l2c1')">
+      <input type="checkbox" id="l2c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l2c1">我的 GitHub Actions 工作流通过了所有验证</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 3 ==================== -->
+  <div class="section" id="level3">
+    <h2>
+      <span class="level-badge badge-l3">Level 3 — 独立实现</span>
+      <span style="font-size:0.6em;color:var(--text2)">~30 分钟</span>
+    </h2>
+    <p><strong>目标：</strong>从零设计一个带路由、中间件和缓存功能的 Worker 应用。</p>
+
+    <h3 style="margin:16px 0 8px;">📌 任务 3：构建一个简单的 API Gateway Worker</h3>
+    <p style="color:var(--text2);font-size:0.92em;">需求描述：</p>
+    <ol style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;">
+      <li>支持 3 个端点：<code>/api/users</code>（返回列表）、<code>/api/users/:id</code>（单个用户）、<code>/api/health</code>（健康检查）</li>
+      <li>添加简单的缓存功能——相同请求 5 秒内直接返回缓存</li>
+      <li>添加请求日志中间件——记录每个请求的路径和时间戳</li>
+    </ol>
+
+    <div class="sandbox">
+      <div class="sandbox-panel">
+        <h4>编辑器</h4>
+        <textarea class="sandbox-editor" id="editor3">// 从空开始，实现你的 API Gateway
+// 数据结构
+const users = [
+  { id: 1, name: "张三", role: "开发者" },
+  { id: 2, name: "李四", role: "设计师" },
+  { id: 3, name: "王五", role: "产品经理" }
+];
+
+// TODO: 实现缓存对象 (path -> { data, timestamp })
+const cache = {};
+
+// TODO: 实现缓存获取函数 getCache(key)
+// 如果缓存存在且未过期(5秒)，返回缓存数据；否则返回 null
+
+// TODO: 实现缓存设置函数 setCache(key, data)
+
+// TODO: 实现请求日志函数 logRequest(path)
+
+// TODO: 实现路由处理函数 handleRoute(request)
+// /api/health -> { status: "ok", uptime: ... }
+// /api/users -> 返回用户列表
+// /api/users/1 -> 返回 id=1 的用户
+// 其他 -> 404
+
+// TODO: 实现主处理函数 handleRequest(request)
+// 组合：日志 -> 缓存检查 -> 路由 -> 缓存写入 -> 返回
+</textarea>
+        <div class="sandbox-actions">
+          <button class="btn btn-primary" onclick="runLevel3()">▶ 运行代码</button>
+          <button class="btn" onclick="resetLevel3()">↺ 重置</button>
+        </div>
+      </div>
+      <div class="sandbox-panel">
+        <h4>输出</h4>
+        <div class="sandbox-output" id="output3">点击 "运行代码" 测试你的实现...</div>
+      </div>
+    </div>
+
+    <details class="hint" id="hint3">
+      <summary>💡 需要提示？点击查看结构建议</summary>
+      <div class="hint-content">
+        <p style="font-size:0.9em;color:var(--text2);margin-bottom:8px;">建议的代码结构：</p>
+        <div class="code-block"><span class="code-comment">// 1. 缓存函数</span>
+<span class="code-keyword">function</span> <span class="code-func">getCache</span>(key) {
+  <span class="code-keyword">const</span> entry = cache[key];
+  <span class="code-keyword">if</span> (!entry) <span class="code-keyword">return null</span>;
+  <span class="code-keyword">if</span> (Date.now() - entry.timestamp > <span class="code-string">5000</span>) {
+    <span class="code-keyword">delete</span> cache[key];
+    <span class="code-keyword">return null</span>;
+  }
+  <span class="code-keyword">return</span> entry.data;
+}
+
+<span class="code-comment">// 2. 路由函数</span>
+<span class="code-keyword">function</span> <span class="code-func">handleRoute</span>(path) { ... }</div>
+      </div>
+    </details>
+
+    <div class="complete-check" onclick="toggleComplete('l3c1')">
+      <input type="checkbox" id="l3c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l3c1">我的 API Gateway 通过了所有测试用例</label>
+    </div>
+  </div>
+
+  <!-- ==================== LEVEL 4 ==================== -->
+  <div class="section" id="level4">
+    <h2>
+      <span class="level-badge badge-l4">Level 4 — 进阶挑战</span>
+      <span style="font-size:0.6em;color:var(--text2)">~30 分钟+</span>
+    </h2>
+    <p><strong>目标：</strong>将所学应用到真实场景中，完成一个完整的部署项目。</p>
+
+    <h3 style="margin:16px 0 8px;">🚀 实战项目：部署你的第一个真实 Worker</h3>
+    <ol style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;">
+      <li>注册 <a href="https://developers.cloudflare.com/" target="_blank" style="color:var(--accent)">Cloudflare</a> 账号（免费）</li>
+      <li>安装 Wrangler CLI：<code>npm install -g wrangler</code></li>
+      <li>运行 <code>wrangler login && wrangler init my-worker</code></li>
+      <li>修改 <code>worker.js</code>，添加你自己的逻辑</li>
+      <li>运行 <code>wrangler deploy</code> 部署到云端</li>
+      <li>同时创建一个 GitHub 仓库，配置 Actions 自动部署</li>
+    </ol>
+
+    <h3 style="margin:16px 0 8px;">🧠 思考题</h3>
+    <ul style="color:var(--text2);font-size:0.92em;padding-left:20px;margin:8px 0 16px;">
+      <li>为什么边缘计算比传统云函数延迟更低？</li>
+      <li>GitHub Actions 和 Cloudflare Workers 各自适合什么场景？能否结合使用？</li>
+      <li>如果你的 API 每秒要处理 10 万次请求，Workers 和传统服务器各有什么优劣？</li>
+    </ul>
+
+    <div class="complete-check" onclick="toggleComplete('l4c1')">
+      <input type="checkbox" id="l4c1" onclick="event.stopPropagation(); updateProgress();">
+      <label for="l4c1">我已在现实中部署了一个 Worker 并配置了 CI/CD</label>
+    </div>
+  </div>
+
+  <!-- ==================== SUMMARY ==================== -->
+  <div class="section" id="summary">
+    <h2>总结</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <h4>⚡ Cloudflare Workers</h4>
+        <p>边缘 Serverless 平台，代码在全球 300+ 节点运行，适合 API 代理、身份验证、动态内容生成等低延迟场景。</p>
+      </div>
+      <div class="summary-item">
+        <h4>🔄 GitHub Actions</h4>
+        <p>CI/CD 自动化引擎，通过 YAML 定义流水线，实现代码提交后的自动测试、构建和部署。</p>
+      </div>
+      <div class="summary-item">
+        <h4>📄 GitHub Pages</h4>
+        <p>静态网站托管服务，适合项目文档、个人博客、前端 Demo 展示。</p>
+      </div>
+      <div class="summary-item">
+        <h4>🏗️ Serverless 思维</h4>
+        <p>不管理服务器、按需付费、自动扩缩容。Workers 是 Serverless 的计算形态，Actions 是 Serverless 的运维形态。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Theme =====
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  html.setAttribute('data-theme', isLight ? '' : 'light');
+  document.querySelector('.theme-toggle').textContent = isLight ? '☼' : '☽';
+}
+
+// ===== Progress =====
+const checkpoints = ['l1c1', 'l2c1', 'l3c1', 'l4c1'];
+function updateProgress() {
+  const done = checkpoints.filter(id => document.getElementById(id).checked).length;
+  const pct = (done / checkpoints.length) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = '已完成 ' + done + ' / ' + checkpoints.length + ' 个层级';
+  checkpoints.forEach(id => {
+    const el = document.getElementById(id);
+    const row = el.closest('.complete-check');
+    if (el.checked) row.classList.add('checked');
+    else row.classList.remove('checked');
+  });
+}
+
+// ===== Level 1: Worker Simulation =====
+const origEditor1 = document.getElementById('editor1').value;
+function resetLevel1() {
+  document.getElementById('editor1').value = origEditor1;
+  document.getElementById('output1').textContent = '代码已重置，点击 "运行代码" 查看结果...';
+}
+function runLevel1() {
+  const code = document.getElementById('editor1').value;
+  const output = document.getElementById('output1');
+  try {
+    // Simulate eval sandbox
+    const mockResponse = [];
+    const mock = {
+      Response: function(body, opts = {}) {
+        this.body = typeof body === 'string' ? body : JSON.stringify(body);
+        this.status = opts.status || 200;
+        this.headers = opts.headers || {};
+      },
+      JSON.stringify: JSON.stringify.bind(JSON),
+      URL: URL,
+      Date: Date,
+      console: { log: (...args) => mockResponse.push(args.join(' ')) },
+      addEventListener: () => {},
+      handleRequest: null
+    };
+    // Extract and eval the function
+    const fnMatch = code.match(/async function handleRequest\([\s\S]*?\n\}/);
+    if (!fnMatch) throw new Error('未找到 handleRequest 函数');
+
+    // Create a mini sandbox
+    const sandbox = {
+      Response: mock.Response,
+      JSON: mock.JSON,
+      URL: mock.URL,
+      Date: mock.Date,
+      addEventListener: mock.addEventListener,
+      fetch: () => {}
+    };
+
+    // Use Function constructor for safer eval
+    const userFn = new Function(
+      'request',
+      code.replace('async function handleRequest', 'return async function handleRequest').replace(/^addEventListener[\s\S]*?handleRequest/, '')
+    );
+
+    // Simpler approach: just evaluate and test
+    eval(code);
+
+    // Test endpoints
+    const tests = [
+      { url: 'http://localhost/api/hello', method: 'GET' },
+      { url: 'http://localhost/api/notfound', method: 'GET' },
+    ];
+
+    let results = '';
+    for (const t of tests) {
+      const req = new Request(t.url, { method: t.method });
+      const resp = await handleRequest(req);
+      const body = await resp.json();
+      results += `[${resp.status}] ${t.url} => ${JSON.stringify(body)}\n`;
+    }
+
+    // Test /api/echo
+    const echoReq = new Request('http://localhost/api/echo', { method: 'POST' });
+    try {
+      const echoResp = await handleRequest(echoReq);
+      const echoBody = await echoResp.json();
+      results += `\n[测试 /api/echo]\n[${echoResp.status}] POST /api/echo => ${JSON.stringify(echoBody)}`;
+    } catch(e) {
+      results += `\n\n[测试 /api/echo] 端点尚未实现`;
+    }
+
+    output.innerHTML = '<pre style="margin:0">' + results + '</pre>';
+  } catch(e) {
+    output.innerHTML = '<span style="color:#ef4444">错误: ' + e.message + '</span>';
+  }
+}
+
+// ===== Level 2: YAML Validator =====
+const origEditor2 = document.getElementById('editor2').value;
+function resetLevel2() {
+  document.getElementById('editor2').value = origEditor2;
+  document.getElementById('yamlResults').innerHTML = '代码已重置，点击 "验证工作流" 检查你的配置...';
+}
+function validateYAML() {
+  const code = document.getElementById('editor2').value;
+  const results = document.getElementById('yamlResults');
+  const checks = [
+    { name: 'branches 指定 main', regex: /branches:\s*\[\s*main\s*\]/, pass: false },
+    { name: 'runs-on 使用 ubuntu-latest', regex: /runs-on:\s*ubuntu-latest/, pass: false },
+    { name: '使用 actions/checkout@v4', regex: /uses:\s*actions\/checkout@v4/, pass: false },
+    { name: '使用 actions/setup-node@v4', regex: /uses:\s*actions\/setup-node@v4/, pass: false },
+    { name: 'Node.js 版本设为 20', regex: /node-version:\s*20\b/, pass: false },
+    { name: '安装依赖命令', regex: /run:\s*npm\s+(ci|install)/, pass: false },
+    { name: '运行测试命令', regex: /run:\s*npm\s+test/, pass: false },
+  ];
+
+  let html = '';
+  checks.forEach(c => {
+    c.pass = c.regex.test(code);
+  });
+
+  const allPass = checks.every(c => c.pass);
+  checks.forEach(c => {
+    const cls = c.pass ? 'test-pass' : 'test-fail';
+    const icon = c.pass ? '✓' : '✗';
+    html += `<div class="test-result ${cls}">${icon} ${c.name}</div>`;
+  });
+
+  if (allPass) {
+    html += '<div class="test-result test-pass" style="margin-top:10px;font-weight:bold;">🎉 所有检查通过！你的工作流配置正确。</div>';
+  } else {
+    html += '<div class="test-result test-fail" style="margin-top:10px;">还有 ' + checks.filter(c => !c.pass).length + ' 项未通过，请继续修改。</div>';
+  }
+
+  results.innerHTML = html;
+}
+
+// ===== Level 3: API Gateway =====
+const origEditor3 = document.getElementById('editor3').value;
+function resetLevel3() {
+  document.getElementById('editor3').value = origEditor3;
+  document.getElementById('output3').textContent = '代码已重置，开始实现你的 API Gateway...';
+}
+function runLevel3() {
+  const code = document.getElementById('editor3').value;
+  const output = document.getElementById('output3');
+
+  try {
+    // Setup sandbox
+    const users = [
+      { id: 1, name: "张三", role: "开发者" },
+      { id: 2, name: "李四", role: "设计师" },
+      { id: 3, name: "王五", role: "产品经理" }
+    ];
+    const cache = {};
+    const logs = [];
+
+    // Evaluate user code to define functions
+    const sandboxCode = `
+      ${code}
+
+      // If user didn't define these, provide stubs
+      const getCache_fn = typeof getCache === 'function' ? getCache : () => null;
+      const setCache_fn = typeof setCache === 'function' ? setCache : () => {};
+      const logRequest_fn = typeof logRequest === 'function' ? logRequest : () => {};
+      const handleRoute_fn = typeof handleRoute === 'function' ? handleRoute : () => ({error: "未实现"});
+      const handleRequest_fn = typeof handleRequest === 'function' ? handleRequest : async () => ({error: "未实现"});
+    `;
+    eval(sandboxCode);
+
+    // We need the actual functions, not the copies
+    // Redefine with a simpler approach
+    let results = '';
+
+    // Try to extract and test the user's functions
+    const hasCache = /const\s+cache\s*=\s*\{/.test(code) || /let\s+cache/.test(code);
+    const hasGetCache = /function\s+getCache|const\s+getCache\s*=/.test(code);
+    const hasHandleRoute = /function\s+handleRoute|const\s+handleRoute\s*=/.test(code);
+    const hasLogRequest = /function\s+logRequest|const\s+logRequest\s*=/.test(code);
+
+    results += '<strong>代码分析：</strong>\n';
+    results += (hasCache ? '✓ 定义了缓存对象\n' : '✗ 未定义缓存对象\n');
+    results += (hasGetCache ? '✓ 定义了 getCache 函数\n' : '✗ 未定义 getCache 函数\n');
+    results += (hasHandleRoute ? '✓ 定义了 handleRoute 函数\n' : '✗ 未定义 handleRoute 函数\n');
+    results += (hasLogRequest ? '✓ 定义了 logRequest 函数\n' : '✗ 未定义 logRequest 函数\n');
+
+    results += '\n<strong>提示：</strong>完整实现后，你可以尝试以下端点测试：\n';
+    results += '  GET /api/health → 健康检查\n';
+    results += '  GET /api/users → 用户列表\n';
+    results += '  GET /api/users/1 → 单个用户\n';
+    results += '  GET /api/unknown → 404\n';
+    results += '\n部署到 Cloudflare 后可获得完整的运行时体验！';
+
+    output.textContent = results;
+  } catch(e) {
+    output.innerHTML = '<span style="color:#ef4444">错误: ' + e.message + '</span>';
+  }
+}
+
+// Init progress
+updateProgress();
+</script>
+</body>
+</html>

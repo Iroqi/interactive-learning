@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n8n 互动学习 — 从零理解工作流自动化</title>
+<style>
+:root {
+  --bg: #0f0f1e;
+  --bg-2: #161630;
+  --card: #1c1c3a;
+  --card-2: #232350;
+  --border: #2d2d5c;
+  --text: #e8e8f0;
+  --muted: #8888aa;
+  --accent: #9b59b6;
+  --accent-2: #b370d4;
+  --trigger: #2ecc71;
+  --action: #3498db;
+  --logic: #e67e22;
+  --transform: #9b59b6;
+  --output: #1abc9c;
+  --warn: #e74c3c;
+  --success: #2ecc71;
+  --code-bg: #0d0d1e;
+  --code-text: #d4d4e8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+a { color: var(--accent-2); text-decoration: none; }
+code, .mono { font-family: 'Consolas', 'Monaco', 'Courier New', monospace; }
+
+/* Header */
+header {
+  text-align: center;
+  padding: 60px 20px 40px;
+  background: linear-gradient(180deg, #1a0a2e 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  font-size: 2.4em;
+  background: linear-gradient(135deg, #9b59b6, #e67e22);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+}
+header p { color: var(--muted); font-size: 1.1em; max-width: 600px; margin: 0 auto; }
+
+/* Nav */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15,15,30,0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+nav a {
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+nav a:hover, nav a.active {
+  color: var(--text);
+  background: var(--card-2);
+}
+
+/* Sections */
+section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 50px 20px;
+}
+section h2 {
+  font-size: 1.6em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+section h2 .badge {
+  font-size: 0.5em;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: normal;
+}
+section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+/* Concept Map */
+#concept-map-svg {
+  width: 100%;
+  max-width: 800px;
+  height: 420px;
+  display: block;
+  margin: 0 auto;
+}
+.cm-node {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cm-node:hover .cm-rect { stroke-width: 2; }
+.cm-node text { fill: var(--text); font-size: 14px; text-anchor: middle; }
+.cm-detail {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--card-2);
+  border-radius: 10px;
+  border-left: 4px solid var(--accent);
+  min-height: 80px;
+}
+.cm-detail h3 { color: var(--accent-2); margin-bottom: 8px; }
+.cm-detail p { color: var(--muted); }
+.cm-warn { color: var(--warn); font-size: 0.9em; margin-top: 8px; }
+
+/* Data Flow Lab */
+.dfl-pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 30px 0;
+  flex-wrap: wrap;
+}
+.dfl-node {
+  background: var(--card-2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 12px;
+  min-width: 130px;
+  text-align: center;
+  position: relative;
+  transition: all 0.3s;
+}
+.dfl-node.active { border-color: var(--accent); box-shadow: 0 0 15px rgba(155,89,182,0.4); }
+.dfl-node .node-icon { font-size: 1.8em; margin-bottom: 4px; }
+.dfl-node .node-name { font-size: 0.85em; font-weight: bold; }
+.dfl-node .node-type { font-size: 0.7em; color: var(--muted); }
+.dfl-node .exec-count {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.dfl-node .exec-count.show { opacity: 1; }
+.dfl-arrow {
+  color: var(--muted);
+  font-size: 1.5em;
+  margin: 0 4px;
+}
+.dfl-items-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 20px 0;
+  min-height: 60px;
+  align-items: center;
+}
+.dfl-item {
+  background: var(--trigger);
+  color: #0f0f1e;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: bold;
+  font-size: 0.85em;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dfl-item.processing { background: var(--logic); transform: scale(1.1); }
+.dfl-item.done { background: var(--output); }
+.dfl-controls {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.dfl-toggle {
+  display: inline-flex;
+  background: var(--card-2);
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid var(--border);
+}
+.dfl-toggle button {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+.dfl-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: all 0.2s;
+}
+.btn:hover { background: #8e44ad; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dfl-insight {
+  background: linear-gradient(135deg, rgba(155,89,182,0.15), rgba(230,126,34,0.1));
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.5s;
+}
+.dfl-insight.show { opacity: 1; max-height: 300px; }
+.dfl-insight h4 { color: var(--accent-2); margin-bottom: 10px; }
+.dfl-log {
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  font-family: monospace;
+  font-size: 0.82em;
+  max-height: 250px;
+  overflow-y: auto;
+}
+.dfl-log .log-line { margin-bottom: 4px; }
+.dfl-log .log-info { color: var(--action); }
+.dfl-log .log-exec { color: var(--logic); }
+.dfl-log .log-out { color: var(--output); }
+
+/* Expression Playground */
+.expr-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) { .expr-layout { grid-template-columns: 1fr; } }
+.expr-data {
+  background: var(--code-bg);
+  border-radius: 10px;
+  padding: 16px;
+  font-family: monospace;
+  font-size: 0.82em;
+  color: var(--code-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.expr-input-area { display: flex; flex-direction: column; gap: 12px; }
+.expr-input {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--code-text);
+  font-family: monospace;
+  font-size: 1em;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.expr-input:focus { border-color: var(--accent); }
+.expr-result {
+  background: var(--card-2);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 60px;
+  font-family: monospace;
+  font-size: 0.9em;
+  border-left: 4px solid var(--success);
+  word-break: break-all;
+}
+.expr-result.error { border-left-color: var(--warn); color: var(--warn); }
+.expr-challenges { margin-top: 20px; }
+.expr-challenge {
+  background: var(--card-2);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.expr-challenge.done { border-color: var(--success); }
+.expr-challenge .ch-title { font-weight: bold; margin-bottom: 4px; }
+.expr-challenge .ch-desc { color: var(--muted); font-size: 0.88em; margin-bottom: 8px; }
+.expr-challenge .ch-hint {
+  background: var(--code-bg);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--muted);
+  margin-top: 8px;
+  display: none;
+}
+.expr-challenge .ch-hint.show { display: block; }
+.expr-challenge button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8em;
+}
+.expr-item-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.expr-item-selector button {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+.expr-item-selector button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Workflow Builder */
+.wb-layout { display: flex; flex-direction: column; gap: 20px; }
+.wb-pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.wb-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 160px;
+}
+.wb-slot-label { font-size: 0.75em; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+.wb-slot-node {
+  background: var(--card-2);
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 16px 12px;
+  width: 140px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.wb-slot-node:hover { border-color: var(--accent); }
+.wb-slot-node.filled { border-style: solid; }
+.wb-slot-node.selected { border-color: var(--accent); box-shadow: 0 0 12px rgba(155,89,182,0.3); }
+.wb-slot-node .wb-node-icon { font-size: 1.5em; }
+.wb-slot-node .wb-node-name { font-size: 0.82em; font-weight: bold; margin-top: 4px; }
+.wb-slot-node .wb-node-placeholder { color: var(--muted); font-size: 0.85em; }
+.wb-arrow { display: flex; align-items: center; color: var(--muted); font-size: 1.3em; padding: 0 2px; }
+.wb-palette {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 16px;
+  background: var(--card-2);
+  border-radius: 10px;
+}
+.wb-palette-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wb-palette-item:hover { border-color: var(--accent); background: var(--card-2); }
+.wb-palette-item .palette-icon { font-size: 1.2em; }
+.wb-config {
+  background: var(--card-2);
+  border-radius: 10px;
+  padding: 20px;
+  min-height: 100px;
+}
+.wb-config h4 { color: var(--accent-2); margin-bottom: 12px; }
+.wb-config .config-row { margin-bottom: 12px; }
+.wb-config label { display: block; font-size: 0.85em; color: var(--muted); margin-bottom: 4px; }
+.wb-config input, .wb-config select {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  width: 100%;
+  font-size: 0.9em;
+  outline: none;
+}
+.wb-config input:focus { border-color: var(--accent); }
+.wb-run-result {
+  background: var(--code-bg);
+  border-radius: 10px;
+  padding: 16px;
+  font-family: monospace;
+  font-size: 0.82em;
+  color: var(--code-text);
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.wb-stage { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.wb-stage:last-child { border-bottom: none; }
+.wb-stage-title { color: var(--accent-2); font-weight: bold; margin-bottom: 4px; }
+.wb-criteria { margin-top: 16px; }
+.wb-criteria li { list-style: none; margin-bottom: 6px; color: var(--muted); }
+.wb-criteria li::before { content: "☐ "; }
+.wb-criteria li.done { color: var(--success); }
+.wb-criteria li.done::before { content: "☑ "; }
+
+/* Branching */
+.br-scenario {
+  background: var(--card-2);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.br-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+.br-row { display: flex; gap: 40px; justify-content: center; }
+.br-node {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 18px;
+  text-align: center;
+  min-width: 120px;
+}
+.br-node.if-node { border-color: var(--logic); }
+.br-node.true-branch { border-color: var(--success); }
+.br-node.false-branch { border-color: var(--warn); }
+.br-node .br-node-name { font-size: 0.85em; font-weight: bold; }
+.br-node .br-node-desc { font-size: 0.75em; color: var(--muted); }
+.br-arrows { color: var(--muted); font-size: 1.2em; }
+.br-items {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.br-item {
+  background: var(--trigger);
+  color: #0f0f1e;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+.br-item.routed-true { background: var(--success); color: #fff; }
+.br-item.routed-false { background: var(--warn); color: #fff; }
+.br-controls { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
+.br-controls .ctrl-group { display: flex; align-items: center; gap: 8px; }
+.br-controls label { font-size: 0.85em; color: var(--muted); }
+.br-controls input, .br-controls select {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 0.85em;
+}
+
+/* Quiz */
+.quiz-question {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.quiz-question .q-text { font-weight: bold; margin-bottom: 14px; }
+.quiz-option {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.quiz-option:hover { border-color: var(--accent); }
+.quiz-option.correct { border-color: var(--success); background: rgba(46,204,113,0.1); }
+.quiz-option.wrong { border-color: var(--warn); background: rgba(231,76,60,0.1); }
+.quiz-option .opt-letter {
+  background: var(--bg);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.quiz-feedback { margin-top: 10px; padding: 10px; border-radius: 6px; font-size: 0.88em; display: none; }
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct { background: rgba(46,204,113,0.1); color: var(--success); }
+.quiz-feedback.wrong { background: rgba(231,76,60,0.1); color: var(--warn); }
+.quiz-score {
+  text-align: center;
+  font-size: 1.3em;
+  font-weight: bold;
+  padding: 20px;
+  background: var(--card-2);
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+/* Flashcards */
+.fc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.fc-card {
+  perspective: 1000px;
+  height: 160px;
+  cursor: pointer;
+}
+.fc-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+.fc-card.flipped .fc-inner { transform: rotateY(180deg); }
+.fc-front, .fc-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 16px;
+  text-align: center;
+}
+.fc-front {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+}
+.fc-front .fc-term { font-size: 1.1em; font-weight: bold; color: var(--accent-2); }
+.fc-front .fc-hint { font-size: 0.75em; color: var(--muted); margin-top: 8px; }
+.fc-back {
+  background: var(--card);
+  border: 1px solid var(--accent);
+  transform: rotateY(180deg);
+}
+.fc-back .fc-def { font-size: 0.85em; color: var(--text); }
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 40px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* Utility */
+.highlight { color: var(--accent-2); }
+.warn-text { color: var(--warn); }
+.success-text { color: var(--success); }
+.muted { color: var(--muted); }
+.level-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: bold;
+  margin-left: 8px;
+}
+.level-1 { background: rgba(46,204,113,0.2); color: var(--success); }
+.level-2 { background: rgba(52,152,219,0.2); color: var(--action); }
+.level-3 { background: rgba(230,126,34,0.2); color: var(--logic); }
+.level-4 { background: rgba(231,76,60,0.2); color: var(--warn); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>n8n 互动学习</h1>
+  <p>从零理解工作流自动化的核心心智模型 —— 数据逐条处理、表达式引用、节点编排</p>
+</header>
+
+<nav id="nav">
+  <a data-target="concept-map">概念地图</a>
+  <a data-target="level1">Lv1 数据流实验室</a>
+  <a data-target="level2">Lv2 表达式演练场</a>
+  <a data-target="level3">Lv3 工作流构建器</a>
+  <a data-target="level4">Lv4 分支与合并</a>
+  <a data-target="quiz">知识检测</a>
+  <a data-target="flashcards">术语卡片</a>
+</nav>
+
+<!-- ===== Concept Map ===== -->
+<section id="concept-map">
+  <h2>概念地图 <span class="badge">核心结构</span></h2>
+  <p class="desc">n8n 的六大核心概念。点击节点查看详情。注意中心的「数据模型」—— 它是一切的基础。</p>
+
+  <svg id="concept-map-svg" viewBox="0 0 800 420">
+    <!-- Connection lines -->
+    <line x1="400" y1="210" x2="200" y2="80" stroke="#2d2d5c" stroke-width="2" stroke-dasharray="4"/>
+    <line x1="400" y1="210" x2="600" y2="80" stroke="#2d2d5c" stroke-width="2" stroke-dasharray="4"/>
+    <line x1="400" y1="210" x2="150" y2="340" stroke="#2d2d5c" stroke-width="2" stroke-dasharray="4"/>
+    <line x1="400" y1="210" x2="400" y2="370" stroke="#2d2d5c" stroke-width="2" stroke-dasharray="4"/>
+    <line x1="400" y1="210" x2="650" y2="340" stroke="#2d2d5c" stroke-width="2" stroke-dasharray="4"/>
+    <line x1="200" y1="80" x2="600" y2="80" stroke="#2d2d5c" stroke-width="1.5" stroke-dasharray="3" opacity="0.4"/>
+
+    <!-- Labels on lines -->
+    <text x="280" y="140" fill="#8888aa" font-size="11" text-anchor="middle">启动</text>
+    <text x="520" y="140" fill="#8888aa" font-size="11" text-anchor="middle">执行于</text>
+    <text x="260" y="280" fill="#8888aa" font-size="11" text-anchor="middle">引用</text>
+    <text x="420" y="300" fill="#8888aa" font-size="11" text-anchor="middle">承载</text>
+    <text x="540" y="280" fill="#8888aa" font-size="11" text-anchor="middle">治理</text>
+
+    <!-- Center: Data Model (Key Insight) -->
+    <g class="cm-node" data-node="data-model">
+      <ellipse cx="400" cy="210" rx="85" ry="45" fill="rgba(155,89,182,0.2)" stroke="#9b59b6" stroke-width="3"/>
+      <text x="400" y="205" font-size="15" font-weight="bold" fill="#b370d4" text-anchor="middle">数据模型</text>
+      <text x="400" y="225" font-size="11" fill="#8888aa" text-anchor="middle">★ 核心洞见</text>
+    </g>
+    <text x="400" y="268" font-size="20" fill="#e74c3c" text-anchor="middle">⚠</text>
+
+    <!-- Trigger -->
+    <g class="cm-node" data-node="trigger">
+      <rect x="140" y="45" width="120" height="50" rx="10" fill="rgba(46,204,113,0.15)" stroke="#2ecc71" stroke-width="2"/>
+      <text x="200" y="70" fill="#2ecc71">触发器</text>
+      <text x="200" y="85" font-size="10" fill="#8888aa" text-anchor="middle">Trigger</text>
+    </g>
+
+    <!-- Node -->
+    <g class="cm-node" data-node="node">
+      <rect x="540" y="45" width="120" height="50" rx="10" fill="rgba(52,152,219,0.15)" stroke="#3498db" stroke-width="2"/>
+      <text x="600" y="70" fill="#3498db">节点</text>
+      <text x="600" y="85" font-size="10" fill="#8888aa" text-anchor="middle">Node</text>
+    </g>
+
+    <!-- Expression -->
+    <g class="cm-node" data-node="expression">
+      <rect x="80" y="315" width="140" height="50" rx="10" fill="rgba(230,126,34,0.15)" stroke="#e67e22" stroke-width="2"/>
+      <text x="150" y="340" fill="#e67e22">表达式</text>
+      <text x="150" y="355" font-size="10" fill="#8888aa" text-anchor="middle">Expression</text>
+    </g>
+
+    <!-- Connection -->
+    <g class="cm-node" data-node="connection">
+      <rect x="345" y="345" width="110" height="50" rx="10" fill="rgba(26,188,156,0.15)" stroke="#1abc9c" stroke-width="2"/>
+      <text x="400" y="370" fill="#1abc9c">连接</text>
+      <text x="400" y="385" font-size="10" fill="#8888aa" text-anchor="middle">Connection</text>
+    </g>
+
+    <!-- Execution -->
+    <g class="cm-node" data-node="execution">
+      <rect x="580" y="315" width="140" height="50" rx="10" fill="rgba(231,76,60,0.15)" stroke="#e74c3c" stroke-width="2"/>
+      <text x="650" y="340" fill="#e74c3c">执行</text>
+      <text x="650" y="355" font-size="10" fill="#8888aa" text-anchor="middle">Execution</text>
+    </g>
+  </svg>
+
+  <div class="cm-detail" id="cm-detail">
+    <h3>点击上方节点开始探索</h3>
+    <p>每个概念都是 n8n 工作流的基石。中心的数据模型是理解一切的关键。</p>
+  </div>
+</section>
+
+<!-- ===== Level 1: Data Flow Lab (Aha!) ===== -->
+<section id="level1">
+  <h2>数据流实验室 <span class="level-tag level-1">Lv1 观察</span></h2>
+  <p class="desc">这是最重要的实验。切换「批量」与「逐条」模式，观察 n8n 如何处理多条数据。当你看到差异的那一刻，就是 n8n 心智模型建立的「Aha」时刻。</p>
+
+  <div class="card">
+    <div class="dfl-controls">
+      <div class="dfl-toggle">
+        <button id="mode-batch" class="active" onclick="DFL.setMode('batch')">批量处理</button>
+        <button id="mode-item" onclick="DFL.setMode('item')">逐条处理</button>
+      </div>
+      <button class="btn" id="dfl-run" onclick="DFL.run()">▶ 运行工作流</button>
+    </div>
+
+    <div class="dfl-pipeline" id="dfl-pipeline">
+      <div class="dfl-node" id="dfl-node-trigger">
+        <div class="node-icon">🔌</div>
+        <div class="node-name">Webhook</div>
+        <div class="node-type">触发器</div>
+        <div class="exec-count" id="exec-trigger">0</div>
+      </div>
+      <div class="dfl-arrow">→</div>
+      <div class="dfl-node" id="dfl-node-http">
+        <div class="node-icon">🌐</div>
+        <div class="node-name">HTTP请求</div>
+        <div class="node-type">动作节点</div>
+        <div class="exec-count" id="exec-http">0</div>
+      </div>
+      <div class="dfl-arrow">→</div>
+      <div class="dfl-node" id="dfl-node-set">
+        <div class="node-icon">✏️</div>
+        <div class="node-name">编辑字段</div>
+        <div class="node-type">转换节点</div>
+        <div class="exec-count" id="exec-set">0</div>
+      </div>
+      <div class="dfl-arrow">→</div>
+      <div class="dfl-node" id="dfl-node-output">
+        <div class="node-icon">📤</div>
+        <div class="node-name">发送通知</div>
+        <div class="node-type">输出节点</div>
+        <div class="exec-count" id="exec-output">0</div>
+      </div>
+    </div>
+
+    <div style="text-align:center; color:var(--muted); font-size:0.85em; margin-bottom:10px;">
+      Webhook 收到 3 条用户数据
+    </div>
+    <div class="dfl-items-container" id="dfl-items">
+      <div class="dfl-item" data-idx="0">Alice (ID:1)</div>
+      <div class="dfl-item" data-idx="1">Bob (ID:2)</div>
+      <div class="dfl-item" data-idx="2">Carol (ID:3)</div>
+    </div>
+
+    <div class="dfl-log" id="dfl-log">
+      <div class="log-line muted">点击「运行工作流」开始模拟...</div>
+    </div>
+
+    <div class="dfl-insight" id="dfl-insight">
+      <h4>💡 核心洞见</h4>
+      <p>在「逐条处理」模式下，每个节点对每条数据独立执行一次。3 条数据 = HTTP请求执行 3 次 = 3 次独立的 API 调用。</p>
+      <p style="margin-top:8px;">这就是 n8n 的本质：<span class="highlight">节点不是处理"一批数据"，而是对每一条数据分别执行</span>。表达式中的 <code>$json</code> 永远指向当前正在处理的那一条。</p>
+      <p style="margin-top:8px;" class="warn-text">⚠ 常见误区：以为一个节点对整个数组只执行一次。实际上默认模式下每条数据各执行一次。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Level 2: Expression Playground ===== -->
+<section id="level2">
+  <h2>表达式演练场 <span class="level-tag level-2">Lv2 引导练习</span></h2>
+  <p class="desc">表达式是 <code>{{ }}</code> 包裹的 JavaScript 片段，能动态引用和转换数据。在左侧数据上试试你的表达式。</p>
+
+  <div class="card">
+    <div class="expr-layout">
+      <div>
+        <h4 style="margin-bottom:10px;">来自 "Webhook" 节点的数据</h4>
+        <div class="expr-item-selector" id="expr-item-selector"></div>
+        <div class="expr-data" id="expr-data-display"></div>
+      </div>
+      <div class="expr-input-area">
+        <h4 style="margin-bottom:10px;">输入表达式</h4>
+        <input class="expr-input" id="expr-input" placeholder="例如: {{ $json.name }}" value="{{ $json.name }}" spellcheck="false" />
+        <div>
+          <div style="font-size:0.85em; color:var(--muted); margin-bottom:6px;">求值结果：</div>
+          <div class="expr-result" id="expr-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="expr-challenges" id="expr-challenges"></div>
+  </div>
+</section>
+
+<!-- ===== Level 3: Workflow Builder ===== -->
+<section id="level3">
+  <h2>工作流构建器 <span class="level-tag level-3">Lv3 独立构建</span></h2>
+  <p class="desc">从需求出发构建一个完整工作流：Webhook 接收订单 → 查询物流 → 转换格式 → 发送通知。点击空槽选择节点，配置参数后运行。</p>
+
+  <div class="card">
+    <div class="wb-pipeline" id="wb-pipeline">
+      <div class="wb-slot">
+        <div class="wb-slot-label">触发器</div>
+        <div class="wb-slot-node" id="wb-slot-0" data-slot="0" onclick="WB.selectSlot(0)">
+          <div class="wb-node-placeholder">+ 点击选择</div>
+        </div>
+      </div>
+      <div class="wb-arrow">→</div>
+      <div class="wb-slot">
+        <div class="wb-slot-label">动作</div>
+        <div class="wb-slot-node" id="wb-slot-1" data-slot="1" onclick="WB.selectSlot(1)">
+          <div class="wb-node-placeholder">+ 点击选择</div>
+        </div>
+      </div>
+      <div class="wb-arrow">→</div>
+      <div class="wb-slot">
+        <div class="wb-slot-label">转换</div>
+        <div class="wb-slot-node" id="wb-slot-2" data-slot="2" onclick="WB.selectSlot(2)">
+          <div class="wb-node-placeholder">+ 点击选择</div>
+        </div>
+      </div>
+      <div class="wb-arrow">→</div>
+      <div class="wb-slot">
+        <div class="wb-slot-label">输出</div>
+        <div class="wb-slot-node" id="wb-slot-3" data-slot="3" onclick="WB.selectSlot(3)">
+          <div class="wb-node-placeholder">+ 点击选择</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wb-palette" id="wb-palette"></div>
+
+    <div class="wb-config" id="wb-config">
+      <h4>配置面板</h4>
+      <p class="muted">选择一个节点槽位开始配置。</p>
+    </div>
+
+    <div style="text-align:center; margin:20px 0;">
+      <button class="btn" id="wb-run" onclick="WB.run()">▶ 运行工作流</button>
+    </div>
+
+    <div class="wb-run-result" id="wb-result" style="display:none;"></div>
+
+    <div class="wb-criteria">
+      <h4 style="margin-bottom:10px;">验收标准</h4>
+      <li id="crit-0">为每个槽位选择一个节点</li>
+      <li id="crit-1">至少在一个节点中使用表达式</li>
+      <li id="crit-2">成功运行工作流并查看数据流转</li>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Level 4: Branching & Merging ===== -->
+<section id="level4">
+  <h2>分支与合并 <span class="level-tag level-4">Lv4 迁移应用</span></h2>
+  <p class="desc">真实场景需要条件分支。IF 节点将数据路由到不同路径，Merge 节点将分支合并。调整条件，观察数据如何分流。</p>
+
+  <div class="card">
+    <div class="br-scenario">
+      <h4 style="margin-bottom:10px;">场景：订单分流处理</h4>
+      <p class="muted" style="margin-bottom:16px; font-size:0.9em;">5 条订单进入 IF 节点。金额 ≥ 阈值的走 VIP 路径，其余走普通路径。修改阈值或条件，观察路由变化。</p>
+
+      <div class="br-controls">
+        <div class="ctrl-group">
+          <label>条件：</label>
+          <select id="br-field">
+            <option value="amount">amount</option>
+            <option value="quantity">quantity</option>
+          </select>
+          <select id="br-op">
+            <option value=">=">>=</option>
+            <option value=">">></option>
+            <option value="<"><</option>
+            <option value="<="><=</option>
+            <option value="==">==</option>
+          </select>
+          <input type="number" id="br-value" value="500" style="width:80px;" />
+        </div>
+        <button class="btn" onclick="BR.update()">应用并重新路由</button>
+      </div>
+
+      <div class="br-flow" id="br-flow"></div>
+    </div>
+
+    <div class="br-scenario">
+      <h4 style="margin-bottom:10px;">场景：Merge 合并分支</h4>
+      <p class="muted" style="margin-bottom:16px; font-size:0.9em;">两条分支处理完成后，Merge 节点将结果合并为一个数据集继续后续处理。</p>
+      <div id="br-merge-demo"></div>
+    </div>
+
+    <div class="br-scenario">
+      <h4 style="margin-bottom:10px;">场景：错误处理</h4>
+      <p class="muted" style="font-size:0.9em;">n8n 的错误处理策略：</p>
+      <div style="margin-top:12px;">
+        <p style="margin-bottom:8px;"><span class="highlight">Continue On Fail</span>：节点出错时，将错误信息附加到数据项中，继续流转到后续节点。适合容错管道。</p>
+        <p style="margin-bottom:8px;"><span class="highlight">Error Trigger</span>：单独的错误工作流，当主工作流出错时自动触发。适合告警和日志记录。</p>
+        <p><span class="highlight">Retry Settings</span>：节点级别配置重试次数和间隔。适合网络不稳定的外部 API 调用。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Quiz ===== -->
+<section id="quiz">
+  <h2>知识检测 <span class="badge">10题</span></h2>
+  <p class="desc">检验你对 n8n 核心概念的理解。每题即时反馈，附有解析。</p>
+  <div id="quiz-container"></div>
+  <div class="quiz-score" id="quiz-score" style="display:none;"></div>
+</section>
+
+<!-- ===== Flashcards ===== -->
+<section id="flashcards">
+  <h2>术语卡片 <span class="badge">点击翻转</span></h2>
+  <p class="desc">快速回顾 n8n 关键术语。点击卡片翻转查看定义。</p>
+  <div class="fc-grid" id="fc-grid"></div>
+</section>
+
+<footer>
+  <p>n8n 互动学习 · 基于交互式学习方法论设计 · 数据流→表达式→工作流→分支</p>
+</footer>
+
+<script>
+// ===== Concept Map =====
+const CM = {
+  details: {
+    'data-model': {
+      name: '数据模型 (Data Model)',
+      desc: 'n8n 的数据以 JSON 对象为单位，称为「项(item)」。数据流是项的数组。每个节点默认对每条项独立执行一次，而不是处理整个数组。$json 始终指向当前正在处理的项。',
+      warn: '⚠ 最大误区：以为节点对整个数组只执行一次。实际上默认模式下，N 条数据 = 节点执行 N 次。'
+    },
+    'trigger': {
+      name: '触发器 (Trigger)',
+      desc: '工作流的起点。常见类型：Webhook(收到HTTP请求时触发)、Schedule(定时触发)、Manual(手动点击执行)、Chat(聊天触发)。一个工作流必须有且只有一个触发器作为起点。'
+    },
+    'node': {
+      name: '节点 (Node)',
+      desc: '工作流的基本执行单元。每个节点接收输入数据、执行特定操作、输出结果。类型包括：动作节点(HTTP请求、发邮件)、转换节点(编辑字段、代码)、逻辑节点(IF、Switch、Merge)等。'
+    },
+    'expression': {
+      name: '表达式 (Expression)',
+      desc: '用 {{ }} 包裹的 JavaScript 片段，可在节点参数中动态引用和转换数据。$json 引用当前项，$node["名称"].json 引用其他节点的数据，$now 获取当前时间。表达式让工作流变得动态和灵活。'
+    },
+    'connection': {
+      name: '连接 (Connection)',
+      desc: '节点之间的数据通道。一个节点的输出可以连接到多个节点的输入(扇出)，但多个输出连接到同一个输入需要 Merge 节点(防止数据冲突)。IF 和 Switch 节点有多个输出连接(分支)。'
+    },
+    'execution': {
+      name: '执行 (Execution)',
+      desc: '工作流的运行过程。手动执行用于测试，自动执行由触发器启动。执行数据记录每个节点的输入输出，可用于调试。错误处理包括 Continue On Fail、Error Trigger 和 Retry Settings。'
+    }
+  },
+  init() {
+    document.querySelectorAll('.cm-node').forEach(node => {
+      node.addEventListener('click', () => {
+        const key = node.dataset.node;
+        const info = this.details[key];
+        const detail = document.getElementById('cm-detail');
+        detail.innerHTML = `<h3>${info.name}</h3><p>${info.desc}</p>${info.warn ? `<p class="cm-warn">${info.warn}</p>` : ''}`;
+      });
+    });
+  }
+};
+
+// ===== Data Flow Lab =====
+const DFL = {
+  mode: 'batch',
+  running: false,
+  items: [
+    { name: 'Alice', id: 1 },
+    { name: 'Bob', id: 2 },
+    { name: 'Carol', id: 3 }
+  ],
+
+  setMode(mode) {
+    this.mode = mode;
+    document.getElementById('mode-batch').classList.toggle('active', mode === 'batch');
+    document.getElementById('mode-item').classList.toggle('active', mode === 'item');
+    document.getElementById('dfl-insight').classList.remove('show');
+    this.reset();
+  },
+
+  reset() {
+    document.querySelectorAll('.dfl-node').forEach(n => {
+      n.classList.remove('active');
+      const cnt = n.querySelector('.exec-count');
+      if (cnt) { cnt.classList.remove('show'); cnt.textContent = '0'; }
+    });
+    document.querySelectorAll('.dfl-item').forEach(i => {
+      i.classList.remove('processing', 'done');
+    });
+    const log = document.getElementById('dfl-log');
+    log.innerHTML = '<div class="log-line muted">点击「运行工作流」开始模拟...</div>';
+  },
+
+  async run() {
+    if (this.running) return;
+    this.running = true;
+    document.getElementById('dfl-run').disabled = true;
+    this.reset();
+
+    const log = document.getElementById('dfl-log');
+    log.innerHTML = '';
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const addLog = (text, cls = '') => {
+      const div = document.createElement('div');
+      div.className = `log-line ${cls}`;
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    };
+
+    addLog('▶ 工作流启动', 'log-info');
+    await sleep(400);
+
+    // Trigger
+    addLog(`Webhook 收到 ${this.items.length} 条数据`, 'log-info');
+    const triggerCnt = document.getElementById('exec-trigger');
+    triggerCnt.textContent = '1';
+    triggerCnt.classList.add('show');
+    document.getElementById('dfl-node-trigger').classList.add('active');
+    await sleep(600);
+    document.getElementById('dfl-node-trigger').classList.remove('active');
+
+    if (this.mode === 'batch') {
+      // Batch mode: all items go through together
+      addLog('【批量模式】所有数据一起进入 HTTP请求节点', 'log-exec');
+      document.getElementById('dfl-node-http').classList.add('active');
+      const httpCnt = document.getElementById('exec-http');
+      httpCnt.textContent = '1';
+      httpCnt.classList.add('show');
+      document.querySelectorAll('.dfl-item').forEach(i => i.classList.add('processing'));
+      await sleep(800);
+      addLog('HTTP请求 执行 1 次，发送包含 3 条数据的请求', 'log-exec');
+      document.querySelectorAll('.dfl-item').forEach(i => i.classList.remove('processing'));
+
+      document.getElementById('dfl-node-http').classList.remove('active');
+      document.getElementById('dfl-node-set').classList.add('active');
+      const setCnt = document.getElementById('exec-set');
+      setCnt.textContent = '1';
+      setCnt.classList.add('show');
+      await sleep(600);
+      addLog('编辑字段 执行 1 次，批量转换所有字段', 'log-exec');
+      document.getElementById('dfl-node-set').classList.remove('active');
+
+      document.getElementById('dfl-node-output').classList.add('active');
+      const outCnt = document.getElementById('exec-output');
+      outCnt.textContent = '1';
+      outCnt.classList.add('show');
+      document.querySelectorAll('.dfl-item').forEach(i => i.classList.add('done'));
+      await sleep(600);
+      addLog('发送通知 执行 1 次，发送 1 条包含 3 个用户的通知', 'log-out');
+      document.getElementById('dfl-node-output').classList.remove('active');
+
+      addLog('✓ 工作流完成。总执行次数: 1+1+1+1=4', 'log-info');
+      addLog('⚠ 这是「批量处理」心智模型 — 不是 n8n 的实际工作方式！', 'log-info');
+
+    } else {
+      // Item mode: each item goes through all nodes sequentially
+      addLog('【逐条模式】每条数据独立通过整个管道', 'log-exec');
+      let httpCnt = 0, setCnt = 0, outCnt = 0;
+
+      for (let i = 0; i < this.items.length; i++) {
+        const item = this.items[i];
+        const itemEl = document.querySelector(`.dfl-item[data-idx="${i}"]`);
+
+        addLog(`--- 处理第 ${i+1} 条: ${item.name} (ID:${item.id}) ---`, 'log-info');
+
+        // HTTP
+        document.getElementById('dfl-node-http').classList.add('active');
+        itemEl.classList.add('processing');
+        httpCnt++;
+        document.getElementById('exec-http').textContent = httpCnt;
+        document.getElementById('exec-http').classList.add('show');
+        await sleep(500);
+        addLog(`  HTTP请求 执行 #${httpCnt}: 为 ${item.name} 调用 API`, 'log-exec');
+        document.getElementById('dfl-node-http').classList.remove('active');
+        await sleep(200);
+
+        // Set
+        document.getElementById('dfl-node-set').classList.add('active');
+        setCnt++;
+        document.getElementById('exec-set').textContent = setCnt;
+        document.getElementById('exec-set').classList.add('show');
+        await sleep(400);
+        addLog(`  编辑字段 执行 #${setCnt}: 转换 ${item.name} 的数据`, 'log-exec');
+        document.getElementById('dfl-node-set').classList.remove('active');
+        await sleep(200);
+
+        // Output
+        document.getElementById('dfl-node-output').classList.add('active');
+        outCnt++;
+        document.getElementById('exec-output').textContent = outCnt;
+        document.getElementById('exec-output').classList.add('show');
+        itemEl.classList.remove('processing');
+        itemEl.classList.add('done');
+        await sleep(400);
+        addLog(`  发送通知 执行 #${outCnt}: 发送 ${item.name} 的通知`, 'log-out');
+        document.getElementById('dfl-node-output').classList.remove('active');
+        await sleep(200);
+      }
+
+      addLog(`✓ 工作流完成。总执行次数: 1+${httpCnt}+${setCnt}+${outCnt}=${1+httpCnt+setCnt+outCnt}`, 'log-info');
+      addLog('★ 这就是 n8n 的真实工作方式！每个节点对每条数据独立执行。', 'log-info');
+
+      // Show insight
+      document.getElementById('dfl-insight').classList.add('show');
+    }
+
+    this.running = false;
+    document.getElementById('dfl-run').disabled = false;
+  }
+};
+
+// ===== Expression Playground =====
+const EXPR = {
+  data: [
+    { name: 'Alice Chen', email: 'alice@example.com', age: 30, tags: ['vip', 'beta'], company: { name: 'TechCorp', city: 'Shanghai' } },
+    { name: 'Bob Wang', email: 'bob@test.org', age: 25, tags: ['new'], company: { name: 'DataInc', city: 'Beijing' } },
+    { name: 'Carol Liu', email: 'carol@n8n.io', age: 35, tags: ['vip', 'pro', 'early'], company: { name: 'FlowLabs', city: 'Shenzhen' } }
+  ],
+  currentItem: 0,
+
+  challenges: [
+    { title: '提取用户名', desc: '从当前数据中提取 name 字段', hint: '{{ $json.name }}', check: v => typeof v === 'string' && v.includes(' ') },
+    { title: '提取邮箱域名', desc: '从 email 中提取 @ 后面的域名部分', hint: '{{ $json.email.split("@")[1] }}', check: v => typeof v === 'string' && v.includes('.') },
+    { title: '判断是否成年', desc: '判断 age 是否大于等于 18，返回布尔值', hint: '{{ $json.age >= 18 }}', check: v => v === true || v === false },
+    { title: '获取标签数量', desc: '获取 tags 数组的长度', hint: '{{ $json.tags.length }}', check: v => typeof v === 'number' },
+    { title: '获取公司城市', desc: '从嵌套对象 company 中提取 city', hint: '{{ $json.company.city }}', check: v => typeof v === 'string' && v.length > 0 },
+    { title: '格式化问候语', desc: '生成 "Hello, Alice!" 格式的字符串（注意需要字符串拼接）', hint: '{{ "Hello, " + $json.name.split(" ")[0] + "!" }}', check: v => typeof v === 'string' && v.startsWith('Hello,') && v.endsWith('!') }
+  ],
+  completed: new Set(),
+
+  init() {
+    this.renderItemSelector();
+    this.renderData();
+    this.renderChallenges();
+    this.evaluate();
+
+    document.getElementById('expr-input').addEventListener('input', () => this.evaluate());
+  },
+
+  renderItemSelector() {
+    const sel = document.getElementById('expr-item-selector');
+    sel.innerHTML = this.data.map((_, i) =>
+      `<button class="${i === this.currentItem ? 'active' : ''}" onclick="EXPR.selectItem(${i})">项 ${i+1}</button>`
+    ).join('');
+  },
+
+  selectItem(i) {
+    this.currentItem = i;
+    this.renderItemSelector();
+    this.renderData();
+    this.evaluate();
+  },
+
+  renderData() {
+    const display = document.getElementById('expr-data-display');
+    display.textContent = JSON.stringify(this.data[this.currentItem], null, 2);
+  },
+
+  renderChallenges() {
+    const container = document.getElementById('expr-challenges');
+    container.innerHTML = '<h4 style="margin-bottom:12px;">挑战任务</h4>' + this.challenges.map((ch, i) => `
+      <div class="expr-challenge ${this.completed.has(i) ? 'done' : ''}" id="ch-${i}">
+        <div class="ch-title">${i+1}. ${ch.title} ${this.completed.has(i) ? '✓' : ''}</div>
+        <div class="ch-desc">${ch.desc}</div>
+        <button onclick="EXPR.toggleHint(${i})">显示提示</button>
+        <div class="ch-hint" id="hint-${i}">${ch.hint}</div>
+      </div>
+    `).join('');
+  },
+
+  toggleHint(i) {
+    document.getElementById(`hint-${i}`).classList.toggle('show');
+  },
+
+  evaluate() {
+    const input = document.getElementById('expr-input').value;
+    const resultEl = document.getElementById('expr-result');
+
+    const match = input.match(/\{\{(.+?)\}\}/);
+    if (!match) {
+      resultEl.textContent = '请使用 {{ }} 包裹表达式';
+      resultEl.classList.add('error');
+      return;
+    }
+
+    const expr = match[1].trim();
+    const json = this.data[this.currentItem];
+    const now = new Date().toISOString();
+    const node = { Webhook: { json } };
+
+    try {
+    const fn = new Function('$json', '$now', '$node', `return (${expr});`);
+    const result = fn(json, now, node);
+    const display = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
+    resultEl.textContent = display;
+    resultEl.classList.remove('error');
+
+    // Check challenges
+    this.challenges.forEach((ch, i) => {
+      if (!this.completed.has(i) && ch.check(result)) {
+        this.completed.add(i);
+        this.renderChallenges();
+      }
+    });
+    } catch(e) {
+      resultEl.textContent = '错误: ' + e.message;
+      resultEl.classList.add('error');
+    }
+  }
+};
+
+// ===== Workflow Builder =====
+const WB = {
+  palette: [
+    { id: 'webhook', name: 'Webhook', icon: '🔌', slot: 0, config: { path: '/orders', method: 'POST' } },
+    { id: 'schedule', name: '定时触发', icon: '⏰', slot: 0, config: { cron: '0 9 * * *' } },
+    { id: 'http', name: 'HTTP请求', icon: '🌐', slot: 1, config: { url: 'https://api.logistics.com/track', method: 'GET' } },
+    { id: 'db', name: '数据库查询', icon: '🗄️', slot: 1, config: { table: 'orders', query: 'SELECT * FROM orders WHERE status = "pending"' } },
+    { id: 'set', name: '编辑字段', icon: '✏️', slot: 2, config: { fields: 'status: "shipped", timestamp: {{ $now }}' } },
+    { id: 'code', name: '代码节点', icon: '💻', slot: 2, config: { code: 'return items.map(i => ({ ...i.json, processed: true }));' } },
+    { id: 'email', name: '发送邮件', icon: '📧', slot: 3, config: { to: '{{ $json.customer_email }}', subject: '订单已发货' } },
+    { id: 'slack', name: 'Slack通知', icon: '💬', slot: 3, config: { channel: '#orders', message: '订单 {{ $json.order_id }} 已处理' } }
+  ],
+  slots: [null, null, null],
+  configs: [{}, {}, {}],
+  selectedSlot: null,
+
+  init() {
+    this.renderPalette();
+  },
+
+  renderPalette() {
+    const el = document.getElementById('wb-palette');
+    const filtered = this.selectedSlot !== null
+      ? this.palette.filter(p => p.slot === this.selectedSlot)
+      : this.palette;
+    el.innerHTML = filtered.map(p => `
+      <div class="wb-palette-item" onclick="WB.assignNode('${p.id}')">
+        <span class="palette-icon">${p.icon}</span>
+        <span>${p.name}</span>
+      </div>
+    `).join('');
+  },
+
+  selectSlot(slot) {
+    this.selectedSlot = slot;
+    document.querySelectorAll('.wb-slot-node').forEach(n => n.classList.remove('selected'));
+    document.getElementById(`wb-slot-${slot}`).classList.add('selected');
+    this.renderPalette();
+    this.renderConfig();
+  },
+
+  assignNode(nodeId) {
+    if (this.selectedSlot === null) return;
+    const node = this.palette.find(p => p.id === nodeId);
+    this.slots[this.selectedSlot] = node;
+    this.configs[this.selectedSlot] = { ...node.config };
+
+    const slotEl = document.getElementById(`wb-slot-${this.selectedSlot}`);
+    slotEl.innerHTML = `
+      <div class="wb-node-icon">${node.icon}</div>
+      <div class="wb-node-name">${node.name}</div>
+    `;
+    slotEl.classList.add('filled');
+
+    this.renderConfig();
+    this.checkCriteria();
+  },
+
+  renderConfig() {
+    const el = document.getElementById('wb-config');
+    if (this.selectedSlot === null || !this.slots[this.selectedSlot]) {
+      el.innerHTML = '<h4>配置面板</h4><p class="muted">选择一个节点槽位开始配置。</p>';
+      return;
+    }
+    const node = this.slots[this.selectedSlot];
+    const config = this.configs[this.selectedSlot];
+    let fields = '';
+    for (const [key, val] of Object.entries(config)) {
+      const valStr = typeof val === 'string' ? val : JSON.stringify(val);
+      fields += `
+        <div class="config-row">
+          <label>${key}</label>
+          <input type="text" value="${valStr.replace(/"/g, '&quot;')}" onchange="WB.updateConfig(${this.selectedSlot}, '${key}', this.value)" />
+        </div>
+      `;
+    }
+    el.innerHTML = `<h4>${node.icon} ${node.name} 配置</h4>${fields}`;
+  },
+
+  updateConfig(slot, key, val) {
+    this.configs[slot][key] = val;
+    this.checkCriteria();
+  },
+
+  checkCriteria() {
+    const allFilled = this.slots.every(s => s !== null);
+    document.getElementById('crit-0').classList.toggle('done', allFilled);
+
+    const hasExpr = Object.values(this.configs).some(c =>
+      Object.values(c).some(v => typeof v === 'string' && v.includes('{{'))
+    );
+    document.getElementById('crit-1').classList.toggle('done', hasExpr);
+  },
+
+  run() {
+    const allFilled = this.slots.every(s => s !== null);
+    if (!allFilled) {
+      alert('请为所有槽位选择节点！');
+      return;
+    }
+
+    const result = document.getElementById('wb-result');
+    result.style.display = 'block';
+    result.innerHTML = '';
+
+    const addStage = (title, data, extra = '') => {
+      const div = document.createElement('div');
+      div.className = 'wb-stage';
+      div.innerHTML = `<div class="wb-stage-title">${title}</div><pre style="margin:4px 0;">${JSON.stringify(data, null, 2)}</pre>${extra}`;
+      result.appendChild(div);
+      result.scrollTop = result.scrollHeight;
+    };
+
+    // Simulate data flow
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    (async () => {
+      // Trigger
+      let items = [
+        { order_id: 'ORD-001', customer: 'Alice', customer_email: 'alice@example.com', amount: 299, product: 'Widget A' },
+        { order_id: 'ORD-002', customer: 'Bob', customer_email: 'bob@test.org', amount: 599, product: 'Widget B' }
+      ];
+      addStage(`▶ ${this.slots[0].icon} ${this.slots[0].name} (触发器)`, items, '<span style="color:var(--success)">收到 2 条订单数据</span>');
+      await sleep(500);
+
+      // Action
+      items = items.map(item => ({
+        ...item,
+        tracking: 'TRK-' + item.order_id.split('-')[1] + 'XYZ',
+        logistics_status: 'in_transit'
+      }));
+      addStage(`▶ ${this.slots[1].icon} ${this.slots[1].name} (动作)`, items, '<span style="color:var(--action)">逐条查询物流信息（执行 2 次）</span>');
+      await sleep(500);
+
+      // Transform
+      items = items.map(item => ({
+        order_id: item.order_id,
+        customer: item.customer,
+        email: item.customer_email,
+        product: item.product,
+        amount: item.amount,
+        tracking: item.tracking,
+        status: 'shipped',
+        timestamp: new Date().toISOString()
+      }));
+      addStage(`▶ ${this.slots[2].icon} ${this.slots[2].name} (转换)`, items, '<span style="color:var(--transform)">逐条转换字段格式（执行 2 次）</span>');
+      await sleep(500);
+
+      // Output
+      addStage(`▶ ${this.slots[3].icon} ${this.slots[3].name} (输出)`, items, '<span style="color:var(--output)">逐条发送通知（执行 2 次）</span>');
+      await sleep(300);
+
+      const div = document.createElement('div');
+      div.className = 'wb-stage';
+      div.innerHTML = '<div class="wb-stage-title" style="color:var(--success)">✓ 工作流执行完成</div><p>注意：每个节点对每条数据独立执行。2 条订单 = 每个节点执行 2 次。</p>';
+      result.appendChild(div);
+
+      document.getElementById('crit-2').classList.add('done');
+    })();
+  }
+};
+
+// ===== Branching =====
+const BR = {
+  orders: [
+    { order_id: 'ORD-001', customer: 'Alice', amount: 299, quantity: 1 },
+    { order_id: 'ORD-002', customer: 'Bob', amount: 599, quantity: 3 },
+    { order_id: 'ORD-003', customer: 'Carol', amount: 150, quantity: 1 },
+    { order_id: 'ORD-004', customer: 'Dave', amount: 1200, quantity: 5 },
+    { order_id: 'ORD-005', customer: 'Eve', amount: 450, quantity: 2 }
+  ],
+
+  init() {
+    this.render();
+  },
+
+  update() {
+    this.render();
+  },
+
+  render() {
+    const field = document.getElementById('br-field').value;
+    const op = document.getElementById('br-op').value;
+    const value = parseFloat(document.getElementById('br-value').value);
+
+    const ops = {
+      '>=': (a, b) => a >= b,
+      '>': (a, b) => a > b,
+      '<': (a, b) => a < b,
+      '<=': (a, b) => a <= b,
+      '==': (a, b) => a == b
+    };
+
+    const trueItems = [];
+    const falseItems = [];
+
+    this.orders.forEach(order => {
+      if (ops[op](order[field], value)) {
+        trueItems.push(order);
+      } else {
+        falseItems.push(order);
+      }
+    });
+
+    const flow = document.getElementById('br-flow');
+    flow.innerHTML = `
+      <div class="br-node" style="border-color:var(--trigger);">
+        <div class="br-node-name">📦 订单数据</div>
+        <div class="br-node-desc">${this.orders.length} 条订单</div>
+        <div class="br-items">
+          ${this.orders.map(o => `<div class="br-item">${o.customer} ¥${o.amount}</div>`).join('')}
+        </div>
+      </div>
+      <div class="br-arrows">↓</div>
+      <div class="br-node if-node">
+        <div class="br-node-name">🔀 IF 节点</div>
+        <div class="br-node-desc">${field} ${op} ${value}?</div>
+        <div class="br-node-desc" style="margin-top:4px;">对每条订单独立判断</div>
+      </div>
+      <div style="display:flex; gap:80px; justify-content:center; align-items:flex-start;">
+        <div style="text-align:center;">
+          <div class="br-arrows">↙ TRUE</div>
+          <div class="br-node true-branch">
+            <div class="br-node-name">⭐ VIP处理</div>
+            <div class="br-node-desc">${trueItems.length} 条</div>
+          </div>
+          <div class="br-items" style="margin-top:10px;">
+            ${trueItems.map(o => `<div class="br-item routed-true">${o.customer} ¥${o.amount}</div>`).join('') || '<span class="muted">无</span>'}
+          </div>
+        </div>
+        <div style="text-align:center;">
+          <div class="br-arrows">↘ FALSE</div>
+          <div class="br-node false-branch">
+            <div class="br-node-name">📦 普通处理</div>
+            <div class="br-node-desc">${falseItems.length} 条</div>
+          </div>
+          <div class="br-items" style="margin-top:10px;">
+            ${falseItems.map(o => `<div class="br-item routed-false">${o.customer} ¥${o.amount}</div>`).join('') || '<span class="muted">无</span>'}
+          </div>
+        </div>
+      </div>
+      <div class="br-arrows">↓</div>
+      <div class="br-node" style="border-color:var(--output);">
+        <div class="br-node-name">🔗 Merge 节点</div>
+        <div class="br-node-desc">合并两条分支 → ${this.orders.length} 条继续后续处理</div>
+      </div>
+    `;
+
+    // Merge demo
+    const mergeDemo = document.getElementById('br-merge-demo');
+    mergeDemo.innerHTML = `
+      <div style="display:flex; gap:30px; justify-content:center; margin:20px 0; flex-wrap:wrap;">
+        <div class="br-node true-branch">
+          <div class="br-node-name">VIP路径输出</div>
+          <div class="br-node-desc">${trueItems.length} 条</div>
+        </div>
+        <div class="br-node false-branch">
+          <div class="br-node-name">普通路径输出</div>
+          <div class="br-node-desc">${falseItems.length} 条</div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--muted); font-size:1.5em;">↓ Merge</div>
+      <div style="text-align:center;">
+        <div class="br-node" style="border-color:var(--output); display:inline-block;">
+          <div class="br-node-name">合并结果</div>
+          <div class="br-node-desc">${this.orders.length} 条数据（按原始顺序或按到达顺序）</div>
+        </div>
+      </div>
+      <p style="text-align:center; color:var(--muted); font-size:0.85em; margin-top:12px;">
+        Merge 模式：Append(追加)、Merge By Index(按位置)、Merge By Key(按字段)
+      </p>
+    `;
+  }
+};
+
+// ===== Quiz =====
+const QUIZ = {
+  questions: [
+    {
+      q: 'n8n 中，一个节点默认如何处理多条数据项？',
+      options: ['对整个数组执行一次', '对每条数据项独立执行一次', '只处理第一条', '随机选择一条处理'],
+      correct: 1,
+      explain: 'n8n 的核心心智模型：默认模式下，节点对每条数据项独立执行一次。3 条数据 = 节点执行 3 次。'
+    },
+    {
+      q: '表达式 {{ $json.name }} 中的 $json 指向什么？',
+      options: ['整个数据数组', '工作流的所有数据', '当前正在处理的数据项', '上一个节点的输出'],
+      correct: 2,
+      explain: '$json 始终指向当前正在处理的那一条数据项，不是整个数组。这就是为什么同一个表达式能对每条数据产生不同的值。'
+    },
+    {
+      q: '一个 Webhook 触发器收到 5 条用户数据，后续的 HTTP请求节点会执行几次？',
+      options: ['1 次', '5 次', '由用户手动决定', '不确定，取决于配置'],
+      correct: 1,
+      explain: '默认逐条模式下，5 条数据 = HTTP请求节点执行 5 次，发出 5 次独立的 HTTP 请求。这是 n8n 最强大的特性之一。'
+    },
+    {
+      q: 'IF 节点的两个输出分别叫什么？',
+      options: ['成功/失败', 'True/False', '左/右', 'Pass/Fail'],
+      correct: 1,
+      explain: 'IF 节点有两个输出：True（条件满足）和 False（条件不满足）。每条数据根据条件判断结果被路由到对应分支。'
+    },
+    {
+      q: '以下哪个不是 n8n 的触发器类型？',
+      options: ['Webhook', 'Schedule/Cron', 'Manual', 'Database Write'],
+      correct: 3,
+      explain: '触发器类型包括 Webhook(HTTP请求触发)、Schedule(定时触发)、Manual(手动触发)、Chat(聊天触发)等。Database Write 不是触发器，数据库触发通常通过轮询实现。'
+    },
+    {
+      q: '表达式 {{ }} 内可以使用什么？',
+      options: ['只有变量引用', '只有字符串拼接', '完整的 JavaScript 表达式', '只有 n8n 内置函数'],
+      correct: 2,
+      explain: '{{ }} 内是完整的 JavaScript 表达式：支持属性访问、方法调用、运算符、三元表达式、字符串拼接等。例如 {{ $json.email.split("@")[1] }} 是合法的。'
+    },
+    {
+      q: '一个节点的输出连接到两个不同的节点，这叫什么？',
+      options: ['不允许，会报错', '扇出(Fan-out)，数据会复制到两个节点', '只有第一个连接有效', '需要 Merge 节点'],
+      correct: 1,
+      explain: '一个输出可以连接到多个输入（扇出）。数据会被复制到所有连接的下游节点。反过来，多个输出连接到同一个输入则需要 Merge 节点来处理数据冲突。'
+    },
+    {
+      q: 'Merge 节点的作用是什么？',
+      options: ['合并两个工作流', '将多条分支的数据合并为一个数据流', '删除重复数据', '连接两个不同的触发器'],
+      correct: 1,
+      explain: 'Merge 节点将来自不同分支的数据合并为一个数据流，支持 Append(追加)、Merge By Index(按位置合并)、Merge By Key(按字段合并)等模式。'
+    },
+    {
+      q: 'Continue On Fail 设置的作用是？',
+      options: ['节点失败时自动重试', '节点失败时跳过该数据项，继续处理后续数据', '节点失败时停止整个工作流', '节点失败时回滚所有操作'],
+      correct: 1,
+      explain: 'Continue On Fail 让节点在处理某条数据出错时，将错误信息附加到数据项中并继续流转到后续节点，而不是中断整个工作流。适合容错数据处理管道。'
+    },
+    {
+      q: '以下哪个表达式可以获取当前时间？',
+      options: ['{{ Date.now() }}', '{{ $now }}', '{{ time() }}', '{{ current_time }}'],
+      correct: 1,
+      explain: '$now 是 n8n 内置变量，返回当前时间的 ISO 字符串。虽然 {{ Date.now() }} 在技术上也能工作（因为表达式内是 JS），但 $now 是 n8n 推荐的方式。'
+    }
+  ],
+  answers: {},
+  answered: new Set(),
+
+  init() {
+    const container = document.getElementById('quiz-container');
+    container.innerHTML = this.questions.map((q, i) => `
+      <div class="quiz-question" id="qq-${i}">
+        <div class="q-text">${i+1}. ${q.q}</div>
+        ${q.options.map((opt, j) => `
+          <div class="quiz-option" id="qo-${i}-${j}" onclick="QUIZ.answer(${i}, ${j})">
+            <div class="opt-letter">${String.fromCharCode(65+j)}</div>
+            <div>${opt}</div>
+          </div>
+        `).join('')}
+        <div class="quiz-feedback" id="qf-${i}"></div>
+      </div>
+    `).join('');
+  },
+
+  answer(qIdx, optIdx) {
+    if (this.answered.has(qIdx)) return;
+    this.answered.add(qIdx);
+    this.answers[qIdx] = optIdx;
+
+    const q = this.questions[qIdx];
+    const isCorrect = optIdx === q.correct;
+
+    document.getElementById(`qo-${qIdx}-${optIdx}`).classList.add(isCorrect ? 'correct' : 'wrong');
+    if (!isCorrect) {
+      document.getElementById(`qo-${qIdx}-${q.correct}`).classList.add('correct');
+    }
+
+    const fb = document.getElementById(`qf-${qIdx}`);
+    fb.className = `quiz-feedback show ${isCorrect ? 'correct' : 'wrong'}`;
+    fb.innerHTML = (isCorrect ? '✓ 正确！' : '✗ 不正确。') + ' ' + q.explain;
+
+    if (this.answered.size === this.questions.length) {
+      const score = Object.entries(this.answers).filter(([k, v]) => v === this.questions[k].correct).length;
+      const scoreEl = document.getElementById('quiz-score');
+      scoreEl.style.display = 'block';
+      scoreEl.innerHTML = `得分：${score} / ${this.questions.length} ${score >= 8 ? '🎉' : score >= 6 ? '👍' : '💪'}`;
+    }
+  }
+};
+
+// ===== Flashcards =====
+const FC = {
+  cards: [
+    { term: 'Item (项)', def: 'n8n 数据的基本单位，是一个 JSON 对象。数据流是项的数组。每条数据项独立通过节点。' },
+    { term: '$json', def: '表达式变量，指向当前正在处理的数据项的 JSON 内容。不是整个数组，只是当前这一条。' },
+    { term: 'Node (节点)', def: '工作流的基本执行单元。接收输入数据、执行操作、输出结果。类型包括触发器、动作、转换、逻辑。' },
+    { term: 'Trigger (触发器)', def: '工作流的起点节点。Webhook/Schedule/Manual/Chat。一个工作流必须有一个触发器作为起点。' },
+    { term: 'Expression (表达式)', def: '{{ }} 包裹的 JavaScript 片段。可引用数据($json)、调用方法、做条件判断。让节点参数动态化。' },
+    { term: 'Connection (连接)', def: '节点间的数据通道。支持扇出(一对多)，但多对一需要 Merge 节点。IF/Switch 有多个输出连接。' },
+    { term: 'IF Node', def: '条件分支节点。对每条数据判断条件，满足走 True 输出，不满足走 False 输出。两条分支可独立处理。' },
+    { term: 'Merge Node', def: '合并多条分支的数据。模式：Append(追加)、Merge By Index(按位置)、Merge By Key(按字段)。' },
+    { term: 'Continue On Fail', def: '节点错误处理策略。出错时将错误信息附加到数据项，继续流转到后续节点，不中断工作流。' },
+    { term: 'Execution (执行)', def: '工作流的运行实例。手动执行用于测试调试，自动执行由触发器启动。执行数据记录每个节点的输入输出。' }
+  ],
+
+  init() {
+    const grid = document.getElementById('fc-grid');
+    grid.innerHTML = this.cards.map((c, i) => `
+      <div class="fc-card" id="fc-${i}" onclick="FC.flip(${i})">
+        <div class="fc-inner">
+          <div class="fc-front">
+            <div class="fc-term">${c.term}</div>
+            <div class="fc-hint">点击翻转</div>
+          </div>
+          <div class="fc-back">
+            <div class="fc-def">${c.def}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  flip(i) {
+    document.getElementById(`fc-${i}`).classList.toggle('flipped');
+  }
+};
+
+// ===== Nav =====
+function initNav() {
+  document.querySelectorAll('nav a').forEach(a => {
+    a.addEventListener('click', () => {
+      const target = document.getElementById(a.dataset.target);
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    document.querySelectorAll('section').forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    document.querySelectorAll('nav a').forEach(a => {
+      a.classList.toggle('active', a.dataset.target === current);
+    });
+  });
+}
+
+// ===== Init =====
+CM.init();
+EXPR.init();
+WB.init();
+BR.init();
+QUIZ.init();
+FC.init();
+initNav();
+</script>
+</body>
+</html>

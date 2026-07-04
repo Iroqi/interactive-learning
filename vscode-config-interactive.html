@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSCode 配置文件 — 交互式系统学习</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --surface3: #21262d;
+    --border: #30363d;
+    --border-light: #484f58;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --primary: #58a6ff;
+    --primary-dim: #1f6feb;
+    --primary-bg: rgba(56,139,253,0.1);
+    --accent: #f0883e;
+    --accent-bg: rgba(210,153,34,0.1);
+    --success: #3fb950;
+    --success-bg: rgba(46,160,67,0.15);
+    --error: #f85149;
+    --error-bg: rgba(248,81,73,0.15);
+    --warn: #d29922;
+    --purple: #bc8cff;
+    --purple-bg: rgba(163,113,247,0.1);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.4);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', system-ui, sans-serif;
+    --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    --tab-h: 42px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 16px;
+    overflow-x: hidden;
+  }
+
+  /* === Scrollbar === */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+  /* === Progress Bar === */
+  #progressBar {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 1000;
+    background: linear-gradient(90deg, var(--primary), var(--purple), var(--accent));
+    transition: width 0.35s ease;
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* === Header === */
+  .hero {
+    text-align: center;
+    padding: 72px 24px 48px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .hero-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 72px; height: 72px; border-radius: 18px;
+    background: linear-gradient(135deg, var(--primary-dim), var(--purple));
+    margin-bottom: 20px; font-size: 32px;
+  }
+  .hero h1 { font-size: 2.4em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .hero h1 span { color: var(--primary); }
+  .hero p { color: var(--text-muted); font-size: 1.1em; max-width: 560px; margin: 0 auto; }
+
+  /* === Navigation === */
+  .nav-bar {
+    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+    padding: 8px 16px 24px; max-width: 900px; margin: 0 auto;
+  }
+  .nav-bar a {
+    padding: 7px 16px; border-radius: 20px; font-size: 0.88em;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted); text-decoration: none;
+    transition: all 0.2s;
+  }
+  .nav-bar a:hover, .nav-bar a.active {
+    background: var(--primary-bg); border-color: var(--primary); color: var(--primary);
+  }
+
+  /* === Container === */
+  .container { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* === Section Title === */
+  .sec-title {
+    font-size: 1.55em; font-weight: 700; margin: 56px 0 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-title .icon { font-size: 1.2em; }
+  .sec-desc { color: var(--text-muted); margin-bottom: 24px; font-size: 0.95em; }
+
+  /* === Card === */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: all 0.25s;
+  }
+  .card:hover { border-color: var(--border-light); }
+
+  /* === Concept Tree === */
+  .tree-node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    overflow: hidden;
+    transition: border-color 0.25s;
+  }
+  .tree-node:hover { border-color: var(--primary-dim); }
+  .tree-node-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+    transition: background 0.2s;
+  }
+  .tree-node-header:hover { background: var(--surface2); }
+  .tree-arrow {
+    font-size: 0.7em; color: var(--text-dim);
+    transition: transform 0.3s; flex-shrink: 0;
+  }
+  .tree-node.open .tree-arrow { transform: rotate(90deg); }
+  .tree-file-icon { font-size: 1.3em; flex-shrink: 0; }
+  .tree-node-title { font-weight: 600; font-size: 1.02em; flex: 1; }
+  .tree-badge {
+    font-size: 0.75em; padding: 2px 10px; border-radius: 12px;
+    background: var(--primary-bg); color: var(--primary);
+    font-weight: 500;
+  }
+  .tree-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .tree-node.open .tree-body { max-height: 2000px; }
+  .tree-content {
+    padding: 0 20px 20px 52px;
+    color: var(--text-muted); font-size: 0.93em; line-height: 1.8;
+  }
+  .tree-content code {
+    background: var(--surface3); padding: 2px 7px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 0.88em; color: var(--accent);
+  }
+  .tree-children { padding-left: 28px; }
+
+  /* === Precedence Diagram === */
+  .precedence {
+    display: flex; align-items: stretch; gap: 0;
+    margin: 24px 0; flex-wrap: wrap; justify-content: center;
+  }
+  .prec-item {
+    flex: 1; min-width: 140px; max-width: 200px;
+    text-align: center; padding: 18px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    position: relative; transition: all 0.25s; cursor: default;
+  }
+  .prec-item:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .prec-item:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+  .prec-item:hover { border-color: var(--primary); z-index: 1; }
+  .prec-item .prec-label { font-weight: 600; font-size: 0.92em; margin-bottom: 4px; }
+  .prec-item .prec-detail { font-size: 0.78em; color: var(--text-dim); }
+  .prec-arrow {
+    display: flex; align-items: center; font-size: 1.2em;
+    color: var(--primary); padding: 0 2px;
+  }
+  @media(max-width:640px) {
+    .precedence { flex-direction: column; align-items: center; }
+    .prec-item { border-radius: var(--radius) !important; width: 90%; max-width: none; }
+    .prec-arrow { transform: rotate(90deg); padding: 4px 0; }
+  }
+
+  /* === Config Sandbox === */
+  .sandbox { margin: 24px 0; }
+  .sandbox-tabs {
+    display: flex; gap: 0;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    overflow-x: auto;
+  }
+  .sandbox-tab {
+    padding: 10px 18px; font-size: 0.88em; cursor: pointer;
+    color: var(--text-muted); border-bottom: 2px solid transparent;
+    font-family: var(--font-mono); white-space: nowrap;
+    transition: all 0.2s; user-select: none;
+  }
+  .sandbox-tab:hover { color: var(--text); background: var(--surface3); }
+  .sandbox-tab.active {
+    color: var(--primary); border-bottom-color: var(--primary);
+    background: var(--surface);
+  }
+  .sandbox-editor {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    min-height: 280px; position: relative;
+  }
+  .sandbox-code {
+    width: 100%; min-height: 280px; padding: 20px;
+    background: transparent; border: none; outline: none; resize: vertical;
+    font-family: var(--font-mono); font-size: 0.9em;
+    color: var(--text); line-height: 1.7;
+    tab-size: 2;
+  }
+  .sandbox-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .sandbox-btn {
+    padding: 7px 16px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface3);
+    color: var(--text); font-size: 0.85em; cursor: pointer;
+    transition: all 0.2s; font-family: var(--font);
+  }
+  .sandbox-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .sandbox-btn.primary {
+    background: var(--primary-dim); border-color: var(--primary);
+    color: #fff;
+  }
+  .sandbox-btn.primary:hover { background: var(--primary); }
+  .sandbox-status {
+    margin-left: auto; font-size: 0.85em; color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+  .sandbox-status.ok { color: var(--success); }
+  .sandbox-status.err { color: var(--error); }
+
+  /* === Level Cards === */
+  .level-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .level-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 20px 24px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .level-num {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 10px;
+    font-weight: 700; font-size: 1.1em;
+  }
+  .lv1 .level-num { background: var(--success-bg); color: var(--success); }
+  .lv2 .level-num { background: var(--primary-bg); color: var(--primary); }
+  .lv3 .level-num { background: var(--accent-bg); color: var(--accent); }
+  .lv4 .level-num { background: var(--purple-bg); color: var(--purple); }
+  .level-meta { flex: 1; }
+  .level-meta h3 { font-size: 1.12em; font-weight: 600; }
+  .level-meta .level-info {
+    font-size: 0.83em; color: var(--text-muted); margin-top: 2px;
+    display: flex; gap: 16px;
+  }
+  .level-body { padding: 24px; }
+  .level-body p { margin-bottom: 14px; }
+
+  /* === Task items === */
+  .task-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 20px;
+    margin: 14px 0;
+  }
+  .task-item h4 {
+    font-size: 1em; font-weight: 600; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .task-item h4 .task-icon { font-size: 1.1em; }
+
+  /* === Code blocks inside tasks === */
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 10px 0;
+    color: var(--text);
+  }
+  .code-block .kw { color: var(--purple); }
+  .code-block .str { color: var(--success); }
+  .code-block .cmt { color: var(--text-dim); font-style: italic; }
+  .code-block .key { color: var(--primary); }
+  .code-block .num { color: var(--accent); }
+
+  .code-input {
+    width: 100%; min-height: 180px; padding: 16px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); outline: none; resize: vertical;
+    font-family: var(--font-mono); font-size: 0.88em;
+    color: var(--text); line-height: 1.7;
+    tab-size: 2;
+  }
+  .code-input:focus { border-color: var(--primary); }
+
+  /* === Hint panel === */
+  .hint-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: var(--radius-sm);
+    background: var(--accent-bg); border: 1px solid transparent;
+    color: var(--accent); font-size: 0.85em; cursor: pointer;
+    transition: all 0.2s; margin-top: 8px;
+  }
+  .hint-toggle:hover { border-color: var(--accent); }
+  .hint-panel {
+    display: none; margin-top: 10px; padding: 14px 18px;
+    background: var(--accent-bg); border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent);
+    font-size: 0.92em; color: var(--text-muted);
+  }
+  .hint-panel.show { display: block; }
+  .hint-panel code {
+    background: var(--surface3); padding: 2px 6px; border-radius: 3px;
+    font-family: var(--font-mono); font-size: 0.88em; color: var(--accent);
+  }
+
+  /* === Check result === */
+  .check-result {
+    margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-sm);
+    font-size: 0.9em; display: none;
+  }
+  .check-result.show { display: block; }
+  .check-result.pass { background: var(--success-bg); color: var(--success); }
+  .check-result.fail { background: var(--error-bg); color: var(--error); }
+
+  /* === Buttons === */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 18px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface3);
+    color: var(--text); font-size: 0.88em; cursor: pointer;
+    transition: all 0.2s; font-family: var(--font);
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn.primary {
+    background: var(--primary-dim); border-color: var(--primary);
+    color: #fff;
+  }
+  .btn.primary:hover { background: var(--primary); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  /* === Quiz === */
+  .quiz-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .quiz-card .q-text { font-weight: 600; margin-bottom: 14px; font-size: 1em; }
+  .quiz-opt {
+    display: block; width: 100%; text-align: left;
+    padding: 12px 16px; margin: 6px 0;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: transparent; color: var(--text);
+    font-size: 0.93em; cursor: pointer; transition: all 0.2s;
+    font-family: var(--font);
+  }
+  .quiz-opt:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-bg); }
+  .quiz-opt.correct { border-color: var(--success) !important; background: var(--success-bg) !important; }
+  .quiz-opt.wrong { border-color: var(--error) !important; background: var(--error-bg) !important; }
+  .quiz-opt:disabled { cursor: default; opacity: 0.7; }
+  .quiz-opt.correct:disabled { opacity: 1; }
+  .quiz-feedback {
+    margin-top: 10px; padding: 12px 16px; border-radius: var(--radius-sm);
+    font-size: 0.9em; display: none;
+  }
+  .quiz-feedback.show { display: block; }
+  .quiz-score {
+    text-align: center; padding: 28px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-top: 16px;
+  }
+  .quiz-score .score-num { font-size: 2.4em; font-weight: 700; color: var(--primary); }
+
+  /* === Glossary === */
+  .glossary-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .glossary-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+    cursor: help; transition: all 0.25s;
+  }
+  .glossary-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .glossary-term { font-weight: 600; font-size: 0.95em; margin-bottom: 4px; color: var(--primary); }
+  .glossary-def { font-size: 0.84em; color: var(--text-muted); line-height: 1.6; }
+
+  /* === Footer === */
+  .footer {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-dim); font-size: 0.85em;
+    border-top: 1px solid var(--border); margin-top: 40px;
+  }
+
+  /* === Utility === */
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-8 { margin-bottom: 8px; }
+  .text-muted { color: var(--text-muted); }
+  .text-sm { font-size: 0.9em; }
+  .flex-center { display: flex; align-items: center; gap: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7em; }
+    .level-header { padding: 16px; }
+    .level-body { padding: 16px; }
+    .glossary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div id="progressBar" style="width:0%"></div>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="hero-icon">{ }</div>
+  <h1>VSCode <span>配置文件</span>系统学习</h1>
+  <p>掌握 settings.json、launch.json、tasks.json 等核心配置，让你的开发环境真正为你所用</p>
+</header>
+
+<!-- Navigation -->
+<nav class="nav-bar" id="navBar">
+  <a href="#map" class="active">知识地图</a>
+  <a href="#precedence">优先级</a>
+  <a href="#sandbox">配置沙盒</a>
+  <a href="#levels">实战任务</a>
+  <a href="#quiz">自测</a>
+  <a href="#glossary">术语表</a>
+</nav>
+
+<div class="container">
+
+<!-- ===================== KNOWLEDGE MAP ===================== -->
+<h2 class="sec-title" id="map"><span class="icon">&#128205;</span> 知识地图</h2>
+<p class="sec-desc">VSCode 的所有配置文件都藏在 <code style="background:var(--surface3);padding:2px 7px;border-radius:4px;font-family:var(--font-mono);font-size:0.88em;color:var(--accent)">.vscode/</code> 目录中。点击每个文件了解它的职责。</p>
+
+<!-- Root node -->
+<div class="tree-node open" id="node-root">
+  <div class="tree-node-header" onclick="toggleNode('node-root')">
+    <span class="tree-arrow">&#9654;</span>
+    <span class="tree-file-icon">&#128193;</span>
+    <span class="tree-node-title">.vscode/ 配置目录</span>
+    <span class="tree-badge">6 个核心文件</span>
+  </div>
+  <div class="tree-body">
+    <div class="tree-content">
+      项目根目录下的 <code>.vscode/</code> 文件夹是工作区配置的家。这里的设置只对当前项目生效，不会影响其他项目。
+    </div>
+
+    <div class="tree-children">
+      <!-- settings.json -->
+      <div class="tree-node" id="node-settings">
+        <div class="tree-node-header" onclick="toggleNode('node-settings')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#9881;</span>
+          <span class="tree-node-title">settings.json</span>
+          <span class="tree-badge">最常用</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>控制编辑器的<strong>外观、行为和扩展</strong>。包括字体大小、主题色、格式化规则、文件排除模式等。</p>
+            <p>关键特性：支持<strong>语言特定配置</strong>，比如只在 Python 文件中设置 4 空格缩进：</p>
+            <div class="code-block"><span class="cmt">// .vscode/settings.json</span>
+{
+  <span class="key">"editor.tabSize"</span>: <span class="num">2</span>,
+  <span class="key">"[python]"</span>: {
+    <span class="key">"editor.tabSize"</span>: <span class="num">4</span>,
+    <span class="key">"editor.formatOnSave"</span>: <span class="kw">true</span>
+  },
+  <span class="key">"files.exclude"</span>: {
+    <span class="key">"**/__pycache__"</span>: <span class="kw">true</span>,
+    <span class="key">"**/*.pyc"</span>: <span class="kw">true</span>
+  }
+}</div>
+            <p>常用设置项一览：</p>
+            <p>&#8226; <code>editor.formatOnSave</code> — 保存时自动格式化<br>
+               &#8226; <code>editor.defaultFormatter</code> — 指定默认格式化工具<br>
+               &#8226; <code>files.autoSave</code> — 自动保存模式 (afterDelay / onFocusChange)<br>
+               &#8226; <code>search.exclude</code> — 搜索结果中排除的路径<br>
+               &#8226; <code>terminal.integrated.defaultProfile</code> — 默认终端</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- launch.json -->
+      <div class="tree-node" id="node-launch">
+        <div class="tree-node-header" onclick="toggleNode('node-launch')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#128027;</span>
+          <span class="tree-node-title">launch.json</span>
+          <span class="tree-badge">调试必备</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>定义<strong>调试配置</strong>（configurations）。告诉 VSCode 如何启动程序、附加调试器、设置断点。</p>
+            <div class="code-block"><span class="cmt">// .vscode/launch.json</span>
+{
+  <span class="key">"version"</span>: <span class="str">"0.2.0"</span>,
+  <span class="key">"configurations"</span>: [
+    {
+      <span class="key">"name"</span>: <span class="str">"Python: 当前文件"</span>,
+      <span class="key">"type"</span>: <span class="str">"debugpy"</span>,
+      <span class="key">"request"</span>: <span class="str">"launch"</span>,
+      <span class="key">"program"</span>: <span class="str">"${file}"</span>,
+      <span class="key">"args"</span>: [<span class="str">"--verbose"</span>],
+      <span class="key">"console"</span>: <span class="str">"integratedTerminal"</span>
+    }
+  ],
+  <span class="key">"compounds"</span>: [
+    {
+      <span class="key">"name"</span>: <span class="str">"前后端联调"</span>,
+      <span class="key">"configurations"</span>: [<span class="str">"启动后端"</span>, <span class="str">"启动前端"</span>]
+    }
+  ]
+}</div>
+            <p>核心概念：</p>
+            <p>&#8226; <code>request: "launch"</code> — 启动新进程并附加调试器<br>
+               &#8226; <code>request: "attach"</code> — 附加到已运行的进程<br>
+               &#8226; <code>compounds</code> — 同时启动多个调试配置<br>
+               &#8226; <code>${file}</code> / <code>${workspaceFolder}</code> — 内置变量替换</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- tasks.json -->
+      <div class="tree-node" id="node-tasks">
+        <div class="tree-node-header" onclick="toggleNode('node-tasks')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#9881;</span>
+          <span class="tree-node-title">tasks.json</span>
+          <span class="tree-badge">自动化</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>定义<strong>自动化任务</strong>：编译、打包、测试、lint 等。通过快捷键或命令面板触发。</p>
+            <div class="code-block"><span class="cmt">// .vscode/tasks.json</span>
+{
+  <span class="key">"version"</span>: <span class="str">"2.0.0"</span>,
+  <span class="key">"tasks"</span>: [
+    {
+      <span class="key">"label"</span>: <span class="str">"build"</span>,
+      <span class="key">"type"</span>: <span class="str">"shell"</span>,
+      <span class="key">"command"</span>: <span class="str">"npm run build"</span>,
+      <span class="key">"group"</span>: {
+        <span class="key">"kind"</span>: <span class="str">"build"</span>,
+        <span class="key">"isDefault"</span>: <span class="kw">true</span>
+      },
+      <span class="key">"problemMatcher"</span>: [<span class="str">"$tsc"</span>]
+    },
+    {
+      <span class="key">"label"</span>: <span class="str">"test"</span>,
+      <span class="key">"type"</span>: <span class="str">"shell"</span>,
+      <span class="key">"command"</span>: <span class="str">"npm test"</span>,
+      <span class="key">"group"</span>: <span class="str">"test"</span>
+    }
+  ]
+}</div>
+            <p>&#8226; <code>type: "shell"</code> — 执行 shell 命令<br>
+               &#8226; <code>type: "process"</code> — 直接执行可执行文件（更安全）<br>
+               &#8226; <code>group: "build"</code> — 可用 <code>Ctrl+Shift+B</code> 触发<br>
+               &#8226; <code>problemMatcher</code> — 自动解析错误输出并在编辑器中标记</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- extensions.json -->
+      <div class="tree-node" id="node-ext">
+        <div class="tree-node-header" onclick="toggleNode('node-ext')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#128230;</span>
+          <span class="tree-node-title">extensions.json</span>
+          <span class="tree-badge">团队协作</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>声明项目<strong>推荐的扩展</strong>。团队成员打开项目时，VSCode 会提示安装缺失的扩展。</p>
+            <div class="code-block"><span class="cmt">// .vscode/extensions.json</span>
+{
+  <span class="key">"recommendations"</span>: [
+    <span class="str">"dbaeumer.vscode-eslint"</span>,
+    <span class="str">"esbenp.prettier-vscode"</span>,
+    <span class="str">"ms-python.python"</span>
+  ],
+  <span class="key">"unwantedRecommendations"</span>: [
+    <span class="str">"some-extension-id"</span>
+  ]
+}</div>
+            <p>这个文件应当提交到 Git，让团队所有人的开发体验一致。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- keybindings.json -->
+      <div class="tree-node" id="node-keys">
+        <div class="tree-node-header" onclick="toggleNode('node-keys')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#9000;</span>
+          <span class="tree-node-title">keybindings.json</span>
+          <span class="tree-badge">效率提升</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>自定义<strong>键盘快捷键</strong>。注意：这个文件通常位于<strong>用户配置</strong>中，不在 <code>.vscode/</code> 里。</p>
+            <p>打开方式：<code>Ctrl+K Ctrl+S</code> → 右上角点击"打开键盘快捷方式(JSON)"。</p>
+            <div class="code-block"><span class="cmt">// keybindings.json (用户级)</span>
+[
+  {
+    <span class="key">"key"</span>: <span class="str">"ctrl+shift+t"</span>,
+    <span class="key">"command"</span>: <span class="str">"workbench.action.terminal.toggleTerminal"</span>
+  },
+  {
+    <span class="key">"key"</span>: <span class="str">"ctrl+alt+f"</span>,
+    <span class="key">"command"</span>: <span class="str">"editor.action.formatDocument"</span>,
+    <span class="key">"when"</span>: <span class="str">"editorTextFocus"</span>
+  },
+  {
+    <span class="key">"key"</span>: <span class="str">"ctrl+d"</span>,
+    <span class="key">"command"</span>: <span class="str">"-editor.action.deleteLines"</span>
+  }
+]</div>
+            <p>&#8226; <code>command</code> 前加 <code>-</code> 表示移除该快捷键绑定<br>
+               &#8226; <code>when</code> 上下文条件控制快捷键何时生效</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- *.code-workspace -->
+      <div class="tree-node" id="node-workspace">
+        <div class="tree-node-header" onclick="toggleNode('node-workspace')">
+          <span class="tree-arrow">&#9654;</span>
+          <span class="tree-file-icon">&#128196;</span>
+          <span class="tree-node-title">*.code-workspace</span>
+          <span class="tree-badge">多根工作区</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-content">
+            <p>定义<strong>多根工作区</strong>，将多个独立文件夹组合成一个开发环境。</p>
+            <div class="code-block"><span class="cmt">// my-project.code-workspace</span>
+{
+  <span class="key">"folders"</span>: [
+    { <span class="key">"path"</span>: <span class="str">"./frontend"</span>, <span class="key">"name"</span>: <span class="str">"前端"</span> },
+    { <span class="key">"path"</span>: <span class="str">"./backend"</span>, <span class="key">"name"</span>: <span class="str">"后端"</span> },
+    { <span class="key">"path"</span>: <span class="str">"./shared"</span>, <span class="key">"name"</span>: <span class="str">"共享库"</span> }
+  ],
+  <span class="key">"settings"</span>: {
+    <span class="key">"editor.tabSize"</span>: <span class="num">2</span>
+  },
+  <span class="key">"extensions"</span>: {
+    <span class="key">"recommendations"</span>: [<span class="str">"dbaeumer.vscode-eslint"</span>]
+  }
+}</div>
+            <p>多根工作区中，每个文件夹可以有自己独立的 <code>.vscode/settings.json</code>，优先级高于工作区文件中的全局设置。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===================== PRECEDENCE ===================== -->
+<h2 class="sec-title" id="precedence"><span class="icon">&#128200;</span> 配置优先级</h2>
+<p class="sec-desc">同一项设置可能出现在多个地方，VSCode 按以下顺序决定最终生效的值（越靠右优先级越高）：</p>
+
+<div class="precedence">
+  <div class="prec-item" data-group="prec" title="VSCode 内置的出厂默认值，不可修改">
+    <div class="prec-label">默认设置</div>
+    <div class="prec-detail">VSCode 内置</div>
+  </div>
+  <div class="prec-arrow">&#10132;</div>
+  <div class="prec-item" data-group="prec" title="通过 Ctrl+, 打开的设置页面，存在用户目录下">
+    <div class="prec-label">用户设置</div>
+    <div class="prec-detail">全局生效</div>
+  </div>
+  <div class="prec-arrow">&#10132;</div>
+  <div class="prec-item" data-group="prec" title=".vscode/settings.json 中的配置，仅对当前项目生效">
+    <div class="prec-label">工作区设置</div>
+    <div class="prec-detail">项目级</div>
+  </div>
+  <div class="prec-arrow">&#10132;</div>
+  <div class="prec-item" data-group="prec" title="多根工作区中，每个文件夹的 .vscode/settings.json">
+    <div class="prec-label">文件夹设置</div>
+    <div class="prec-detail">多根工作区级</div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <p><strong>&#128161; 实践建议：</strong></p>
+  <p style="color:var(--text-muted);font-size:0.93em;margin-top:6px">
+    把<strong>个人偏好</strong>（主题、字体大小）放在用户设置中；把<strong>项目规范</strong>（缩进风格、lint 规则、格式化器）放在工作区设置中，并提交到 Git。这样团队成员 clone 项目后自动获得统一的编码体验。
+  </p>
+</div>
+
+
+<!-- ===================== CONFIG SANDBOX ===================== -->
+<h2 class="sec-title" id="sandbox"><span class="icon">&#129514;</span> 配置沙盒</h2>
+<p class="sec-desc">在这里自由编辑各种配置文件，点击"校验 JSON"检查语法是否正确。切换标签页查看不同文件的模板。</p>
+
+<div class="sandbox">
+  <div class="sandbox-tabs" id="sandboxTabs">
+    <div class="sandbox-tab active" data-tab="settings" onclick="switchTab('settings')">settings.json</div>
+    <div class="sandbox-tab" data-tab="launch" onclick="switchTab('launch')">launch.json</div>
+    <div class="sandbox-tab" data-tab="tasks" onclick="switchTab('tasks')">tasks.json</div>
+    <div class="sandbox-tab" data-tab="extensions" onclick="switchTab('extensions')">extensions.json</div>
+    <div class="sandbox-tab" data-tab="workspace" onclick="switchTab('workspace')">*.code-workspace</div>
+  </div>
+  <div class="sandbox-editor">
+    <textarea class="sandbox-code" id="sandboxCode" spellcheck="false"></textarea>
+  </div>
+  <div class="sandbox-bar">
+    <button class="sandbox-btn primary" onclick="validateJSON()">&#10003; 校验 JSON</button>
+    <button class="sandbox-btn" onclick="resetSandbox()">&#8634; 重置</button>
+    <button class="sandbox-btn" onclick="copySandbox()">&#128203; 复制</button>
+    <span class="sandbox-status" id="sandboxStatus"></span>
+  </div>
+</div>
+
+
+<!-- ===================== PROGRESSIVE LEVELS ===================== -->
+<h2 class="sec-title" id="levels"><span class="icon">&#127919;</span> 实战任务</h2>
+<p class="sec-desc">通过 4 个渐进级别，从认识到精通 VSCode 配置。每完成一级，你的掌控力就上升一个台阶。</p>
+
+<!-- ===== LEVEL 1 ===== -->
+<div class="level-card lv1">
+  <div class="level-header">
+    <div class="level-num">1</div>
+    <div class="level-meta">
+      <h3>认识配置文件</h3>
+      <div class="level-info"><span>&#9200; 约 10 分钟</span><span>&#11088;</span></div>
+    </div>
+  </div>
+  <div class="level-body">
+    <p>先通过阅读和填空练习，建立对各配置文件的直觉认识。</p>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#128221;</span> 任务 1.1：补全 settings.json</h4>
+      <p class="text-muted text-sm">下面是一个 React 项目的 settings.json，请在注释标记处填入合适的值：</p>
+      <textarea class="code-input" id="task11" spellcheck="false">{
+  // 编辑器相关
+  "editor.fontSize": 14,
+  "editor.tabSize": ____,           // 提示：填一个数字，常见缩进宽度
+  "editor.formatOnSave": ____,      // 提示：布尔值，保存时自动格式化
+
+  // 文件相关
+  "files.autoSave": "____",         // 提示：可选 afterDelay / onFocusChange / off
+
+  // 搜索排除
+  "search.exclude": {
+    "**/node_modules": ____,        // 提示：布尔值，是否排除
+    "**/dist": ____
+  }
+}</textarea>
+      <div class="btn-group">
+        <button class="btn primary" onclick="checkTask11()">&#9989; 检查答案</button>
+        <button class="btn" onclick="showHint('hint11')">&#128161; 提示</button>
+      </div>
+      <div class="hint-panel" id="hint11">
+        <p><code>tabSize</code> 通常是 2 或 4；<code>formatOnSave</code> 用 <code>true</code>；<code>autoSave</code> 推荐 <code>afterDelay</code>；排除项填 <code>true</code>。</p>
+      </div>
+      <div class="check-result" id="result11"></div>
+    </div>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#128221;</span> 任务 1.2：识别配置文件类型</h4>
+      <p class="text-muted text-sm">根据描述，判断应该使用哪个配置文件：</p>
+      <div id="task12Area" style="margin-top:12px"></div>
+      <div class="btn-group">
+        <button class="btn primary" onclick="checkTask12()">&#9989; 提交答案</button>
+      </div>
+      <div class="check-result" id="result12"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LEVEL 2 ===== -->
+<div class="level-card lv2">
+  <div class="level-header">
+    <div class="level-num">2</div>
+    <div class="level-meta">
+      <h3>构建调试配置</h3>
+      <div class="level-info"><span>&#9200; 约 20 分钟</span><span>&#11088;&#11088;</span></div>
+    </div>
+  </div>
+  <div class="level-body">
+    <p>学会编写 launch.json，让 VSCode 能调试你的项目。</p>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#128027;</span> 任务 2.1：补全 Python 调试配置</h4>
+      <p class="text-muted text-sm">你有一个 Flask Web 应用（app.py），需要能启动调试并传入环境变量。请补全缺失部分：</p>
+      <textarea class="code-input" id="task21" spellcheck="false">{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "____",             // 给这个配置起个名字
+      "type": "debugpy",
+      "request": "____",          // launch 还是 attach？
+      "program": "${workspaceFolder}/____",  // 入口文件
+      "env": {
+        "FLASK_APP": "app.py",
+        "FLASK_DEBUG": "____"     // 开启 Flask 调试模式
+      },
+      "console": "integratedTerminal",
+      "justMyCode": ____          // 布尔值：是否只调试自己的代码
+    }
+  ]
+}</textarea>
+      <div class="btn-group">
+        <button class="btn primary" onclick="checkTask21()">&#9989; 检查答案</button>
+        <button class="btn" onclick="showHint('hint21')">&#128161; 提示</button>
+      </div>
+      <div class="hint-panel" id="hint21">
+        <p><code>name</code> 随便起，比如 "Flask 调试"；<code>request</code> 启动新进程用 <code>launch</code>；<code>program</code> 入口文件是 <code>app.py</code>；<code>FLASK_DEBUG</code> 设为 <code>"1"</code> 或 <code>"true"</code>；<code>justMyCode</code> 一般设为 <code>true</code>。</p>
+      </div>
+      <div class="check-result" id="result21"></div>
+    </div>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#9881;</span> 任务 2.2：编写构建任务</h4>
+      <p class="text-muted text-sm">为一个 TypeScript 项目编写 tasks.json，需要两个任务：编译和监听模式。请补全：</p>
+      <textarea class="code-input" id="task22" spellcheck="false">{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "编译TS",
+      "type": "____",            // shell 还是 process？
+      "command": "npx tsc",
+      "group": {
+        "kind": "____",          // build 或 test
+        "isDefault": true
+      },
+      "problemMatcher": ["$____"] // TypeScript 的错误解析器
+    },
+    {
+      "label": "监听TS",
+      "type": "shell",
+      "command": "npx tsc --watch",
+      "isBackground": ____,       // 布尔值：是否后台运行
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}</textarea>
+      <div class="btn-group">
+        <button class="btn primary" onclick="checkTask22()">&#9989; 检查答案</button>
+        <button class="btn" onclick="showHint('hint22')">&#128161; 提示</button>
+      </div>
+      <div class="hint-panel" id="hint22">
+        <p><code>type</code> 执行 shell 命令用 <code>"shell"</code>；<code>group.kind</code> 编译任务用 <code>"build"</code>；TypeScript 的 problemMatcher 是 <code>$tsc</code>；后台监听任务 <code>isBackground</code> 设为 <code>true</code>。</p>
+      </div>
+      <div class="check-result" id="result22"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LEVEL 3 ===== -->
+<div class="level-card lv3">
+  <div class="level-header">
+    <div class="level-num">3</div>
+    <div class="level-meta">
+      <h3>完整项目配置</h3>
+      <div class="level-info"><span>&#9200; 约 30 分钟</span><span>&#11088;&#11088;&#11088;</span></div>
+    </div>
+  </div>
+  <div class="level-body">
+    <p>独立为一个完整项目编写所有配置文件，不再提供任何代码提示。</p>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#128640;</span> 任务 3.1：全栈项目配置</h4>
+      <p class="text-muted text-sm">
+        场景：你有一个全栈项目，前端 React + 后端 Node.js Express。项目结构如下：<br>
+        <code style="background:var(--surface3);padding:2px 6px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em;color:var(--accent)">project/ (frontend/ + backend/ + shared/)</code>
+      </p>
+      <p style="margin-top:10px">请编写以下配置文件（在右侧文本框中，用注释分隔三个文件的内容）：</p>
+      <p class="text-muted text-sm" style="margin-top:6px">
+        <strong>需求：</strong><br>
+        1. <strong>settings.json</strong> — 2空格缩进，保存自动格式化，排除 node_modules/dist 的搜索<br>
+        2. <strong>launch.json</strong> — 至少两个调试配置（前端 Chrome + 后端 Node），以及一个 compound<br>
+        3. <strong>tasks.json</strong> — 至少两个任务（前端构建 + 后端启动）
+      </p>
+      <textarea class="code-input" id="task31" spellcheck="false" style="min-height:320px">// ========== settings.json ==========
+{
+
+}
+
+// ========== launch.json ==========
+{
+
+}
+
+// ========== tasks.json ==========
+{
+
+}</textarea>
+      <div class="btn-group">
+        <button class="btn primary" onclick="checkTask31()">&#9989; 检查结构</button>
+        <button class="btn" onclick="showHint('hint31')">&#128161; 提示</button>
+      </div>
+      <div class="hint-panel" id="hint31">
+        <p><strong>settings.json</strong>：参考 Level 1 的模板。<br>
+        <strong>launch.json</strong>：前端用 <code>"type": "chrome"</code>, <code>"request": "launch"</code>, <code>"url": "http://localhost:3000"</code>；后端用 <code>"type": "node"</code>, <code>"program": "${workspaceFolder}/backend/index.js"</code>。compounds 把两者组合起来。<br>
+        <strong>tasks.json</strong>：前端 <code>"command": "npm run build"</code>, group build；后端 <code>"command": "npm start"</code>。</p>
+      </div>
+      <div class="check-result" id="result31"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LEVEL 4 ===== -->
+<div class="level-card lv4">
+  <div class="level-header">
+    <div class="level-num">4</div>
+    <div class="level-meta">
+      <h3>进阶挑战</h3>
+      <div class="level-info"><span>&#9200; 约 30-60 分钟</span><span>&#11088;&#11088;&#11088;&#11088;</span></div>
+    </div>
+  </div>
+  <div class="level-body">
+    <p>选择一个方向深入探索，没有脚手架，完全靠自己。</p>
+
+    <div class="task-item">
+      <h4><span class="task-icon">&#127942;</span> 挑战方向（任选其一）</h4>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px">
+        <div class="card" style="margin:0;border-left:3px solid var(--purple)">
+          <p style="font-weight:600;margin-bottom:6px">A. 多根工作区实战</p>
+          <p class="text-muted text-sm">创建一个 <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em">.code-workspace</code> 文件，将三个独立项目（前端、后端、共享库）组合为一个工作区。为每个根文件夹配置独立的 settings，实现不同缩进规则和格式化器的共存。</p>
+        </div>
+        <div class="card" style="margin:0;border-left:3px solid var(--accent)">
+          <p style="font-weight:600;margin-bottom:6px">B. 自定义 ProblemMatcher</p>
+          <p class="text-muted text-sm">为一个自定义构建工具编写 problemMatcher 配置。要求：能解析该工具的输出格式，自动在编辑器中标记错误位置和严重程度。研究 <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em">$eslint</code> / <code style="background:var(--surface3);padding:1px 5px;border-radius:3px;font-family:var(--font-mono);font-size:0.9em">$tsc</code> 的实现模式。</p>
+        </div>
+        <div class="card" style="margin:0;border-left:3px solid var(--success)">
+          <p style="font-weight:600;margin-bottom:6px">C. 开发环境模板化</p>
+          <p class="text-muted text-sm">设计一套可复用的 VSCode 配置模板，适用于"Python + Docker + 测试"场景。包含：settings.json、launch.json（Python远程调试 + Docker attach）、tasks.json（docker build/run/test 全流程）、extensions.json。编写 README 说明每个配置项的用途。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===================== QUIZ ===================== -->
+<h2 class="sec-title" id="quiz"><span class="icon">&#128218;</span> 自测一下</h2>
+<p class="sec-desc">检验你对 VSCode 配置体系的理解。每题选择后立即反馈。</p>
+
+<div id="quizArea"></div>
+<div class="quiz-score" id="quizScore" style="display:none">
+  <div class="score-num" id="scoreNum">0/0</div>
+  <p class="text-muted" style="margin-top:8px" id="scoreMsg">继续加油！</p>
+</div>
+
+
+<!-- ===================== GLOSSARY ===================== -->
+<h2 class="sec-title" id="glossary"><span class="icon">&#128214;</span> 术语表</h2>
+<p class="sec-desc">悬停或点击术语查看定义。</p>
+
+<div class="glossary-grid" id="glossaryGrid"></div>
+
+
+<!-- Footer -->
+<div class="footer">
+  <p>VSCode 配置文件交互式学习页 &#183; 由 QoderWork 生成</p>
+  <p style="margin-top:4px">参考文档：<a href="https://code.visualstudio.com/docs" target="_blank" style="color:var(--primary);text-decoration:none">VSCode 官方文档</a></p>
+</div>
+
+</div><!-- /container -->
+
+
+<script>
+// ============================================
+// DATA
+// ============================================
+
+const SANDBOX_DATA = {
+  settings: `{
+  // 编辑器设置
+  "editor.fontSize": 14,
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // 文件设置
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+
+  // 搜索排除
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true
+  },
+
+  // 语言特定配置
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}`,
+
+  launch: `{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: 当前文件",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "\${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Node: 附加到进程",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Chrome: 前端调试",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "\${workspaceFolder}/src",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "全栈联调",
+      "configurations": ["Node: 附加到进程", "Chrome: 前端调试"]
+    }
+  ]
+}`,
+
+  tasks: `{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "构建",
+      "type": "shell",
+      "command": "npm run build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "测试",
+      "type": "shell",
+      "command": "npm test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "npx eslint src --ext .ts,.tsx",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "监听模式",
+      "type": "shell",
+      "command": "npm run watch",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Watching started",
+          "endsPattern": "Watching for changes"
+        }
+      }
+    }
+  ]
+}`,
+
+  extensions: `{
+  // 推荐安装的扩展
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-python.python",
+    "ms-python.black-formatter",
+    "bradlc.vscode-tailwindcss",
+    "formulahendry.auto-rename-tag"
+  ],
+
+  // 不需要的推荐（如果其他扩展推荐了它）
+  "unwantedRecommendations": [
+    "hookyqr.beautify"
+  ]
+}`,
+
+  workspace: `{
+  // 多根工作区定义
+  "folders": [
+    {
+      "path": "./frontend",
+      "name": "前端 (React)"
+    },
+    {
+      "path": "./backend",
+      "name": "后端 (Express)"
+    },
+    {
+      "path": "./shared",
+      "name": "共享类型"
+    }
+  ],
+
+  // 工作区级设置（优先级低于各文件夹的 .vscode/settings.json）
+  "settings": {
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true,
+    "files.exclude": {
+      "**/node_modules": true
+    }
+  },
+
+  // 工作区级扩展推荐
+  "extensions": {
+    "recommendations": [
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode"
+    ]
+  }
+}`
+};
+
+const QUIZ_DATA = [
+  {
+    q: "在 VSCode 中，工作区设置（.vscode/settings.json）和用户设置冲突时，哪个优先？",
+    opts: ["用户设置优先", "工作区设置优先", "两者合并，后写的覆盖前面的", "会弹出冲突解决对话框"],
+    answer: 1,
+    explain: "工作区设置优先级高于用户设置。优先级从低到高：默认 < 用户 < 工作区 < 文件夹。"
+  },
+  {
+    q: "launch.json 中 request 字段为 \"attach\" 表示什么？",
+    opts: ["启动一个新进程并附加调试器", "附加到已运行的进程", "附加源代码映射", "自动附加断点"],
+    answer: 1,
+    explain: "attach 模式会连接到已经在运行的进程（比如通过 --inspect 启动的 Node.js），而不是启动新进程。"
+  },
+  {
+    q: "tasks.json 中，想让一个任务能用 Ctrl+Shift+B 触发，group 应该设为？",
+    opts: ['"test"', '"build"', '"none"', '"default"'],
+    answer: 1,
+    explain: 'group 设为 { "kind": "build", "isDefault": true } 后，就可以通过 Ctrl+Shift+B（默认构建快捷键）触发。'
+  },
+  {
+    q: "以下哪个文件不在 .vscode/ 目录中？",
+    opts: ["settings.json", "launch.json", "keybindings.json", "tasks.json"],
+    answer: 2,
+    explain: "keybindings.json 是用户级配置，存放在用户配置目录中（不是项目的 .vscode/ 目录）。通过 Ctrl+K Ctrl+S 打开快捷方式编辑器，再点击右上角图标打开 JSON 文件。"
+  },
+  {
+    q: "extensions.json 中的 unwantedRecommendations 字段用于？",
+    opts: ["列出禁用的扩展", "声明不想推荐的扩展（覆盖其他扩展的推荐）", "卸载指定扩展", "列出与项目不兼容的扩展"],
+    answer: 1,
+    explain: "unwantedRecommendations 用于抑制某些扩展的推荐提示。比如你的项目用了 Prettier，就不需要再推荐 Beautify。"
+  },
+  {
+    q: "${workspaceFolder} 和 ${file} 在 VSCode 配置中代表什么？",
+    opts: [
+      "环境变量，由操作系统提供",
+      "VSCode 内置变量，分别代表工作区根目录和当前打开的文件路径",
+      "Git 变量，由版本控制提供",
+      "Node.js 全局变量"
+    ],
+    answer: 1,
+    explain: "这是 VSCode 的变量替换机制。${workspaceFolder} 是当前工作区根目录的绝对路径，${file} 是当前活动编辑器中打开的文件的绝对路径。还支持 ${fileDirname}、${fileBasenameNoExtension} 等。"
+  },
+  {
+    q: "在多根工作区中，*.code-workspace 文件和各文件夹的 .vscode/settings.json 谁优先级更高？",
+    opts: [
+      "*.code-workspace 文件优先",
+      "各文件夹的 .vscode/settings.json 优先",
+      "两者优先级相同，按字母序合并",
+      "取决于打开文件夹的顺序"
+    ],
+    answer: 1,
+    explain: "在多根工作区中，各文件夹的 .vscode/settings.json 优先级最高，其次是 .code-workspace 文件中的 settings，最后是用户设置。"
+  },
+  {
+    q: "problemMatcher 在 tasks.json 中的作用是什么？",
+    opts: [
+      "匹配文件名进行自动打开",
+      "解析命令输出中的错误/警告，在编辑器中标记问题",
+      "匹配端口号进行自动转发",
+      "比较两次构建的输出差异"
+    ],
+    answer: 1,
+    explain: "problemMatcher 会分析任务输出，提取文件路径、行号、错误消息等信息，然后自动在编辑器中用波浪线标记有问题的代码位置。VSCode 内置了 $tsc、$eslint 等常用匹配器。"
+  }
+];
+
+const GLOSSARY_DATA = [
+  { term: "settings.json", def: "VSCode 的核心配置文件，控制编辑器外观、行为和扩展设置。分为用户级和工作区级。" },
+  { term: "launch.json", def: "调试配置文件，定义如何启动/附加调试器、程序入口、环境变量等。" },
+  { term: "tasks.json", def: "自动化任务配置，定义编译、测试、构建等可重复执行的命令。" },
+  { term: "extensions.json", def: "扩展推荐配置，声明项目应安装的扩展，确保团队开发环境一致。" },
+  { term: "keybindings.json", def: "键盘快捷键配置，自定义按键到命令的映射关系。" },
+  { term: "code-workspace", def: "多根工作区文件，将多个独立文件夹组合为一个 VSCode 开发环境。" },
+  { term: "配置作用域", def: "设置生效的范围：默认 < 用户 < 工作区 < 文件夹，优先级依次递增。" },
+  { term: "变量替换", def: "配置中使用 ${变量名} 引用动态值，如 ${workspaceFolder}、${file}、${env:PATH}。" },
+  { term: "problemMatcher", def: "任务输出解析器，自动将编译错误映射为编辑器中的问题标记（波浪线）。" },
+  { term: "compounds", def: "launch.json 中的组合调试配置，可以同时启动多个调试会话。" },
+  { term: "presentation", def: "tasks.json 中控制任务输出在终端面板中的显示方式（是否自动显示、是否清屏等）。" },
+  { term: "语言特定配置", def: "用 [languageId] 语法为特定编程语言设置独立的编辑器行为，如 [python]、[javascript]。" }
+];
+
+
+// ============================================
+// CONCEPT TREE
+// ============================================
+
+function toggleNode(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+
+// ============================================
+// SANDBOX
+// ============================================
+
+let currentTab = 'settings';
+
+function switchTab(tab) {
+  // Save current
+  SANDBOX_DATA[currentTab] = document.getElementById('sandboxCode').value;
+  currentTab = tab;
+  document.getElementById('sandboxCode').value = SANDBOX_DATA[tab];
+  document.querySelectorAll('.sandbox-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  document.getElementById('sandboxStatus').textContent = '';
+  document.getElementById('sandboxStatus').className = 'sandbox-status';
+}
+
+function validateJSON() {
+  const code = document.getElementById('sandboxCode').value;
+  const status = document.getElementById('sandboxStatus');
+  // Strip comments for parsing
+  const stripped = code.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  try {
+    JSON.parse(stripped);
+    status.textContent = 'JSON 语法正确';
+    status.className = 'sandbox-status ok';
+  } catch(e) {
+    const msg = e.message.replace(/at position \d+/g, '').trim();
+    status.textContent = '语法错误: ' + msg.substring(0, 60);
+    status.className = 'sandbox-status err';
+  }
+}
+
+function resetSandbox() {
+  document.getElementById('sandboxCode').value = SANDBOX_DATA[currentTab];
+  document.getElementById('sandboxStatus').textContent = '已重置';
+  document.getElementById('sandboxStatus').className = 'sandbox-status';
+}
+
+function copySandbox() {
+  const code = document.getElementById('sandboxCode').value;
+  navigator.clipboard.writeText(code).then(() => {
+    const s = document.getElementById('sandboxStatus');
+    s.textContent = '已复制到剪贴板';
+    s.className = 'sandbox-status ok';
+  });
+}
+
+
+// ============================================
+// LEVEL 1 TASKS
+// ============================================
+
+function checkTask11() {
+  const val = document.getElementById('task11').value;
+  const res = document.getElementById('result11');
+  const stripped = val.replace(/\/\/.*$/gm, '').replace(/____\s*/g, '0');
+  let checks = [];
+  // tabSize should be a number (not ____)
+  if (/\"editor\.tabSize\"\s*:\s*\d+/.test(val) && !/tabSize.*____/.test(val))
+    checks.push(true); else checks.push(false);
+  // formatOnSave should be true/false
+  if (/\"editor\.formatOnSave\"\s*:\s*(true|false)/.test(val))
+    checks.push(true); else checks.push(false);
+  // autoSave
+  if (/\"files\.autoSave\"\s*:\s*\"(afterDelay|onFocusChange|onWindowChange|off)\"/.test(val))
+    checks.push(true); else checks.push(false);
+  // search exclude booleans
+  const excludeMatches = val.match(/\"search\.exclude\"[\s\S]*?\}/);
+  if (excludeMatches && /true/.test(excludeMatches[0]) && !/____/.test(excludeMatches[0]))
+    checks.push(true); else checks.push(false);
+
+  const passed = checks.filter(Boolean).length;
+  const total = checks.length;
+  if (passed === total) {
+    res.textContent = '全部正确！你已经掌握了 settings.json 的基本结构。';
+    res.className = 'check-result show pass';
+  } else {
+    res.textContent = `${passed}/${total} 项正确。检查标记 ____ 的位置，确保都已替换为合适的值。`;
+    res.className = 'check-result show fail';
+  }
+}
+
+// Task 1.2 — matching quiz
+const T12_ITEMS = [
+  { desc: "设置编辑器字体为 Fira Code", answer: "settings.json" },
+  { desc: "定义 Python 程序的调试启动方式", answer: "launch.json" },
+  { desc: "添加 npm run build 为编译任务", answer: "tasks.json" },
+  { desc: "建议团队成员安装 ESLint 扩展", answer: "extensions.json" },
+  { desc: "自定义 Ctrl+Shift+T 打开终端", answer: "keybindings.json" },
+];
+
+function initTask12() {
+  const area = document.getElementById('task12Area');
+  const files = ["settings.json", "launch.json", "tasks.json", "extensions.json", "keybindings.json"];
+  let html = '';
+  T12_ITEMS.forEach((item, i) => {
+    html += `<div style="display:flex;align-items:center;gap:12px;margin:8px 0;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px;font-size:0.93em">${item.desc}</span>
+      <select id="t12sel${i}" style="padding:6px 12px;border-radius:6px;background:var(--surface3);border:1px solid var(--border);color:var(--text);font-size:0.88em;font-family:var(--font-mono)">
+        <option value="">-- 选择 --</option>
+        ${files.map(f => `<option value="${f}">${f}</option>`).join('')}
+      </select>
+    </div>`;
+  });
+  area.innerHTML = html;
+}
+
+function checkTask12() {
+  const res = document.getElementById('result12');
+  let correct = 0;
+  T12_ITEMS.forEach((item, i) => {
+    const sel = document.getElementById('t12sel' + i);
+    if (sel.value === item.answer) {
+      correct++;
+      sel.style.borderColor = 'var(--success)';
+    } else {
+      sel.style.borderColor = 'var(--error)';
+    }
+  });
+  if (correct === T12_ITEMS.length) {
+    res.textContent = '全部匹配正确！';
+    res.className = 'check-result show pass';
+  } else {
+    res.textContent = `${correct}/${T12_ITEMS.length} 正确。红色边框的选项有误，再想想每个文件的职责。`;
+    res.className = 'check-result show fail';
+  }
+}
+
+
+// ============================================
+// LEVEL 2 TASKS
+// ============================================
+
+function checkTask21() {
+  const val = document.getElementById('task21').value;
+  const res = document.getElementById('result21');
+  let checks = [];
+  // name not empty
+  if (/\"name\"\s*:\s*\"[^\"]+\"/.test(val) && !/name.*____/.test(val)) checks.push(true); else checks.push(false);
+  // request = launch
+  if (/\"request\"\s*:\s*\"launch\"/.test(val)) checks.push(true); else checks.push(false);
+  // program has .py
+  if (/\"program\".*app\.py/.test(val)) checks.push(true); else checks.push(false);
+  // FLASK_DEBUG not empty
+  if (/\"FLASK_DEBUG\"\s*:\s*\"[^\"]+\"/.test(val) && !/FLASK_DEBUG.*____/.test(val)) checks.push(true); else checks.push(false);
+  // justMyCode boolean
+  if (/\"justMyCode\"\s*:\s*(true|false)/.test(val)) checks.push(true); else checks.push(false);
+
+  const passed = checks.filter(Boolean).length;
+  const total = checks.length;
+  res.textContent = passed === total
+    ? '完美！这个调试配置可以直接使用了。'
+    : `${passed}/${total} 项正确。检查 ____ 占位符是否都已替换。`;
+  res.className = 'check-result show ' + (passed === total ? 'pass' : 'fail');
+}
+
+function checkTask22() {
+  const val = document.getElementById('task22').value;
+  const res = document.getElementById('result22');
+  let checks = [];
+  // type = shell
+  if (/\"type\"\s*:\s*\"shell\"/.test(val)) checks.push(true); else checks.push(false);
+  // group kind = build
+  if (/\"kind\"\s*:\s*\"build\"/.test(val)) checks.push(true); else checks.push(false);
+  // problemMatcher has tsc
+  if (/problemMatcher.*\$tsc/.test(val) || /\"problemMatcher\".*\$tsc/.test(val)) checks.push(true); else checks.push(false);
+  // isBackground boolean
+  if (/\"isBackground\"\s*:\s*(true|false)/.test(val)) checks.push(true); else checks.push(false);
+
+  const passed = checks.filter(Boolean).length;
+  const total = checks.length;
+  res.textContent = passed === total
+    ? '正确！编译任务可以用 Ctrl+Shift+B 触发，监听任务会在后台持续运行。'
+    : `${passed}/${total} 项正确。回头检查每个 ____ 是否已替换。`;
+  res.className = 'check-result show ' + (passed === total ? 'pass' : 'fail');
+}
+
+
+// ============================================
+// LEVEL 3 TASK
+// ============================================
+
+function checkTask31() {
+  const val = document.getElementById('task31').value;
+  const res = document.getElementById('result31');
+  let checks = [];
+
+  // Has settings with tabSize and formatOnSave
+  if (/"editor\.tabSize"\s*:\s*\d/.test(val) && /"editor\.formatOnSave"\s*:\s*(true|false)/.test(val))
+    checks.push('settings.json 基本结构正确');
+  // Has launch with configurations array and compound
+  if (/"configurations"\s*:\s*\[/.test(val) && /"compounds"\s*:\s*\[/.test(val))
+    checks.push('launch.json 包含 configurations 和 compounds');
+  // Has launch with at least 2 configs (2 names)
+  const launchMatch = val.match(/launch\.json[\s\S]*?(?=tasks\.json|$)/i);
+  if (launchMatch) {
+    const names = launchMatch[0].match(/"name"\s*:/g);
+    if (names && names.length >= 2) checks.push('launch.json 至少有 2 个调试配置');
+  }
+  // Has tasks with at least 2 tasks
+  const tasksMatch = val.match(/tasks\.json[\s\S]*$/i);
+  if (tasksMatch) {
+    const labels = tasksMatch[0].match(/"label"\s*:/g);
+    if (labels && labels.length >= 2) checks.push('tasks.json 至少有 2 个任务');
+  }
+
+  // Check each section is valid JSON (roughly)
+  const sections = val.split(/\/\/\s*=+\s*\w+\.?\w*\s*=+/).filter(s => s.trim().length > 2);
+  let jsonOk = 0;
+  sections.forEach(s => {
+    const stripped = s.replace(/\/\/.*$/gm, '').trim();
+    try { JSON.parse(stripped); jsonOk++; } catch(e) {}
+  });
+  if (jsonOk >= 2) checks.push('至少 2 个文件的 JSON 语法正确');
+
+  if (checks.length >= 4) {
+    res.textContent = '非常好！' + checks.join('、') + '。这个配置已经可以用于真实项目了。';
+    res.className = 'check-result show pass';
+  } else if (checks.length > 0) {
+    res.textContent = checks.join('、') + '。还有一些部分需要完善。';
+    res.className = 'check-result show fail';
+  } else {
+    res.textContent = '还需要完善。确保三个文件都有有效内容，且 JSON 语法正确。';
+    res.className = 'check-result show fail';
+  }
+}
+
+
+// ============================================
+// QUIZ
+// ============================================
+
+let quizScore = 0, quizTotal = 0, quizAnswered = 0;
+
+function initQuiz() {
+  const area = document.getElementById('quizArea');
+  let html = '';
+  QUIZ_DATA.forEach((q, qi) => {
+    html += `<div class="quiz-card" id="quiz${qi}">
+      <div class="q-text">Q${qi+1}: ${q.q}</div>`;
+    q.opts.forEach((opt, oi) => {
+      html += `<button class="quiz-opt" onclick="answerQuiz(${qi},${oi})">${opt}</button>`;
+    });
+    html += `<div class="quiz-feedback" id="fb${qi}"></div></div>`;
+  });
+  area.innerHTML = html;
+}
+
+function answerQuiz(qi, oi) {
+  const card = document.getElementById('quiz' + qi);
+  const btns = card.querySelectorAll('.quiz-opt');
+  if (btns[0].disabled) return; // already answered
+
+  quizTotal++;
+  quizAnswered++;
+  const correct = QUIZ_DATA[qi].answer;
+
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === correct) b.classList.add('correct');
+    if (i === oi && oi !== correct) b.classList.add('wrong');
+  });
+
+  const fb = document.getElementById('fb' + qi);
+  if (oi === correct) {
+    quizScore++;
+    fb.innerHTML = '&#10004; 正确！' + QUIZ_DATA[qi].explain;
+    fb.style.background = 'var(--success-bg)';
+    fb.style.color = 'var(--success)';
+  } else {
+    fb.innerHTML = '&#10008; 不对。' + QUIZ_DATA[qi].explain;
+    fb.style.background = 'var(--error-bg)';
+    fb.style.color = 'var(--error)';
+  }
+  fb.classList.add('show');
+
+  if (quizAnswered === QUIZ_DATA.length) {
+    const scoreEl = document.getElementById('quizScore');
+    const numEl = document.getElementById('scoreNum');
+    const msgEl = document.getElementById('scoreMsg');
+    scoreEl.style.display = 'block';
+    numEl.textContent = `${quizScore}/${quizTotal}`;
+    const pct = Math.round(quizScore / quizTotal * 100);
+    if (pct >= 90) msgEl.textContent = '出色！你对 VSCode 配置的理解非常扎实。';
+    else if (pct >= 70) msgEl.textContent = '不错！回顾一下错误的题目，巩固理解。';
+    else msgEl.textContent = '继续学习！重新阅读知识地图中的内容，然后再试一次。';
+  }
+}
+
+
+// ============================================
+// GLOSSARY
+// ============================================
+
+function initGlossary() {
+  const grid = document.getElementById('glossaryGrid');
+  grid.innerHTML = GLOSSARY_DATA.map(g =>
+    `<div class="glossary-item">
+      <div class="glossary-term">${g.term}</div>
+      <div class="glossary-def">${g.def}</div>
+    </div>`
+  ).join('');
+}
+
+
+// ============================================
+// HINT TOGGLE
+// ============================================
+
+function showHint(id) {
+  document.getElementById(id).classList.toggle('show');
+}
+
+
+// ============================================
+// SCROLL PROGRESS + NAV HIGHLIGHT
+// ============================================
+
+function updateProgress() {
+  const scrollTop = document.documentElement.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+  document.getElementById('progressBar').style.width = progress + '%';
+
+  // Highlight active nav
+  const sections = ['map','precedence','sandbox','levels','quiz','glossary'];
+  const links = document.querySelectorAll('.nav-bar a');
+  let active = 0;
+  sections.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el && el.getBoundingClientRect().top < 200) active = i;
+  });
+  links.forEach((l, i) => l.classList.toggle('active', i === active));
+}
+
+window.addEventListener('scroll', updateProgress, { passive: true });
+
+
+// ============================================
+// INIT
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('sandboxCode').value = SANDBOX_DATA['settings'];
+  initTask12();
+  initQuiz();
+  initGlossary();
+});
+</script>
+</body>
+</html>
