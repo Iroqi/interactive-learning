@@ -10,8 +10,9 @@ permissions:
   pages: write
   id-token: write
 
+# 修改 concurrency group，增加分支隔离，减少 artifact 残留冲突
 concurrency:
-  group: "pages"
+  group: "pages-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -24,13 +25,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/configure-pages@v5
-
       - uses: actions/upload-pages-artifact@v3
         with:
           path: "."
-
       - id: deployment
         uses: actions/deploy-pages@v4
 
@@ -38,6 +36,8 @@ jobs:
   cloudflare-pages:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
+    # 确保 GitHub Pages 失败时，Cloudflare 仍然可以部署（可选，默认是并行的）
+    # 如果希望 GitHub Pages 失败就全部取消，可以添加 needs: [github-pages]
     steps:
       - uses: actions/checkout@v4
 
