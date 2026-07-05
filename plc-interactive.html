@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLC 交互式学习</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #0a0e1a; color: #c8d6e5;
+  line-height: 1.7; min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 40px 20px; text-align: center;
+  border-bottom: 3px solid #e94560;
+}
+.header h1 {
+  font-size: 2.4em; color: #e8e8e8; margin-bottom: 10px;
+}
+.header .subtitle {
+  font-size: 1.1em; color: #94a3b8;
+}
+.container {
+  max-width: 1100px; margin: 0 auto; padding: 30px 20px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 0; margin-bottom: 30px;
+  border-bottom: 2px solid #1e2a3a; overflow-x: auto;
+}
+.tab {
+  padding: 14px 28px; cursor: pointer; background: transparent;
+  border: none; color: #64748b; font-size: 1.05em;
+  white-space: nowrap; transition: all 0.3s;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.tab:hover { color: #94a3b8; }
+.tab.active { color: #e94560; border-bottom-color: #e94560; font-weight: bold; }
+
+/* Level panels */
+.level { display: none; }
+.level.active { display: block; animation: fadeIn 0.4s; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+.card {
+  background: #131b2e; border: 1px solid #1e2d45;
+  border-radius: 12px; padding: 28px 32px; margin-bottom: 24px;
+}
+.card h2 {
+  color: #e94560; font-size: 1.5em; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card h2 .icon { font-size: 1.3em; }
+.card h3 { color: #64b5f6; margin: 18px 0 8px; font-size: 1.15em; }
+.card p { margin-bottom: 12px; color: #a0b4c8; }
+
+/* Highlight box */
+.highlight {
+  background: #0f2847; border-left: 4px solid #64b5f6;
+  padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 16px 0;
+  color: #b0cde5;
+}
+.highlight .aha {
+  color: #f0c040; font-weight: bold; font-size: 1.1em;
+}
+
+/* Simulator */
+.simulator {
+  background: #0d1520; border: 2px solid #1e3050;
+  border-radius: 12px; padding: 24px; margin: 20px 0;
+}
+.sim-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.sim-title { font-size: 1.1em; color: #64b5f6; }
+.status-badge {
+  padding: 6px 14px; border-radius: 20px;
+  font-size: 0.9em; font-weight: bold;
+  background: #1a2744; color: #64748b;
+}
+.status-badge.running {
+  background: #0a2e1a; color: #4ade80;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 50% { opacity: 0.7; } }
+
+/* Factory Canvas */
+#factoryCanvas {
+  width: 100%; height: 400px;
+  background: #0a1018; border-radius: 8px;
+  border: 1px solid #1e3050; display: block;
+}
+
+/* Controls */
+.controls { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+.btn {
+  padding: 10px 22px; border: none; border-radius: 8px;
+  cursor: pointer; font-size: 0.95em; font-weight: bold;
+  transition: all 0.2s; font-family: inherit;
+}
+.btn-primary {
+  background: #e94560; color: white;
+}
+.btn-primary:hover { background: #c73652; transform: scale(1.03); }
+.btn-secondary {
+  background: #1e3050; color: #94a3b8;
+}
+.btn-secondary:hover { background: #2a3f60; }
+
+/* Predict box */
+.predict-box {
+  background: #1a1a2e; border: 2px dashed #e94560;
+  border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+}
+.predict-box label { color: #e94560; font-weight: bold; display: block; margin-bottom: 8px; }
+.predict-box select, .predict-box input {
+  background: #131b2e; color: #c8d6e5;
+  border: 1px solid #2a3f60; padding: 8px 14px;
+  border-radius: 6px; font-size: 1em; width: 100%; max-width: 400px;
+}
+.predict-result {
+  margin-top: 12px; padding: 10px 16px; border-radius: 6px;
+  display: none; font-weight: bold;
+}
+.predict-result.correct { background: #0a2e1a; color: #4ade80; }
+.predict-result.wrong { background: #2e1a0a; color: #f87171; }
+
+/* Ladder diagram */
+.ladder {
+  background: #0d1520; border-radius: 10px;
+  padding: 20px; margin: 16px 0;
+  font-family: 'Consolas', 'Courier New', monospace;
+  overflow-x: auto;
+}
+.ladder-line {
+  display: flex; align-items: center;
+  padding: 6px 0; min-height: 44px;
+}
+.ladder-rung {
+  display: flex; align-items: center; flex: 1;
+  border-top: 3px solid #4ade80; border-bottom: 3px solid #4ade80;
+  padding: 6px 0; min-height: 44px;
+}
+.ladder-contact, .ladder-coil {
+  padding: 6px 14px; border-radius: 4px; font-size: 0.95em;
+  font-weight: bold;
+}
+.ladder-contact { background: #1e3050; color: #64b5f6; border: 2px solid #2a4a70; }
+.ladder-contact.nc { color: #f97316; }
+.ladder-contact.on { background: #0a3a6a; border-color: #4ade80; color: #4ade80; }
+.ladder-coil { background: #2a1a1a; color: #f87171; border: 2px solid #5a2a2a; }
+.ladder-coil.on { background: #3a0a0a; border-color: #e94560; color: #e94560; }
+.ladder-wire { width: 30px; height: 3px; background: #4ade80; }
+.ladder-label {
+  font-size: 0.8em; color: #64748b;
+  margin-left: auto; white-space: nowrap;
+}
+
+/* IO Status table */
+.io-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+.io-table th, .io-table td {
+  padding: 10px 14px; text-align: left;
+  border-bottom: 1px solid #1e2d45;
+}
+.io-table th { color: #64b5f6; font-size: 0.9em; text-transform: uppercase; }
+.io-indicator {
+  display: inline-block; width: 14px; height: 14px;
+  border-radius: 50%; margin-right: 8px;
+  background: #2a2a3a; border: 2px solid #3a3a4a;
+}
+.io-indicator.on { background: #4ade80; border-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
+
+/* Scan cycle visualizer */
+.scan-visual {
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 20px 0;
+}
+.scan-step {
+  flex: 1; min-width: 100px; text-align: center;
+  padding: 14px 8px; border-radius: 8px;
+  background: #1a2744; border: 2px solid #1e3050;
+  font-size: 0.85em; color: #94a3b8;
+  transition: all 0.5s;
+}
+.scan-step.active {
+  border-color: #e94560; color: #e94560;
+  background: #1a1020; box-shadow: 0 0 16px rgba(233,69,96,0.3);
+}
+.scan-step.done { border-color: #4ade80; color: #4ade80; background: #0a1a12; }
+.scan-arrow {
+  color: #4ade80; font-size: 1.4em; align-self: center;
+}
+
+/* Concept map (simple SVG) */
+.concept-map { text-align: center; margin: 20px 0; }
+.concept-map svg { max-width: 100%; height: auto; }
+
+/* Code block */
+.code-block {
+  background: #0a0e1a; border: 1px solid #1e2d45;
+  border-radius: 8px; padding: 16px 20px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em; overflow-x: auto;
+  color: #a0d0f0; margin: 12px 0;
+}
+.code-comment { color: #546e7a; }
+.code-keyword { color: #c792ea; }
+.code-tag { color: #f07178; }
+
+/* Reflection */
+details {
+  background: #131b2e; border: 1px solid #1e2d45;
+  border-radius: 8px; padding: 12px 16px; margin: 10px 0;
+  cursor: pointer;
+}
+details summary { color: #e8e8e8; font-weight: bold; padding: 4px 0; }
+details .answer {
+  color: #4ade80; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid #1e2d45;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header h1 { font-size: 1.6em; }
+  .tab { padding: 10px 16px; font-size: 0.9em; }
+  .card { padding: 20px; }
+  .scan-visual { flex-direction: column; }
+  .scan-arrow { transform: rotate(90deg); }
+}
+
+/* Build phase */
+.build-area { margin: 16px 0; }
+.component-tray {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 12px; background: #0a1018;
+  border-radius: 8px; margin-bottom: 12px;
+  border: 1px solid #1e3050;
+}
+.component-chip {
+  padding: 8px 16px; border-radius: 6px; cursor: pointer;
+  background: #1e3050; color: #94a3b8; border: 2px solid transparent;
+  transition: all 0.2s; font-size: 0.9em;
+  user-select: none;
+}
+.component-chip:hover { border-color: #64b5f6; color: #e8e8e8; }
+.component-chip.selected { border-color: #e94560; color: #e94560; background: #1a1020; }
+.component-chip:disabled { opacity: 0.3; cursor: not-allowed; }
+
+#ladderBuildArea {
+  min-height: 200px; background: #0d1520;
+  border-radius: 8px; border: 2px dashed #1e3050;
+  padding: 16px; position: relative;
+}
+#ladderBuildArea.has-items { border-style: solid; border-color: #2a4a70; }
+
+.build-hint {
+  color: #64748b; text-align: center;
+  padding: 60px 20px; font-style: italic;
+}
+.build-hint.hidden { display: none; }
+
+.verify-btn { margin-top: 12px; }
+
+/* Ladder element in build area */
+.ladder-element {
+  display: inline-block; padding: 8px 16px; margin: 4px;
+  border-radius: 4px; font-weight: bold; cursor: pointer;
+  transition: all 0.2s; font-size: 0.95em;
+}
+.ladder-element:hover { transform: scale(1.05); }
+.ladder-element .remove-x {
+  display: none; margin-left: 6px; color: #f87171; cursor: pointer;
+}
+.ladder-element:hover .remove-x { display: inline; }
+
+/* Metrics */
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px; margin: 16px 0;
+}
+.metric-card {
+  background: #0d1520; border: 1px solid #1e3050;
+  border-radius: 8px; padding: 14px; text-align: center;
+}
+.metric-value { font-size: 1.6em; font-weight: bold; color: #e94560; }
+.metric-label { font-size: 0.8em; color: #64748b; margin-top: 4px; }
+
+/* Challenge levels */
+.challenge {
+  background: #131b2e; border: 1px solid #1e2d45;
+  border-radius: 10px; padding: 20px; margin: 12px 0;
+}
+.challenge-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.challenge-title { color: #64b5f6; font-weight: bold; }
+.challenge-status {
+  padding: 4px 12px; border-radius: 12px;
+  font-size: 0.85em; background: #1a2744; color: #64748b;
+}
+.challenge-status.pass { background: #0a2e1a; color: #4ade80; }
+.challenge-status.fail { background: #2e1a0a; color: #f87171; }
+
+/* Progress bar */
+.progress-bar {
+  height: 6px; background: #1e2d45; border-radius: 3px;
+  margin: 20px 0; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, #e94560, #f0a040);
+  border-radius: 3px; transition: width 0.5s;
+}
+
+/* Footer */
+.footer {
+  text-align: center; padding: 30px;
+  color: #3a4a5a; font-size: 0.85em;
+  border-top: 1px solid #1e2d45; margin-top: 40px;
+}
+
+/* Ladder flow indicator */
+.flow-indicator {
+  width: 100%; height: 4px; background: #1e3050;
+  border-radius: 2px; margin: 12px 0; position: relative; overflow: hidden;
+}
+.flow-indicator::after {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: #4ade80; border-radius: 2px;
+  transition: left 0.5s;
+}
+.flow-indicator.active::after { left: 0; }
+.flow-indicator.active { animation: flowPulse 2s infinite; }
+@keyframes flowPulse { 50% { box-shadow: 0 0 8px rgba(74,222,128,0.3); } }
+
+/* Tooltip */
+[title] { position: relative; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ PLC 交互式学习</h1>
+  <div class="subtitle">从零开始，用交互方式掌握可编程逻辑控制器的核心概念</div>
+</div>
+
+<div class="container">
+
+<!-- Progress -->
+<div class="progress-bar">
+  <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-tab="level1">1. PLC 是什么</button>
+  <button class="tab" data-tab="level2">2. I/O 系统</button>
+  <button class="tab" data-tab="level3">3. 梯形图编程</button>
+  <button class="tab" data-tab="level4">4. 扫描周期</button>
+  <button class="tab" data-tab="level5">5. 实战挑战</button>
+</div>
+
+<!-- ======================== LEVEL 1 ======================== -->
+<div class="level active" id="level1">
+  <div class="card">
+    <h2><span class="icon">🏭</span> PLC：工业自动化的"大脑"</h2>
+    <p><strong>PLC（Programmable Logic Controller，可编程逻辑控制器）</strong>是一种专为工业环境设计的数字运算电子系统。它用可编程的存储器存储指令，通过数字或模拟输入/输出控制各类机械或生产过程。</p>
+
+    <div class="highlight">
+      <span class="aha">核心洞察：</span>
+      PLC 就是把"继电器控制柜"搬到了软件里——用程序代替了成百上千个物理继电器。
+    </div>
+
+    <h3>为什么需要 PLC？</h3>
+    <p>在 PLC 出现之前，工厂控制全靠继电器——每个逻辑功能都需要一个物理继电器。一个中等复杂的系统可能需要 hundreds 个继电器，布线复杂、故障点多、修改困难。</p>
+    <p>PLC 把这些全部变成了<strong>软件程序</strong>：改逻辑只需改代码，不需要重新布线；内置诊断能力可以快速定位故障。</p>
+
+    <h3>PLC 的基本架构</h3>
+    <div class="code-block" style="overflow-x:auto;">
+<svg viewBox="0 0 560 200" style="max-width:100%;height:auto;">
+  <!-- CPU -->
+  <rect x="10" y="20" width="120" height="100" rx="6" fill="#1a2744" stroke="#e94560" stroke-width="2"/>
+  <text x="70" y="42" text-anchor="middle" fill="#e94560" font-size="13" font-weight="bold">CPU 模块</text>
+  <text x="70" y="62" text-anchor="middle" fill="#94a3b8" font-size="10">执行程序</text>
+  <text x="70" y="78" text-anchor="middle" fill="#94a3b8" font-size="10">处理数据</text>
+  <text x="70" y="94" text-anchor="middle" fill="#94a3b8" font-size="10">系统诊断</text>
+  <text x="70" y="112" text-anchor="middle" fill="#64b5f6" font-size="10">→ 扫描周期 →</text>
+
+  <!-- Power -->
+  <rect x="220" y="20" width="120" height="100" rx="6" fill="#1a2744" stroke="#4ade80" stroke-width="2"/>
+  <text x="280" y="42" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="bold">电源模块</text>
+  <text x="280" y="65" text-anchor="middle" fill="#94a3b8" font-size="10">AC → DC 转换</text>
+  <text x="280" y="82" text-anchor="middle" fill="#94a3b8" font-size="10">24VDC 输出</text>
+  <text x="280" y="99" text-anchor="middle" fill="#94a3b8" font-size="10">电气隔离保护</text>
+
+  <!-- IO -->
+  <rect x="430" y="20" width="120" height="100" rx="6" fill="#1a2744" stroke="#f0c040" stroke-width="2"/>
+  <text x="490" y="42" text-anchor="middle" fill="#f0c040" font-size="13" font-weight="bold">I/O 模块</text>
+  <text x="490" y="62" text-anchor="middle" fill="#94a3b8" font-size="10">DI: 数字量输入</text>
+  <text x="490" y="78" text-anchor="middle" fill="#94a3b8" font-size="10">DO: 数字量输出</text>
+  <text x="490" y="94" text-anchor="middle" fill="#94a3b8" font-size="10">AI/AO: 模拟量</text>
+
+  <!-- Programming Device -->
+  <rect x="170" y="140" width="220" height="50" rx="6" fill="#1a2744" stroke="#c792ea" stroke-width="2"/>
+  <text x="280" y="160" text-anchor="middle" fill="#c792ea" font-size="12" font-weight="bold">编程设备</text>
+  <text x="280" y="177" text-anchor="middle" fill="#94a3b8" font-size="10">编写梯形图 / 下载程序 / 监控调试</text>
+
+  <!-- Connections -->
+  <!-- Top row: CPU → Power → IO (horizontal chain) -->
+  <line x1="130" y1="70" x2="220" y2="70" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <line x1="340" y1="70" x2="430" y2="70" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="218,67 225,70 218,73" fill="#4ade80"/>
+  <polygon points="428,67 435,70 428,73" fill="#4ade80"/>
+
+  <!-- Power → Programming Device (vertical, center) -->
+  <line x1="280" y1="120" x2="280" y2="140" stroke="#c792ea" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="277,142 280,136 283,142" fill="#c792ea"/>
+
+  <!-- CPU → Programming Device (left side: down, right, up) -->
+  <line x1="70" y1="120" x2="70" y2="165" stroke="#4ade80" stroke-width="1.5"/>
+  <line x1="70" y1="165" x2="170" y2="165" stroke="#4ade80" stroke-width="1.5"/>
+  <line x1="170" y1="165" x2="170" y2="140" stroke="#4ade80" stroke-width="1.5"/>
+  <polygon points="167,142 170,136 173,142" fill="#4ade80"/>
+
+  <!-- IO → Programming Device (right side: down, left, up) -->
+  <line x1="490" y1="120" x2="490" y2="165" stroke="#4ade80" stroke-width="1.5"/>
+  <line x1="490" y1="165" x2="390" y2="165" stroke="#4ade80" stroke-width="1.5"/>
+  <line x1="390" y1="165" x2="390" y2="140" stroke="#4ade80" stroke-width="1.5"/>
+  <polygon points="387,142 390,136 393,142" fill="#4ade80"/>
+</svg>
+</div>
+
+    <h3>常见品牌</h3>
+    <p>三菱（Mitsubishi）| 西门子（Siemens）| 欧姆龙（Omron）| 施耐德（Schneider）| AB（Allen-Bradley）</p>
+
+    <details>
+      <summary>💡 想一想：PLC 的"可编程"到底意味着什么？（点击查看答案）</summary>
+      <div class="answer">
+        "可编程"意味着逻辑控制功能由软件决定而非硬件决定。同样的 PLC 硬件，只需上传不同的程序，就可以控制完全不同的设备——一台控制传送带，另一台控制注塑机，硬件完全一样。
+      </div>
+    </details>
+  </div>
+
+  <!-- Interactive: PLC architecture explorer -->
+  <div class="card">
+    <h2><span class="icon">🔍</span> 交互探索：PLC 架构</h2>
+    <p>点击下方 PLC 的各个模块，了解它们的功能：</p>
+    <div class="simulator" style="text-align:center;">
+      <svg viewBox="0 0 700 220" style="max-width:100%;height:auto;">
+        <!-- CPU -->
+        <g class="plc-module" data-module="cpu" style="cursor:pointer;" transform="translate(50,30)">
+          <rect x="0" y="0" width="140" height="160" rx="8" fill="#1a2744" stroke="#e94560" stroke-width="2.5"/>
+          <text x="70" y="25" text-anchor="middle" fill="#e94560" font-size="14" font-weight="bold">CPU 模块</text>
+          <text x="70" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">🔧 运算核心</text>
+          <text x="70" y="75" text-anchor="middle" fill="#64748b" font-size="10">执行用户程序</text>
+          <text x="70" y="95" text-anchor="middle" fill="#64748b8" font-size="10">处理 I/O 数据</text>
+          <text x="70" y="115" text-anchor="middle" fill="#64748b" font-size="10">系统诊断</text>
+          <text x="70" y="140" text-anchor="middle" fill="#64b5f6" font-size="10">→ 扫描周期 →</text>
+        </g>
+        <!-- Power -->
+        <g class="plc-module" data-module="power" style="cursor:pointer;" transform="translate(230,30)">
+          <rect x="0" y="0" width="120" height="160" rx="8" fill="#1a2744" stroke="#4ade80" stroke-width="2.5"/>
+          <text x="60" y="25" text-anchor="middle" fill="#4ade80" font-size="14" font-weight="bold">电源模块</text>
+          <text x="60" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">⚡ 供电核心</text>
+          <text x="60" y="75" text-anchor="middle" fill="#64748b" font-size="10">AC → DC 转换</text>
+          <text x="60" y="95" text-anchor="middle" fill="#64748b" font-size="10">24VDC 输出</text>
+          <text x="60" y="115" text-anchor="middle" fill="#64748b" font-size="10">电气隔离保护</text>
+          <text x="60" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">为所有模块供电</text>
+        </g>
+        <!-- IO -->
+        <g class="plc-module" data-module="io" style="cursor:pointer;" transform="translate(390,30)">
+          <rect x="0" y="0" width="140" height="160" rx="8" fill="#1a2744" stroke="#f0c040" stroke-width="2.5"/>
+          <text x="70" y="25" text-anchor="middle" fill="#f0c040" font-size="14" font-weight="bold">I/O 模块</text>
+          <text x="70" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">🔌 接口枢纽</text>
+          <text x="70" y="75" text-anchor="middle" fill="#64748b" font-size="10">DI: 数字量输入</text>
+          <text x="70" y="95" text-anchor="middle" fill="#64748b" font-size="10">DO: 数字量输出</text>
+          <text x="70" y="115" text-anchor="middle" fill="#64748b" font-size="10">AI/AO: 模拟量</text>
+          <text x="70" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">连接现场设备</text>
+        </g>
+        <!-- Programming -->
+        <g class="plc-module" data-module="prog" style="cursor:pointer;" transform="translate(570,30)">
+          <rect x="0" y="0" width="120" height="160" rx="8" fill="#1a2744" stroke="#c792ea" stroke-width="2.5"/>
+          <text x="60" y="25" text-anchor="middle" fill="#c792ea" font-size="14" font-weight="bold">编程设备</text>
+          <text x="60" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">💻 开发工具</text>
+          <text x="60" y="75" text-anchor="middle" fill="#64748b" font-size="10">编写梯形图</text>
+          <text x="60" y="95" text-anchor="middle" fill="#64748b" font-size="10">下载到 PLC</text>
+          <text x="60" y="115" text-anchor="middle" fill="#64748b" font-size="10">监控 / 调试</text>
+          <text x="60" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">GX Works / TIA</text>
+        </g>
+        <!-- Connection lines -->
+        <line x1="190" y1="110" x2="230" y2="110" stroke="#4ade80" stroke-width="2" stroke-dasharray="4,3"/>
+        <line x1="350" y1="110" x2="390" y2="110" stroke="#4ade80" stroke-width="2" stroke-dasharray="4,3"/>
+        <line x1="530" y1="110" x2="570" y2="110" stroke="#c792ea" stroke-width="2" stroke-dasharray="4,3"/>
+      </svg>
+      <div id="moduleInfo" style="margin-top:14px;padding:12px 16px;background:#131b2e;border-radius:8px;min-height:48px;color:#a0b4c8;">
+        👆 点击任意模块查看详细说明
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== LEVEL 2 ======================== -->
+<div class="level" id="level2">
+  <div class="card">
+    <h2><span class="icon">🔌</span> 输入/输出（I/O）：PLC 的"感官"与"手脚"</h2>
+    <p>PLC 通过 I/O 模块与物理世界交互：<strong>输入设备</strong>把现场信号送入 PLC，<strong>输出设备</strong>由 PLC 驱动。</p>
+
+    <div class="highlight">
+      <span class="aha">关键概念：</span>
+      X（X0, X1...）表示<strong>输入</strong>，Y（Y0, Y1...）表示<strong>输出</strong>——这是所有PLC编程的基础命名约定。
+    </div>
+
+    <h3>输入设备（传感器/开关）</h3>
+    <div class="code-block">
+      <span style="color:#64b5f6;">■ 按钮 / 开关</span>        → 手动触发信号
+      <span style="color:#64b5f6;">■ 限位开关</span>          → 物体到达位置检测
+      <span style="color:#64b5f6;">■ 光电传感器</span>         → 物体通过检测
+      <span style="color:#64b5f6;">■ 接近开关</span>          → 金属物体感应
+      <span style="color:#64b5f6;">■ 温度/压力传感器</span>   → 模拟量输入
+    </div>
+
+    <h3>输出设备（执行器）</h3>
+    <div class="code-block">
+      <span style="color:#f87171;">■ 继电器</span>             → 开关控制
+      <span style="color:#f87171;">■ 接触器</span>            → 电机启停
+      <span style="color:#f87171;">■ 指示灯</span>            → 状态显示
+      <span style="color:#f87171;">■ 电磁阀</span>            → 气动/液压控制
+      <span style="color:#f87171;">■ 变频器</span>            → 电机调速
+    </div>
+  </div>
+
+  <!-- Interactive: IO Simulator -->
+  <div class="card">
+    <h2><span class="icon">🎮</span> 交互：I/O 信号流模拟</h2>
+    <p>点击下方按钮和传感器来模拟输入信号，观察它们如何影响 PLC 的输出：</p>
+
+    <div class="simulator">
+      <div class="sim-header">
+        <span class="sim-title">🏭 工厂传送带控制面板</span>
+        <span class="status-badge" id="simStatus">等待操作</span>
+      </div>
+
+      <canvas id="factoryCanvas"></canvas>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="btnStart" onclick="toggleInput('start')">▶ 启动按钮 (X0)</button>
+        <button class="btn btn-secondary" id="btnStop" onclick="toggleInput('stop')">⏹ 停止按钮 (X1)</button>
+        <button class="btn btn-secondary" id="btnSensor" onclick="sensorOverride()">📡 传感器 (X2) [自动]</button>
+        <button class="btn btn-secondary" onclick="resetSim()">🔄 重置</button>
+      </div>
+
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value" id="metricScans">0</div>
+          <div class="metric-label">扫描次数</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="metricCycles">0</div>
+          <div class="metric-label">完成物料</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="metricRuntime">0s</div>
+          <div class="metric-label">运行时间</div>
+        </div>
+      </div>
+
+      <!-- IO Status Table -->
+      <h3 style="color:#64b5f6;margin-top:16px;">实时 I/O 状态</h3>
+      <table class="io-table">
+        <thead>
+          <tr><th>地址</th><th>名称</th><th>类型</th><th>当前值</th><th>信号流向</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>X0</code></td>
+            <td>启动按钮</td><td style="color:#64b5f6">输入 (DI)</td>
+            <td><span class="io-indicator" id="ind-X0"></span><span id="val-X0">OFF</span></td>
+            <td>操作员 → PLC</td>
+          </tr>
+          <tr>
+            <td><code>X1</code></td>
+            <td>停止按钮</td><td style="color:#64b5f6">输入 (DI)</td>
+            <td><span class="io-indicator" id="ind-X1"></span><span id="val-X1">OFF</span></td>
+            <td>操作员 → PLC</td>
+          </tr>
+          <tr>
+            <td><code>X2</code></td>
+            <td>物料传感器</td><td style="color:#64b5f6">输入 (DI)</td>
+            <td><span class="io-indicator" id="ind-X2"></span><span id="val-X2">OFF</span></td>
+            <td>传感器 → PLC</td>
+          </tr>
+          <tr>
+            <td><code>Y0</code></td>
+            <td>传送带电机</td><td style="color:#f87171">输出 (DO)</td>
+            <td><span class="io-indicator" id="ind-Y0"></span><span id="val-Y0">OFF</span></td>
+            <td>PLC → 电机</td>
+          </tr>
+          <tr>
+            <td><code>Y1</code></td>
+            <td>状态指示灯</td><td style="color:#f87171">输出 (DO)</td>
+            <td><span class="io-indicator" id="ind-Y1"></span><span id="val-Y1">OFF</span></td>
+            <td>PLC → 指示灯</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Ladder diagram matching current state -->
+      <h3 style="color:#64b5f6;margin-top:16px;">对应梯形图</h3>
+      <div class="ladder">
+        <div class="ladder-line">
+          <span class="ladder-rung">
+            <span class="ladder-contact" id="ladder-X0">──┤ X0 ├──</span>
+            <span class="ladder-wire"></span>
+            <span class="ladder-contact nc" id="ladder-X1">──┤/X1 ├──</span>
+            <span class="ladder-wire"></span>
+            <span class="ladder-contact" id="ladder-X2">──┤ X2 ├──</span>
+          </span>
+          <span class="ladder-label">Rung 0: 启动条件</span>
+        </div>
+        <div class="ladder-line">
+          <span class="ladder-rung">
+            <span class="ladder-coil" id="ladder-Y0">──( Y0 )──</span>
+          </span>
+          <span class="ladder-label">Rung 1: 电机输出</span>
+        </div>
+        <div class="ladder-line">
+          <span class="ladder-rung">
+            <span class="ladder-coil" id="ladder-Y1">──( Y1 )──</span>
+          </span>
+          <span class="ladder-label">Rung 2: 指示灯输出</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== LEVEL 3 ======================== -->
+<div class="level" id="level3">
+  <div class="card">
+    <h2><span class="icon">📐</span> 梯形图（Ladder Logic）：PLC 的编程语言</h2>
+    <p><strong>梯形图（Ladder Diagram）</strong>是最常用的 PLC 编程语言，因为它的图形形式直接模仿了传统的继电器控制电路图，电气工程师一看就懂。</p>
+
+    <div class="highlight">
+      <span class="aha">核心洞察：</span>
+      梯形图的本质是<strong>"从上到下、从左到右"的逻辑判断链</strong>——每一行（称为"梯级"或 Rung）都表达一个完整的"如果...那么..."逻辑。
+    </div>
+
+    <h3>梯形图的基本符号</h3>
+    <div class="code-block">
+      <span style="color:#4ade80;">┤ ├ </span> <span style="color:#a0b4c8;">常开触点（Normally Open）——输入为 ON 时导通</span>
+      <span style="color:#f97316;">┤/├ </span> <span style="color:#a0b4c8;">常闭触点（Normally Closed）——输入为 OFF 时导通</span>
+      <span style="color:#f87171;">( )  </span> <span style="color:#a0b4c8;">线圈（Coil）——输出端，满足条件时"得电"</span>
+      <span style="color:#64748b;">──   </span> <span style="color:#a0b4c8;">连接线</span>
+    </div>
+
+    <h3>一个实际的例子：电机启停控制</h3>
+    <p>这是工厂里最常见的控制——按启动按钮电机运转，按停止按钮电机停止：</p>
+    <div class="ladder">
+      <div class="ladder-line">
+        <span class="ladder-rung">
+          <span class="ladder-contact on">──┤ Start ├──</span>
+          <span class="ladder-wire"></span>
+          <span class="ladder-contact nc">──┤/Stop ├──</span>
+          <span class="ladder-wire"></span>
+          <span class="ladder-contact" id="ex-M">──┤ M0 ├──</span>
+          <span class="ladder-wire"></span>
+          <span class="ladder-coil on" id="ex-M0">──( M0 )──</span>
+        </span>
+      </div>
+    </div>
+    <p style="color:#a0b4c8;font-size:0.95em;">
+      <strong>逻辑解读：</strong>当 Start 按下（ON）<strong>且</strong> Stop 没按下（常闭触点导通）<strong>且</strong> M0 自锁触点闭合 → 电机 M0 得电运行。<br>
+      <strong>关键点：</strong>M0 的常开触点与 Start 并联——这就是"自锁"（Self-latching），松开 Start 后 M0 仍然保持运行。
+    </p>
+
+    <details>
+      <summary>💡 为什么需要"自锁"触点 M0？</summary>
+      <div class="answer">
+        如果没有 M0 自锁触点，你松开 Start 按钮后，梯形图回路断开，电机立即停止——那就成了一个"点动"开关而非"启动"开关。自锁触点让输出保持"通电"状态，直到 Stop 按钮（或另一个停止条件）切断回路。
+      </div>
+    </details>
+  </div>
+
+  <!-- Interactive: Ladder Builder -->
+  <div class="card">
+    <h2><span class="icon">🛠️</span> 交互：构建你的第一段梯形图</h2>
+    <p>从下方零件库中选择组件，拖入梯形图区域，构建一个"灯控系统"：<strong>按按钮 X0 点亮灯 Y0，松开灯灭</strong>。</p>
+
+    <div class="predict-box">
+      <label>🔮 先预测：这段梯形图需要几个元件？</label>
+      <select id="predictCount">
+        <option value="">-- 选择你的答案 --</option>
+        <option value="1">1 个（只有输出线圈）</option>
+        <option value="2">2 个（一个触点 + 一个线圈）</option>
+        <option value="3">3 个（两个触点 + 一个线圈）</option>
+        <option value="4">4 个</option>
+      </select>
+      <button class="btn btn-primary" style="margin-top:8px;" onclick="checkPredict()">提交预测</button>
+      <div class="predict-result" id="predictResult"></div>
+    </div>
+
+    <div class="build-area">
+      <div class="component-tray">
+        <span style="color:#64748b;font-size:0.9em;margin-right:8px;">零件库：</span>
+        <span class="component-chip" data-type="contact" data-addr="X0" onclick="addComponent(this)">┤ X0 ├ (常开触点)</span>
+        <span class="component-chip" data-type="coil" data-addr="Y0" onclick="addComponent(this)">( Y0 ) (线圈)</span>
+      </div>
+      <div id="ladderBuildArea">
+        <div class="build-hint" id="buildHint">👆 从上方零件库点击添加组件到此处</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary verify-btn" id="verifyBtn" onclick="verifyLadder()" disabled>✅ 验证梯形图</button>
+    <div id="verifyResult" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- ======================== LEVEL 4 ======================== -->
+<div class="level" id="level4">
+  <div class="card">
+    <h2><span class="icon">🔄</span> 扫描周期（Scan Cycle）：PLC 的心脏跳动</h2>
+    <p>PLC 不是"事件驱动"的——它采用<strong>循环扫描</strong>方式工作，周而复始地执行四步：</p>
+
+    <div class="scan-visual" id="scanSteps">
+      <div class="scan-step" data-step="0">
+        <strong>1. 读输入</strong><br>
+        <small>Read Inputs</small><br>
+        <span style="font-size:0.8em;color:#64748b;">采样所有 I/O</span>
+      </div>
+      <div class="scan-arrow">→</div>
+      <div class="scan-step" data-step="1">
+        <strong>2. 执行程序</strong><br>
+        <small>Execute</small><br>
+        <span style="font-size:0.8em;color:#64748b;">运行用户逻辑</span>
+      </div>
+      <div class="scan-arrow">→</div>
+      <div class="scan-step" data-step="2">
+        <strong>3. 写输出</strong><br>
+        <small>Write Outputs</small><br>
+        <span style="font-size:0.8em;color:#64748b;">更新输出状态</span>
+      </div>
+      <div class="scan-arrow">→</div>
+      <div class="scan-step" data-step="3">
+        <strong>4. 通信服务</strong><br>
+        <small>Communicate</small><br>
+        <span style="font-size:0.8em;color:#64748b;">处理通信</span>
+      </div>
+    </div>
+
+    <div class="highlight">
+      <span class="aha">关键洞察：</span>
+      一个典型的 PLC 扫描周期仅需 <strong>1-10ms</strong>——意味着每秒执行 100-1000 次！这也是为什么工业控制能够做到如此精确和可靠。
+    </div>
+
+    <h3>扫描周期的四个阶段详解</h3>
+    <div class="code-block" style="overflow-x:auto;">
+<svg viewBox="0 0 500 180" style="max-width:100%;height:auto;">
+  <!-- Central cycle circle -->
+  <circle cx="250" cy="80" r="55" fill="none" stroke="#e94560" stroke-width="2" stroke-dasharray="6,4"/>
+  <circle cx="250" cy="80" r="42" fill="#1a1020" stroke="#e94560" stroke-width="1"/>
+  <text x="250" y="76" text-anchor="middle" fill="#e94560" font-size="11" font-weight="bold">PLC 扫描周期</text>
+  <text x="250" y="92" text-anchor="middle" fill="#94a3b8" font-size="10">循环执行</text>
+
+  <!-- Arrow indicators on circle -->
+  <polygon points="305,72 312,80 305,88" fill="#e94560" opacity="0.6"/>
+
+  <!-- Step 1: Read Inputs (top-left) -->
+  <rect x="15" y="10" width="110" height="55" rx="6" fill="#1a2744" stroke="#64b5f6" stroke-width="1.5"/>
+  <text x="70" y="28" text-anchor="middle" fill="#64b5f6" font-size="11" font-weight="bold">① 读输入</text>
+  <text x="70" y="44" text-anchor="middle" fill="#64748b" font-size="9">Read Inputs</text>
+  <text x="70" y="56" text-anchor="middle" fill="#64748b" font-size="9">采样所有 I/O</text>
+
+  <!-- Step 2: Execute (top-right) -->
+  <rect x="375" y="10" width="110" height="55" rx="6" fill="#1a2744" stroke="#f0c040" stroke-width="1.5"/>
+  <text x="430" y="28" text-anchor="middle" fill="#f0c040" font-size="11" font-weight="bold">② 执行程序</text>
+  <text x="430" y="44" text-anchor="middle" fill="#64748b" font-size="9">Execute</text>
+  <text x="430" y="56" text-anchor="middle" fill="#64748b" font-size="9">运行用户逻辑</text>
+
+  <!-- Step 3: Write Outputs (bottom-right) -->
+  <rect x="375" y="115" width="110" height="55" rx="6" fill="#1a2744" stroke="#f87171" stroke-width="1.5"/>
+  <text x="430" y="133" text-anchor="middle" fill="#f87171" font-size="11" font-weight="bold">③ 写输出</text>
+  <text x="430" y="149" text-anchor="middle" fill="#64748b" font-size="9">Write Outputs</text>
+  <text x="430" y="161" text-anchor="middle" fill="#64748b" font-size="9">更新输出状态</text>
+
+  <!-- Step 4: Communicate (bottom-left) -->
+  <rect x="15" y="115" width="110" height="55" rx="6" fill="#1a2744" stroke="#c792ea" stroke-width="1.5"/>
+  <text x="70" y="133" text-anchor="middle" fill="#c792ea" font-size="11" font-weight="bold">④ 通信服务</text>
+  <text x="70" y="149" text-anchor="middle" fill="#64748b" font-size="9">Communicate</text>
+  <text x="70" y="161" text-anchor="middle" fill="#64748b" font-size="9">处理通信/自诊断</text>
+
+  <!-- Flow arrows (curved) -->
+  <defs>
+    <marker id="arr-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#64b5f6"/>
+    </marker>
+    <marker id="arr-yellow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f0c040"/>
+    </marker>
+    <marker id="arr-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f87171"/>
+    </marker>
+    <marker id="arr-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#c792ea"/>
+    </marker>
+  </defs>
+
+  <!-- 1→2: top arc -->
+  <path d="M 125,37 Q 250,-10 375,37" fill="none" stroke="#64b5f6" stroke-width="1.5" marker-end="url(#arr-yellow)"/>
+  <!-- 2→3: right arc -->
+  <path d="M 430,65 Q 500,80 430,115" fill="none" stroke="#f0c040" stroke-width="1.5" marker-end="url(#arr-red)"/>
+  <!-- 3→4: bottom arc -->
+  <path d="M 375,143 Q 250,210 125,143" fill="none" stroke="#f87171" stroke-width="1.5" marker-end="url(#arr-purple)"/>
+  <!-- 4→1: left arc -->
+  <path d="M 70,115 Q 0,80 70,65" fill="none" stroke="#c792ea" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+
+  <!-- Repeat label -->
+  <text x="250" y="38" text-anchor="middle" fill="#e94560" font-size="10" font-weight="bold">重复执行</text>
+</svg>
+</div>
+
+    <h3>为什么扫描周期很重要？</h3>
+    <p>了解扫描周期可以帮助你理解为什么有时候"程序逻辑是对的但结果却不太对"——可能是信号在两次扫描之间发生了变化，或者输出响应有延迟。</p>
+  </div>
+
+  <!-- Interactive: Scan Cycle Visualizer -->
+  <div class="card">
+    <h2><span class="icon">▶️</span> 交互：可视化扫描周期</h2>
+    <p>观察 PLC 在每次扫描周期中如何依次处理输入、执行逻辑、更新输出：</p>
+
+    <div class="simulator">
+      <div class="sim-header">
+        <span class="sim-title">🔁 扫描周期模拟器</span>
+        <span class="status-badge" id="scanStatus">就绪</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;" id="scanPanels">
+        <div style="background:#0a1018;border-radius:8px;padding:14px;border:1px solid #1e3050;">
+          <div style="color:#64b5f6;font-size:0.85em;margin-bottom:8px;">输入缓冲区（读自外部）</div>
+          <div style="font-family:monospace;font-size:1.2em;" id="scanInputs">X0=0 X1=0 X2=0</div>
+          <div class="flow-indicator" id="flowInput"></div>
+        </div>
+        <div style="background:#0a1018;border-radius:8px;padding:14px;border:1px solid #1e3050;">
+          <div style="color:#f87171;font-size:0.85em;margin-bottom:8px;">输出缓冲区（写入外部）</div>
+          <div style="font-family:monospace;font-size:1.2em;" id="scanOutputs">Y0=0 Y1=0</div>
+          <div class="flow-indicator" id="flowOutput"></div>
+        </div>
+      </div>
+
+      <div style="background:#0a1018;border-radius:8px;padding:14px;border:1px solid #1e3050;margin:12px 0;">
+        <div style="color:#f0c040;font-size:0.85em;margin-bottom:8px;">当前扫描状态</div>
+        <div style="font-size:1.1em;font-weight:bold;color:#e8e8e8;" id="scanStepLabel">等待开始...</div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="startScanSim()">▶ 开始演示</button>
+        <button class="btn btn-secondary" onclick="stepScanSim()">⏭ 单步执行</button>
+        <button class="btn btn-secondary" onclick="changeInput()">🖱️ 切换 X0 输入</button>
+      </div>
+
+      <div class="metrics" style="margin-top:16px;">
+        <div class="metric-card">
+          <div class="metric-value" id="scanCount">0</div>
+          <div class="metric-label">扫描次数</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="scanTime">0ms</div>
+          <div class="metric-label">累计时间</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="scanAvg">0ms</div>
+          <div class="metric-label">平均周期</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== LEVEL 5 ======================== -->
+<div class="level" id="level5">
+  <div class="card">
+    <h2><span class="icon">🏆</span> 实战挑战</h2>
+    <p>你已经学习了 PLC 的四大核心概念。现在通过三个挑战来检验你的理解：</p>
+  </div>
+
+  <!-- Challenge 1 -->
+  <div class="challenge" id="ch1">
+    <div class="challenge-header">
+      <span class="challenge-title">挑战 1：理解梯形图逻辑</span>
+      <span class="challenge-status" id="ch1Status">未完成</span>
+    </div>
+    <p style="color:#a0b4c8;">下面这段梯形图控制什么功能？请用一句话描述：</p>
+    <div class="ladder">
+      <div class="ladder-line">
+        <span class="ladder-rung">
+          <span class="ladder-contact">──┤ X0 ├──</span>
+          <span class="ladder-wire"></span>
+          <span class="ladder-contact nc">──┤/X1 ├──</span>
+          <span class="ladder-wire"></span>
+          <span class="ladder-coil">──( Y0 )──</span>
+        </span>
+        <span class="ladder-label">Y0 = X0 AND NOT X1</span>
+      </div>
+    </div>
+    <input type="text" id="ch1Answer" placeholder="描述这段代码的功能..." style="width:100%;padding:10px;background:#0d1520;color:#c8d6e5;border:1px solid #1e3050;border-radius:6px;margin-top:8px;font-family:inherit;">
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="checkChallenge1()">提交答案</button>
+    <div id="ch1Result" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Challenge 2 -->
+  <div class="challenge" id="ch2">
+    <div class="challenge-header">
+      <span class="challenge-title">挑战 2：诊断扫描延迟</span>
+      <span class="challenge-status" id="ch2Status">未完成</span>
+    </div>
+    <p style="color:#a0b4c8;">PLC 扫描周期为 5ms。一个按钮信号持续时间仅为 <strong>2ms</strong>。PLC <strong>能否可靠检测</strong>到这次按钮按下？</p>
+    <select id="ch2Answer" style="width:100%;padding:10px;background:#0d1520;color:#c8d6e5;border:1px solid #1e3050;border-radius:6px;margin-top:8px;font-family:inherit;">
+      <option value="">-- 选择答案 --</option>
+      <option value="yes">能可靠检测</option>
+      <option value="no">不能可靠检测（信号太短）</option>
+      <option value="maybe">取决于其他因素</option>
+    </select>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="checkChallenge2()">提交答案</button>
+    <div id="ch2Result" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Challenge 3 -->
+  <div class="challenge" id="ch3">
+    <div class="challenge-header">
+      <span class="challenge-title">挑战 3：设计安全启停电路</span>
+      <span class="challenge-status" id="ch3Status">未完成</span>
+    </div>
+    <p style="color:#a0b4c8;">一个安全的启停电路需要满足以下所有条件才能运行：</p>
+    <div style="color:#a0b4c8;padding:12px 0;font-size:0.95em;">
+      1. 按下了启动按钮（X0）<br>
+      2. 没有按下急停按钮（X1，常闭）<br>
+      3. 系统处于允许运行状态（X2，常开）<br>
+      4. 电机具有自锁功能<br>
+    </div>
+    <p style="color:#a0b4c8;">请判断：至少需要多少个梯形图元件（触点 + 线圈）？</p>
+    <select id="ch3Answer" style="width:100%;padding:10px;background:#0d1520;color:#c8d6e5;border:1px solid #1e3050;border-radius:6px;margin-top:8px;font-family:inherit;">
+      <option value="">-- 选择答案 --</option>
+      <option value="3">3 个</option>
+      <option value="4">4 个</option>
+      <option value="5">5 个</option>
+      <option value="6">6 个</option>
+      <option value="7">7 个</option>
+      <option value="8">8 个</option>
+    </select>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="checkChallenge3()">提交答案</button>
+    <div id="ch3Result" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Completion -->
+  <div class="card" id="completionCard" style="display:none;text-align:center;">
+    <h2 style="justify-content:center;">🎉 恭喜完成所有挑战！</h2>
+    <p style="font-size:1.1em;">你已经掌握了 PLC 的四大核心概念。继续探索：</p>
+    <div class="highlight" style="text-align:left;">
+      <strong>下一步学习建议：</strong><br>
+      1. 了解 <strong>定时器（Timer）</strong> —— TMR 指令，实现延时控制<br>
+      2. 了解 <strong>计数器（Counter）</strong> —— CTU/CTD 指令，计数控制<br>
+      3. 了解 <strong>模拟量处理</strong> —— AI/AO 模块及数据转换<br>
+      4. 尝试安装 <strong>GX Works2</strong>（三菱）或 <strong>FX-TRN-BEG</strong>（仿真软件）进行实践
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="footer">
+  PLC 交互式学习工具 — 通过交互方式学习工业自动化核心概念
+</div>
+
+<script>
+// ============================================================
+//  TAB NAVIGATION
+// ============================================================
+const tabs = document.querySelectorAll('.tab');
+const levels = document.querySelectorAll('.level');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    levels.forEach(l => l.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+    updateProgress();
+  });
+});
+
+function updateProgress() {
+  let completed = 0;
+  tabs.forEach(t => { if (t.classList.contains('active')) completed++; });
+  if (document.getElementById('ch1Status').textContent === '通过 ✅') completed += 0.5;
+  if (document.getElementById('ch2Status').textContent === '通过 ✅') completed += 0.5;
+  document.getElementById('progressBar').style.width = (completed / tabs.length * 100) + '%';
+}
+
+// ============================================================
+//  LEVEL 1: PLC ARCHITECTURE EXPLORER
+// ============================================================
+const moduleData = {
+  cpu: {
+    title: 'CPU 模块（Central Processing Unit）',
+    desc: 'PLC 的大脑。负责执行用户编写的控制程序，处理来自 I/O 模块的数据，进行逻辑运算、计时、计数和数据通信。CPU 的性能决定了 PLC 的处理速度和能支持的 I/O 点数。'
+  },
+  power: {
+    title: '电源模块（Power Supply）',
+    desc: '将外部交流电（AC 220V/110V）转换为 PLC 内部所需的直流电（通常为 24VDC）。同时提供电气隔离，保护内部电路免受电压波动和浪涌的损害。'
+  },
+  io: {
+    title: 'I/O 模块（Input/Output）',
+    desc: 'PLC 与外部世界的接口。输入模块接收来自传感器、按钮等设备的信号；输出模块驱动继电器、接触器、指示灯等执行设备。I/O 模块可以扩展，从几个点到数百个点。'
+  },
+  prog: {
+    title: '编程设备（Programming Device）',
+    desc: '通常是电脑安装专用编程软件（如三菱 GX Works、西门子 TIA Portal），或手持编程器。用于编写、下载和监控 PLC 程序。程序通过通信接口（RS-232、以太网）传送到 PLC。'
+  }
+};
+
+document.querySelectorAll('.plc-module').forEach(g => {
+  g.addEventListener('click', () => {
+    const key = g.dataset.module;
+    const info = moduleData[key];
+    const infoEl = document.getElementById('moduleInfo');
+    infoEl.innerHTML = `<strong style="color:#e8e8e8;">${info.title}</strong><br><br>${info.desc}`;
+    g.querySelector('rect').setAttribute('stroke-width', '4');
+    setTimeout(() => g.querySelector('rect').setAttribute('stroke-width', '2.5'), 600);
+  });
+});
+
+// ============================================================
+//  LEVEL 2: I/O SIMULATOR
+// ============================================================
+
+// --- State ---
+const simState = {
+  start: false,
+  stop: false,
+  motorOn: false,
+  lightOn: false,
+  manualSensor: null,    // null=auto, true/false=forced
+  _sensor: null,          // cached sensor value for UI updates
+  scans: 0,
+  cycles: 0,
+  materialX: 90,          // start at sensor position (X=90) so motor can start
+  running: false,
+  simInterval: null,
+  startTime: null,
+  timerInterval: null
+};
+
+// --- Input handlers ---
+function toggleInput(type) {
+  simState[type] = !simState[type];
+  updateSimUI();
+}
+
+function sensorOverride() {
+  // Cycle: null → true → false → null
+  if (simState.manualSensor === null) simState.manualSensor = true;
+  else if (simState.manualSensor === true) simState.manualSensor = false;
+  else simState.manualSensor = null;
+
+  const btn = document.getElementById('btnSensor');
+  if (simState.manualSensor === null) {
+    btn.textContent = '📡 传感器 (X2) [自动]';
+    btn.className = 'btn btn-secondary';
+  } else if (simState.manualSensor === true) {
+    btn.textContent = '📡 传感器 (X2) [强制ON]';
+    btn.className = 'btn btn-primary';
+  } else {
+    btn.textContent = '📡 传感器 (X2) [强制OFF]';
+    btn.className = 'btn btn-secondary';
+  }
+  updateSimUI();
+}
+
+function resetSim() {
+  simState.start = false;
+  simState.stop = false;
+  simState.motorOn = false;
+  simState.lightOn = false;
+  simState._sensor = null;
+  simState.scans = 0;
+  simState.manualSensor = null;
+  simState.cycles = 0;
+  simState.materialX = 90;       // back to sensor position
+  simState.running = false;
+  if (simState.simInterval) clearInterval(simState.simInterval);
+  if (simState.timerInterval) clearInterval(simState.timerInterval);
+  document.getElementById('simStatus').textContent = '已停止';
+  document.getElementById('simStatus').className = 'status-badge';
+  document.getElementById('btnSensor').textContent = '📡 传感器 (X2) [自动]';
+  document.getElementById('btnSensor').className = 'btn btn-secondary';
+  updateSimUI();
+  drawFactory();
+}
+
+// --- Sensor logic ---
+function getSensorState() {
+  if (simState.manualSensor !== null) return simState.manualSensor;
+  return simState.materialX >= 90;
+}
+
+// --- UI update (single, clean pass) ---
+function updateSimUI() {
+  const sensor = getSensorState();
+  simState._sensor = sensor;
+
+  // PLC logic: Y0 = X0 AND (NOT X1) AND X2
+  const logicMotor = simState.start && !simState.stop && sensor;
+  simState.motorOn = logicMotor;
+  simState.lightOn = logicMotor;
+
+  // I/O table indicators
+  ['X0', 'X1'].forEach(id => {
+    const key = id === 'X0' ? 'start' : 'stop';
+    const el = document.getElementById('ind-' + id);
+    const val = document.getElementById('val-' + id);
+    if (simState[key]) { el.classList.add('on'); val.textContent = 'ON'; }
+    else { el.classList.remove('on'); val.textContent = 'OFF'; }
+  });
+
+  const indX2 = document.getElementById('ind-X2');
+  const valX2 = document.getElementById('val-X2');
+  if (sensor) { indX2.classList.add('on'); valX2.textContent = 'ON'; }
+  else { indX2.classList.remove('on'); valX2.textContent = 'OFF'; }
+
+  ['Y0', 'Y1'].forEach(id => {
+    const key = id === 'Y0' ? 'motorOn' : 'lightOn';
+    const el = document.getElementById('ind-' + id);
+    const val = document.getElementById('val-' + id);
+    if (simState[key]) { el.classList.add('on'); val.textContent = 'ON'; }
+    else { el.classList.remove('on'); val.textContent = 'OFF'; }
+  });
+
+  // Ladder diagram highlighting
+  ['X0', 'X1', 'X2'].forEach(id => {
+    const key = id === 'X0' ? 'start' : id === 'X1' ? 'stop' : '_sensor';
+    const el = document.getElementById('ladder-' + id);
+    if (simState[key]) el.classList.add('on');
+    else el.classList.remove('on');
+  });
+
+  ['Y0', 'Y1'].forEach(id => {
+    const el = document.getElementById('ladder-' + id);
+    if (simState[id === 'Y0' ? 'motorOn' : 'lightOn']) el.classList.add('on');
+    else el.classList.remove('on');
+  });
+
+  // Status badge
+  const status = document.getElementById('simStatus');
+  if (simState.motorOn) {
+    status.textContent = '运行中';
+    status.className = 'status-badge running';
+  } else {
+    status.textContent = '停止';
+    status.className = 'status-badge';
+  }
+
+  // Auto-start/stop material simulation
+  if (simState.motorOn && !simState.running) {
+    startMaterialSim();
+  } else if (!simState.motorOn && simState.running) {
+    stopMaterialSim();
+  }
+}
+
+// ============================================================
+//  FACTORY CANVAS
+// ============================================================
+const canvas = document.getElementById('factoryCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width < 10) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(400 * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawFactory();
+}
+
+function drawFactory() {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const s = Math.min(1.3, w / 460);
+  const sceneW = 460 * s;
+  const ox = Math.max(0, (w - sceneW) / 2);
+
+  const BELT_H   = 50 * s;
+  const beltTop  = 130 * s;
+  const beltBot  = beltTop + BELT_H;
+  const beltLeft = 48 * s + ox;
+  const beltRight= beltLeft + 340 * s;
+
+  const motorCX  = beltLeft + 72 * s;
+  const motorCY  = (beltTop + beltBot) / 2;
+  const motorR   = 28 * s;
+
+  const sensorX  = motorCX + 138 * s;
+
+  const dropW    = 80 * s;
+  const dropH    = 108 * s;
+  const dropX    = beltRight - dropW / 2;
+  const dropY    = beltBot + 12 * s;
+
+  const matW     = 40 * s;
+  const matH     = 26 * s;
+  const matOff   = 22 * s;
+
+  const senW     = 14 * s;
+  const senH     = 18 * s;
+
+  // Background
+  ctx.fillStyle = '#0a1018';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#111a28';
+  ctx.lineWidth = 1;
+  const gs = 40 * s;
+  for (let x = 0; x < w; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y < h; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(0, h); ctx.stroke();
+  }
+
+  // 1) Dropoff bin
+  ctx.fillStyle = '#0f1929';
+  ctx.fillRect(dropX - dropW/2, dropY, dropW, dropH);
+  ctx.strokeStyle = '#1e3050';
+  ctx.lineWidth = 1.5 * s;
+  ctx.strokeRect(dropX - dropW/2, dropY, dropW, dropH);
+  ctx.fillStyle = '#2a3a50';
+  ctx.fillRect(dropX - dropW/2, dropY, dropW, 2 * s);
+  ctx.fillStyle = '#3d506e';
+  ctx.font = `bold ${Math.round(11*s)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('卸料口', dropX, dropY + dropH/2 + 4*s);
+  ctx.textAlign = 'left';
+
+  // 2) Belt legs
+  ctx.fillStyle = '#2e3e52';
+  ctx.fillRect(motorCX - motorR - 4*s, beltBot, 7*s, dropY - beltBot);
+  ctx.fillRect(beltRight - 22*s, beltBot, 7*s, dropY - beltBot);
+
+  // 3) Conveyor belt
+  ctx.fillStyle = '#283848';
+  ctx.fillRect(beltLeft, beltTop, beltRight - beltLeft, BELT_H);
+  ctx.fillStyle = '#1f2d3d';
+  const stripeGap = 22 * s, stripeW = 6 * s;
+  for (let x = beltLeft + 10*s; x < beltRight; x += stripeGap) {
+    ctx.fillRect(x, beltTop, stripeW, BELT_H);
+  }
+  ctx.fillStyle = '#3e5268';
+  ctx.fillRect(beltLeft, beltTop, beltRight - beltLeft, 2*s);
+  ctx.fillStyle = '#1c2838';
+  ctx.fillRect(beltLeft, beltBot - 2*s, beltRight - beltLeft, 2*s);
+
+  // 4) Motor circle
+  ctx.fillStyle = '#1a2636';
+  ctx.beginPath(); ctx.arc(motorCX, motorCY, motorR + 5*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = simState.motorOn ? '#14332a' : '#1e2e42';
+  ctx.beginPath(); ctx.arc(motorCX, motorCY, motorR, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = simState.motorOn ? '#4ade80' : '#2c4058';
+  ctx.beginPath(); ctx.arc(motorCX, motorCY, motorR*0.35, 0, Math.PI*2); ctx.fill();
+  if (simState.motorOn) {
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 2 * s;
+    const t = Date.now() / 160;
+    for (let i = 0; i < 3; i++) {
+      const a = t + (i * Math.PI * 2 / 3);
+      ctx.beginPath();
+      ctx.moveTo(motorCX + Math.cos(a)*7*s, motorCY + Math.sin(a)*7*s);
+      ctx.lineTo(motorCX + Math.cos(a)*(motorR-5*s), motorCY + Math.sin(a)*(motorR-5*s));
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = '#4a5e72';
+  ctx.font = `bold ${Math.round(10*s)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('MOTOR', motorCX, beltBot + 16*s);
+  ctx.textAlign = 'left';
+
+  // 5) Sensor
+  const sensorOn = getSensorState();
+  if (sensorOn) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(74,222,128,0.3)';
+    ctx.lineWidth = 1.5 * s;
+    ctx.setLineDash([5*s, 4*s]);
+    ctx.beginPath();
+    ctx.moveTo(sensorX, beltTop);
+    ctx.lineTo(sensorX, beltTop - 38*s);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = sensorOn ? '#153d28' : '#1a2c3c';
+  ctx.fillRect(sensorX - senW/2, beltTop - senH, senW, senH);
+  ctx.strokeStyle = sensorOn ? '#4ade80' : '#2e4060';
+  ctx.lineWidth = 1.5 * s;
+  ctx.strokeRect(sensorX - senW/2, beltTop - senH, senW, senH);
+  ctx.fillStyle = sensorOn ? '#4ade80' : '#2e4060';
+  ctx.beginPath();
+  ctx.moveTo(sensorX, beltTop - senH - 8*s);
+  ctx.lineTo(sensorX - 7*s, beltTop - senH);
+  ctx.lineTo(sensorX + 7*s, beltTop - senH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#4ade80';
+  ctx.font = `bold ${Math.round(10*s)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('SENSOR', sensorX, beltTop - senH - 14*s);
+  ctx.textAlign = 'left';
+
+  // 6) Material box
+  const matX = simState.materialX * s + motorCX + motorR + matOff;
+  const matY = beltTop + BELT_H / 2;
+  ctx.fillStyle = 'rgba(233,69,96,0.18)';
+  ctx.fillRect(matX - matW/2 + 2*s, matY - matH/2 + 2*s, matW, matH);
+  ctx.fillStyle = '#e94560';
+  ctx.fillRect(matX - matW/2, matY - matH/2, matW, matH);
+  ctx.fillStyle = '#ff6b81';
+  ctx.fillRect(matX - matW/2, matY - matH/2, matW, 5*s);
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${Math.round(9*s)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('物料', matX, matY + 3*s);
+  ctx.textAlign = 'left';
+
+  // 7) Status indicator (top-left)
+  const dotX = 18*s, dotY = 22*s;
+  const dotR = 10 * s;
+  ctx.fillStyle = simState.motorOn ? 'rgba(74,222,128,0.18)' : 'rgba(248,113,113,0.18)';
+  ctx.beginPath(); ctx.arc(dotX, dotY, dotR + 6*s, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = simState.motorOn ? '#4ade80' : '#f87171';
+  ctx.beginPath(); ctx.arc(dotX, dotY, dotR, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#c8d6e5';
+  ctx.font = `bold ${Math.round(11*s)}px sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(simState.motorOn ? 'RUN' : 'STOP', dotX + dotR + 10*s, dotY + 4*s);
+}
+
+// --- Material animation loop ---
+function startMaterialSim() {
+  simState.running = true;
+  simState.startTime = Date.now();
+  let lastMetricUpdate = 0;
+
+  simState.simInterval = setInterval(() => {
+    if (!simState.running) return;
+
+    if (simState.motorOn) {
+      simState.materialX += 1.2;
+      simState.scans++;
+
+      // Reset when material exits dropoff zone
+      if (simState.materialX > 160) {
+        simState.materialX = 90;     // back to sensor position (prevents deadlock)
+        simState.cycles++;
+      }
+    }
+
+    // Update metrics every 100ms
+    const now = Date.now();
+    if (now - lastMetricUpdate > 100) {
+      lastMetricUpdate = now;
+      document.getElementById('metricScans').textContent = simState.scans;
+      document.getElementById('metricCycles').textContent = simState.cycles;
+      if (simState.startTime) {
+        const elapsed = ((Date.now() - simState.startTime) / 1000).toFixed(1);
+        document.getElementById('metricRuntime').textContent = elapsed + 's';
+      }
+    }
+
+    drawFactory();
+  }, 30);
+
+  simState.timerInterval = setInterval(() => {
+    if (simState.running && simState.startTime) {
+      const elapsed = ((Date.now() - simState.startTime) / 1000).toFixed(1);
+      document.getElementById('metricRuntime').textContent = elapsed + 's';
+    }
+  }, 500);
+}
+
+function stopMaterialSim() {
+  simState.running = false;
+  if (simState.simInterval) clearInterval(simState.simInterval);
+  if (simState.timerInterval) clearInterval(simState.timerInterval);
+}
+
+// Canvas animation loop for motor spinner
+function animLoop() {
+  if (simState.motorOn) drawFactory();
+  requestAnimationFrame(animLoop);
+}
+
+const ro = new ResizeObserver(() => resizeCanvas());
+ro.observe(canvas);
+resizeCanvas();
+animLoop();
+
+// ============================================================
+//  LEVEL 4: SCAN CYCLE VISUALIZER
+// ============================================================
+let scanSim = {
+  running: false,
+  step: 0,
+  inputs: [0, 0, 0],
+  outputs: [0, 0],
+  count: 0,
+  totalTime: 0,
+  interval: null,
+  simulatedX0: 0
+};
+
+function startScanSim() {
+  if (scanSim.running) return;
+  scanSim.running = true;
+  scanSim.simulatedX0 = 0;
+  document.getElementById('scanStatus').textContent = '运行中';
+  document.getElementById('scanStatus').className = 'status-badge running';
+
+  scanSim.interval = setInterval(() => { runScanStep(); }, 1200);
+  runScanStep();
+}
+
+function stepScanSim() {
+  if (scanSim.running) return;
+  runScanStep();
+}
+
+function runScanStep() {
+  const steps = [
+    { label: '① 读取输入（Read Inputs）', action: 'read' },
+    { label: '② 执行程序逻辑（Execute Program）', action: 'execute' },
+    { label: '③ 写输出（Write Outputs）', action: 'write' },
+    { label: '④ 通信服务（Communicate）', action: 'comm' }
+  ];
+
+  const stepEls = document.querySelectorAll('#scanSteps .scan-step');
+  stepEls.forEach(el => { el.className = 'scan-step'; });
+
+  steps.forEach((s, i) => {
+    setTimeout(() => {
+      if (i > 0) stepEls[i-1].className = 'scan-step done';
+      stepEls[i].className = 'scan-step active';
+      document.getElementById('scanStepLabel').textContent = s.label;
+
+      if (s.action === 'read') {
+        scanSim.inputs[0] = scanSim.simulatedX0;
+        scanSim.inputs[1] = 0;
+        scanSim.inputs[2] = 1;
+        document.getElementById('scanInputs').textContent =
+          `X0=${scanSim.inputs[0]} X1=${scanSim.inputs[1]} X2=${scanSim.inputs[2]}`;
+        document.getElementById('flowInput').className = 'flow-indicator active';
+      } else if (s.action === 'execute') {
+        scanSim.outputs[0] = scanSim.inputs[0] && scanSim.inputs[2] ? 1 : 0;
+        scanSim.outputs[1] = scanSim.outputs[0];
+      } else if (s.action === 'write') {
+        document.getElementById('scanOutputs').textContent =
+          `Y0=${scanSim.outputs[0]} Y1=${scanSim.outputs[1]}`;
+        document.getElementById('flowOutput').className = 'flow-indicator active';
+      } else if (s.action === 'comm') {
+        document.getElementById('flowInput').className = 'flow-indicator';
+        document.getElementById('flowOutput').className = 'flow-indicator';
+        scanSim.count++;
+        document.getElementById('scanCount').textContent = scanSim.count;
+        scanSim.totalTime += 5;
+        document.getElementById('scanTime').textContent = scanSim.totalTime + 'ms';
+        document.getElementById('scanAvg').textContent =
+          (scanSim.totalTime / scanSim.count).toFixed(1) + 'ms';
+
+        setTimeout(() => {
+          stepEls.forEach(el => el.className = 'scan-step');
+          document.getElementById('scanStepLabel').textContent = '等待下一次扫描...';
+        }, 500);
+      }
+    }, i * 700);
+  });
+}
+
+function changeInput() {
+  scanSim.simulatedX0 = scanSim.simulatedX0 ? 0 : 1;
+}
+
+// ============================================================
+//  LEVEL 3: LADDER BUILDER
+// ============================================================
+let ladderComponents = [];
+
+function addComponent(chip) {
+  if (chip.disabled) return;
+  const area = document.getElementById('ladderBuildArea');
+  const hint = document.getElementById('buildHint');
+  hint.classList.add('hidden');
+  area.classList.add('has-items');
+
+  const type = chip.dataset.type;
+  const addr = chip.dataset.addr;
+
+  const el = document.createElement('span');
+  el.className = 'ladder-element';
+  el.style.background = type === 'contact' ? '#1e3050' : '#2a1a1a';
+  el.style.color = type === 'contact' ? '#64b5f6' : '#f87171';
+  el.style.border = `2px solid ${type === 'contact' ? '#2a4a70' : '#5a2a2a'}`;
+  el.innerHTML = `${type === 'contact' ? '┤' : '('} ${addr} ${type === 'contact' ? '├' : ')'}<span class="remove-x" onclick="this.parentElement.remove();checkEmpty();">✕</span>`;
+
+  const existing = area.querySelectorAll('.ladder-element');
+  if (existing.length === 0) {
+    area.appendChild(el);
+  } else {
+    area.insertBefore(el, existing[0]);
+  }
+
+  chip.disabled = true;
+  chip.classList.add('selected');
+  document.getElementById('verifyBtn').disabled = false;
+}
+
+function checkEmpty() {
+  const area = document.getElementById('ladderBuildArea');
+  const chips = area.querySelectorAll('.ladder-element');
+  if (chips.length === 0) {
+    document.getElementById('buildHint').classList.remove('hidden');
+    area.classList.remove('has-items');
+    document.getElementById('verifyBtn').disabled = true;
+  }
+  document.querySelectorAll('.component-chip').forEach(c => {
+    c.disabled = false;
+    c.classList.remove('selected');
+  });
+}
+
+function verifyLadder() {
+  const area = document.getElementById('ladderBuildArea');
+  const elements = area.querySelectorAll('.ladder-element');
+  const result = document.getElementById('verifyResult');
+
+  if (elements.length !== 2) {
+    result.innerHTML = '<div style="color:#f87171;padding:10px;">需要恰好 2 个元件：1 个常开触点 + 1 个线圈。当前有 ' + elements.length + ' 个。</div>';
+    return;
+  }
+
+  const types = Array.from(elements).map(el => {
+    return el.textContent.replace('✕','').trim();
+  });
+
+  const hasContact = types.some(t => t.includes('X0'));
+  const hasCoil = types.some(t => t.includes('Y0'));
+
+  if (hasContact && hasCoil) {
+    result.innerHTML = '<div style="background:#0a2e1a;color:#4ade80;padding:14px;border-radius:8px;"><strong>🎉 正确！</strong><br>┤ X0 ├ ─── ( Y0 )<br>这就是一个最基础的"按钮控制灯"电路。当 X0 按下（ON），Y0 输出得电，灯亮；松开 X0，Y0 断电，灯灭。</div>';
+  } else {
+    result.innerHTML = '<div style="color:#f87171;padding:10px;">检查你的元件：需要包含 X0 触点和 Y0 线圈。</div>';
+  }
+}
+
+function checkPredict() {
+  const val = document.getElementById('predictCount').value;
+  const result = document.getElementById('predictResult');
+  if (!val) { result.style.display = 'none'; return; }
+  result.style.display = 'block';
+  if (val === '2') {
+    result.className = 'predict-result correct';
+    result.textContent = '✅ 正确！最简单的电路只需要：一个触点 + 一个线圈。';
+  } else {
+    result.className = 'predict-result wrong';
+    result.textContent = '❌ 不完全是。按钮点灯只需要 2 个元件，试试看？';
+  }
+}
+
+// ============================================================
+//  LEVEL 5: CHALLENGES
+// ============================================================
+function checkChallenge1() {
+  const answer = document.getElementById('ch1Answer').value.trim();
+  const result = document.getElementById('ch1Result');
+  const status = document.getElementById('ch1Status');
+
+  if (!answer) {
+    result.innerHTML = '<span style="color:#f0c040;">请输入你的答案</span>';
+    return;
+  }
+
+  const keywords = ['启动', '运行', '运转', '导通', '执行', '工作', 'Y0', '电机', '启动后', '按钮', '条件', '满足'];
+  const hasKeyword = keywords.some(k => answer.includes(k));
+  const hasNegation = answer.includes('停止') || answer.includes('断开') || answer.includes('不按');
+
+  if (hasKeyword && hasNegation) {
+    result.innerHTML = '<div style="background:#0a2e1a;color:#4ade80;padding:12px;border-radius:8px;">✅ 正确！这段梯形图的逻辑是：当启动按钮 X0 按下 <strong>且</strong> 停止按钮 X1 <strong>没有</strong>按下时，输出 Y0 导通（电机运转）。</div>';
+    status.textContent = '通过 ✅';
+    status.className = 'challenge-status pass';
+    updateProgress();
+  } else {
+    result.innerHTML = '<div style="color:#f87171;padding:12px;">再想想：两个触点串联意味着什么条件？线圈在什么时候会亮？</div>';
+  }
+}
+
+function checkChallenge2() {
+  const answer = document.getElementById('ch2Answer').value;
+  const result = document.getElementById('ch2Result');
+  const status = document.getElementById('ch2Status');
+
+  if (!answer) {
+    result.innerHTML = '<span style="color:#f0c040;">请选择答案</span>';
+    return;
+  }
+
+  if (answer === 'no') {
+    result.innerHTML = '<div style="background:#0a2e1a;color:#4ade80;padding:12px;border-radius:8px;">✅ 正确！2ms < 5ms 的扫描周期，信号可能在两次扫描之间完全消失。PLC 根本来不及"看到"这个按钮按下。工业按钮要求的最小稳定时间通常 >10ms。</div>';
+    status.textContent = '通过 ✅';
+    status.className = 'challenge-status pass';
+    updateProgress();
+  } else {
+    result.innerHTML = '<div style="color:#f87171;padding:12px;">思考扫描周期的意义：PLC 每 5ms 才"看"一次输入。2ms 的信号会在两次"看"之间出现又消失。</div>';
+  }
+}
+
+function checkChallenge3() {
+  const answer = document.getElementById('ch3Answer').value;
+  const result = document.getElementById('ch3Result');
+  const status = document.getElementById('ch3Status');
+
+  if (!answer) {
+    result.innerHTML = '<span style="color:#f0c040;">请选择答案</span>';
+    return;
+  }
+
+  if (answer === '5') {
+    result.innerHTML = '<div style="background:#0a2e1a;color:#4ade80;padding:12px;border-radius:8px;">✅ 正确！<br>第1行：┤ X0 ├ ──┤/X1 ├── ( Y0 )<br>自锁行：┤ Y0 ├ ───────────────── ( Y0 )<br>总共 5 个元件：3个触点 + 1个线圈 + 1个自锁线圈</div>';
+    status.textContent = '通过 ✅';
+    status.className = 'challenge-status pass';
+
+    document.getElementById('completionCard').style.display = 'block';
+    updateProgress();
+  } else {
+    result.innerHTML = '<div style="color:#f87171;padding:12px;">想想自锁需要什么：启动条件3个触点，电机线圈1个，自锁还需要1个触点+1个线圈 = ？</div>';
+  }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+updateProgress();
+</script>
+</body>
+</html>
