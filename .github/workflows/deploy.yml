@@ -24,10 +24,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Delete previous github-pages artifact
-        uses: actions/delete-artifact@v4
-        with:
-          name: github-pages
+      - name: Delete old github-pages artifacts
+        run: |
+          ARTIFACTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?name=github-pages" \
+            | jq -r '.artifacts[]? | .id')
+          for id in $ARTIFACTS; do
+            curl -s -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$id"
+          done
 
       - uses: actions/configure-pages@v5
 
