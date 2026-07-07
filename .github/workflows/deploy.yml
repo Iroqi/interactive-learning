@@ -1,4 +1,4 @@
-name: Deploy Interactive Learning
+name: Deploy
 
 on:
   push:
@@ -11,12 +11,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages-${{ github.ref }}"
+  group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   github-pages:
-    name: Deploy to GitHub Pages
+    name: GitHub Pages
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -24,33 +24,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Delete old github-pages artifacts
+      - name: Clean stale artifacts
         run: |
-          ARTIFACTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?name=github-pages" \
-            | jq -r '.artifacts[]? | .id')
-          for id in $ARTIFACTS; do
-            curl -s -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$id"
+          ids=$(gh api repos/"$GITHUB_REPOSITORY"/actions/artifacts?name=github-pages --jq '.artifacts[].id' 2>/dev/null)
+          for id in $ids; do
+            gh api --method DELETE repos/"$GITHUB_REPOSITORY"/actions/artifacts/"$id" -f silence
           done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/configure-pages@v5
-
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
-
+          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
 
   cloudflare-pages:
-    name: Deploy to Cloudflare Pages
+    name: Cloudflare Pages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
