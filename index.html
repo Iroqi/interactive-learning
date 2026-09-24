@@ -36,7 +36,7 @@
       font-family: var(--font-body);
       background: var(--bg);
       color: var(--text);
-      min-height: 090vh;
+      min-height: 100vh;
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
@@ -48,9 +48,9 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 206, 180, 0.04), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 09%, rgba(145, 140, 246, 0.04), transparent),
-        radial-gradient(ellipse 50% 60% at 50% 090%, rgba(211, 168, 83, 0.03), transparent);
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 207, 180, 0.04), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(145, 140, 246, 0.04), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(212, 168, 83, 0.03), transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -184,7 +184,7 @@
     }
 
     .search-input {
-      width: 090%;
+      width: 100%;
       padding: 9px 14px 9px 36px;
       background: var(--bg-elevated);
       border: 1px solid var(--border);
@@ -251,7 +251,7 @@
       gap: 20px;
     }
 
-    @media (max-width: 0900px) {
+    @media (max-width: 1000px) {
       .grid { grid-template-columns: repeat(2, 1fr); }
       .controls, .grid-wrap { padding-left: 24px; padding-right: 24px; }
       .hero { padding-left: 24px; padding-right: 24px; }
@@ -315,7 +315,7 @@
     }
 
     .badge {
-      font-size: 09px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
@@ -396,7 +396,7 @@
     .badge[data-b="devops"]     { background: rgba(62,206,180,0.1); color: var(--devops); }
     .badge[data-b="cs"]         { background: rgba(145,140,246,0.1); color: var(--cs); }
     .badge[data-b="automation"] { background: rgba(240,160,75,0.1); color: var(--automation); }
-    .badge[data-b="tools"]      { background: rgba(240,094,126,0.1); color: var(--tools); }
+    .badge[data-b="tools"]      { background: rgba(240,104,136,0.1); color: var(--tools); }
 
     /* Hidden card animation */
     .card.filtered-out {
@@ -490,7 +490,7 @@
           <h3>Cloudflare Workers</h3>
           <p class="card-desc">Serverless Workers 部署，掌握边缘计算与现代化部署流程</p>
           <div class="card-foot">
-            <span class="card-meta">~31 KB</span>
+            <span class="card-meta">~45 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -503,7 +503,7 @@
           <h3>Docker 入门：从镜像到容器</h3>
           <p class="card-desc">理解容器化核心概念，掌握 Dockerfile 编写、镜像构建与容器编排</p>
           <div class="card-foot">
-            <span class="card-meta">~62 KB</span>
+            <span class="card-meta">~61 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -516,7 +516,7 @@
           <h3>GitHub Actions Workflow 互动学习</h3>
           <p class="card-desc">CI/CD 流水线、工作流模拟器、矩阵构建与密钥管理的完整实践（含 4 级渐进关卡）</p>
           <div class="card-foot">
-            <span class="card-meta">~109 KB</span>
+            <span class="card-meta">~98 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -542,7 +542,7 @@
           <h3>CS 基础工具互动学习</h3>
           <p class="card-desc">命令行、文件系统与常用开发工具的基础操作与概念认知</p>
           <div class="card-foot">
-            <span class="card-meta">~48 KB</span>
+            <span class="card-meta">~46 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -579,9 +579,9 @@
             <span class="card-idx">08</span>
           </div>
           <h3>PID 控制系统互动学习</h3>
-          <p class="card-desc">比例-积分-微分控制器原理，含实时交互式仿真模拟器</p>
+          <p class="card-desc">比例-积分-微分控制器原理与实时仿真，专题入口另含三讲视频课件</p>
           <div class="card-foot">
-            <span class="card-meta">~1.5 MB</span>
+            <span class="card-meta">~37 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -620,7 +620,7 @@
           <h3>YAML 标记语言</h3>
           <p class="card-desc">缩进即结构——掌握容器编排、CI/CD 与云原生配置的核心标记语言</p>
           <div class="card-foot">
-            <span class="card-meta">~28 KB</span>
+            <span class="card-meta">~37 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>
@@ -633,7 +633,7 @@
           <h3>建站全流程仿真学习</h3>
           <p class="card-desc">从域名注册、DNS 解析、部署到 SSL 配置的完整建站模拟</p>
           <div class="card-foot">
-            <span class="card-meta">综合课程</span>
+            <span class="card-meta">~66 KB</span>
             <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
           </div>
         </a>

@@ -232,9 +232,44 @@
   .reflect .answer { color: var(--text-dim); font-size: 0.95em; }
 
   footer { text-align: center; color: var(--text-dim); font-size: 0.85em; padding: 20px 0; }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85em; margin-top: 8px; }
   .legend span { display: inline-flex; align-items: center; gap: 5px; }
   .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* 课件系列（同专题子页面入口） */
+  .cw-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 16px 0 4px;
+  }
+  @media (max-width: 760px) { .cw-grid { grid-template-columns: 1fr; } }
+  .cw-card {
+    display: block;
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.25s, transform 0.25s;
+  }
+  .cw-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .cw-card .cw-tag {
+    display: inline-block;
+    font-size: 0.75em; font-weight: 700;
+    background: var(--primary); color: var(--bg);
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .cw-card h4 { margin: 10px 0 6px; font-size: 1.02em; line-height: 1.4; }
+  .cw-card p { font-size: 0.88em; color: var(--text-dim); line-height: 1.6; }
+  .cw-card .cw-meta {
+    display: block; margin-top: 10px;
+    font-family: monospace; font-size: 0.78em; color: var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -476,9 +511,40 @@
   </div>
 </section>
 
+<!-- 课件系列（同专题子页面） -->
+<section>
+  <h2><span class="num">3</span>课件系列 · 三讲视频课</h2>
+  <p class="lead">下面是同一系列的三讲视频课件，动画配字幕、随讲随问。<strong style="color:var(--accent)">建议先玩透上面的仿真器和四级练习</strong>，再看课件——带着自己的调参经验去看，收获完全不同。</p>
+
+  <div class="cw-grid">
+    <a class="cw-card" href="pid-courseware/lesson-1.html">
+      <span class="cw-tag">第一讲</span>
+      <h4>自动调节系统的发展历程</h4>
+      <p>从瓦特飞球调速器一路走到现代控制理论，理清这条技术主线的来龙去脉。</p>
+      <span class="cw-meta">~2.7 MB · 音频课件 →</span>
+    </a>
+    <a class="cw-card" href="pid-courseware/lesson-2.html">
+      <span class="cw-tag">第二讲</span>
+      <h4>吃透 PID：趋势读定法整定参数</h4>
+      <p>读响应曲线的趋势来整定 Kp / Ki / Kd，工程现场真正在用的手法。</p>
+      <span class="cw-meta">~4.5 MB · 音频课件 →</span>
+    </a>
+    <a class="cw-card" href="pid-courseware/lesson-3.html">
+      <span class="cw-tag">第三讲</span>
+      <h4>火电厂自动调节系统</h4>
+      <p>把 PID 放回真实工业对象：火电厂典型自动控制系统的工程实例。</p>
+      <span class="cw-meta">~3.0 MB · 音频课件 →</span>
+    </a>
+  </div>
+
+  <div class="insight-box">
+    <strong>加载提示：</strong>课件为内嵌音频的单文件，每讲 3–5 MB，首次打开需稍等加载；网络较慢时建议一讲一讲地看。
+  </div>
+</section>
+
 <!-- 反思 -->
 <section class="reflect">
-  <h2><span class="num">3</span>反思（不看材料，从记忆提取）</h2>
+  <h2><span class="num">4</span>反思（不看材料，从记忆提取）</h2>
   <details>
     <summary>Q1：为什么纯 P 控制无法消除稳态误差？</summary>
     <p class="answer">稳态时系统需要一定推力来抵消重力（或其他恒定负载）。纯 P 的推力 = Kp × 误差，要有推力就必须保留误差。误差 = 重力 / Kp，Kp 越大误差越小，但永远不为 0。</p>
@@ -503,7 +569,8 @@
 
 <footer>
   PID 互动学习制品 · 用 Canvas 实时仿真二阶系统（无人机高度控制，归一化重力 g=0.2）<br>
-  拖动滑块 = 改变增益；预设按钮 = 快速场景；噪声开关 = 探索 D 的副作用
+  拖动滑块 = 改变增益；预设按钮 = 快速场景；噪声开关 = 探索 D 的副作用<br>
+  PID 专题入口 · 内含三讲视频课件 &nbsp;·&nbsp; <a href="index.html">← 返回交互式学习库目录</a>
 </footer>
 
 <script>

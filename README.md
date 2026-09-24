@@ -13,7 +13,7 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 12 个（持续扩展中） |
+| 学习专题 | 13 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
 
@@ -56,8 +56,11 @@
 | 模块 | 描述 |
 |------|------|
 | [n8n-interactive.html](n8n-interactive.html) | n8n 工作流自动化 — 节点编排与条件逻辑 |
-| [pid-interactive.html](pid-interactive.html) | PID 控制系统互动学习 — 含实时交互式仿真模拟器 |
+| [pid-interactive.html](pid-interactive.html) | PID 控制系统互动学习 — 实时仿真调参，专题入口另含三讲视频课件 |
 | [vfd-interactive.html](vfd-interactive.html) | 变频器交互式学习 — 参数配置与电机控制实践 |
+| [plc-interactive.html](plc-interactive.html) | PLC 交互式学习 — 控制器原理、梯形图编程与工业自动化仿真 |
+
+> PID 专题下的 `pid-courseware/` 三讲视频课件从 `pid-interactive.html` 页面内进入，不单独占卡片入口。
 
 ### 开发工具
 
@@ -120,6 +123,8 @@ start index.html
   </div>
 </a>
 ```
+
+> **一个系列只占一张卡片。** 同一主题下的多讲/子页面（如 PID 专题的 `pid-courseware/` 三讲视频课件）不各自建卡片，而是在系列入口页内提供跳转，`index.html` 只保留该专题的一个入口。
 
 ### 3. 同步更新数据
 
