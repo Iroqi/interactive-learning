@@ -27,6 +27,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'plc-interactive.html': 'plc',
     'regex-interactive.html': 'regex',
     'sql-interactive.html': 'sql',
+    'k8s-interactive.html': 'k8s',
+    'http-interactive.html': 'http',
 }
 
 os.makedirs('modules', exist_ok=True)

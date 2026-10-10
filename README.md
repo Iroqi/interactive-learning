@@ -13,10 +13,11 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 17 个（持续扩展中） |
+| 学习专题 | 19 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
+| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入 |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
 
 ---
@@ -30,7 +31,7 @@
 ├── modules/                           # 模块数据文件（按需加载）
 │   ├── cf-workers.js                 # 每条 = { css, html, js, links, needsReady }
 │   ├── docker.js
-│   └── ...                            # 共 17 个模块
+│   └── ...                            # 共 19 个模块
 ├── tools/
 │   └── pack-modules.py                # 构建脚本：模块 HTML → modules/*.js 数据
 │
@@ -52,6 +53,7 @@
 | cf-workers | Cloudflare Workers — Serverless 边缘计算与部署 |
 | docker | Docker 入门：从镜像到容器 — 容器化核心概念与 Dockerfile |
 | gh-actions | GitHub Actions Workflow — CI/CD 流水线与矩阵构建（含 4 级渐进关卡） |
+| k8s | Kubernetes 交互式学习 — 迷你 kubectl 模拟器：集群架构、Pod/标签、Deployment 滚动更新、Service、探针与存储（9 个里程碑，进度自动保存） |
 | makefile | Makefile 从零到实战 — 构建自动化利器 |
 
 ### CS 基础
@@ -60,6 +62,7 @@
 |------|------|
 | cs | CS 基础工具互动学习 — 命令行与文件系统 |
 | net | 网络基础与协议 — TCP/IP、HTTP、DNS 与分层模型 |
+| http | HTTP 与 API 设计 — 迷你请求引擎：报文结构、方法语义、状态码、无状态与会话、REST 设计与缓存安全（9 个里程碑，进度自动保存） |
 
 ### 自动化
 
@@ -95,6 +98,12 @@
 - **搜索**：在导航页顶部的搜索框输入关键词，实时过滤课程
 - **筛选**：点击分类 Pill（DevOps / CS 基础 / 自动化 / 开发工具）按主题筛选
 - **快捷键**：按 `/` 聚焦搜索框，按 `Esc` 清空搜索
+
+### 学习系统（壳层内置，基于 il_progress 自动生效）
+
+- **复习提醒（间隔重复）**：超过 3 天未学习的进行中模块、超过 7 天未复习的已完成模块，导航页出现"复习提醒"条，点击直达最近到期模块
+- **连续学习天数**：聚合所有模块最近学习时间，在进度总览显示连续学习 streak
+- **进度备份/恢复**：进度总览右侧「导出进度」一键下载 `il_progress` JSON，「导入进度」选择文件即恢复——换浏览器/清缓存不再丢进度
 
 ---
 

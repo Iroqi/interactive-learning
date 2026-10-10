@@ -27,6 +27,15 @@ window.IL_COURSES = [
     size: '61 KB'
   },
   {
+      key: 'k8s',
+    cat: 'devops',
+    title: 'Kubernetes 交互式学习',
+    desc: '迷你 kubectl 模拟器：集群架构、Pod 与标签、Deployment 滚动更新、Service、探针与存储',
+    size: '63 KB',
+    progress: 'k8s',
+    total: 9
+  },
+  {
       key: 'gh-actions',
     cat: 'devops',
     title: 'GitHub Actions Workflow 互动学习',
@@ -53,6 +62,15 @@ window.IL_COURSES = [
     title: '网络基础与协议',
     desc: 'TCP/IP、HTTP、DNS 等核心协议的运作原理与网络分层模型',
     size: '55 KB'
+  },
+  {
+      key: 'http',
+    cat: 'cs',
+    title: 'HTTP 与 API 设计',
+    desc: '迷你请求引擎：报文结构、方法语义、状态码、无状态与会话、REST 设计与缓存安全',
+    size: '52 KB',
+    progress: 'http',
+    total: 9
   },
   {
       key: 'n8n',
