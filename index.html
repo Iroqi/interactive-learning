@@ -202,6 +202,21 @@
       box-shadow: 0 0 0 3px rgba(211, 168, 83, 0.06);
     }
 
+    .sort-select {
+      padding: 9px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.25s;
+    }
+    .sort-select:hover { border-color: var(--border-hover); }
+    .sort-select:focus { border-color: rgba(211, 168, 83, 0.4); }
+
     .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 
     .pill {
@@ -607,6 +622,11 @@
         <button class="pill" data-cat="automation">自动化 <span class="count">4</span></button>
         <button class="pill" data-cat="tools">开发工具 <span class="count">5</span></button>
       </div>
+      <select class="sort-select" id="sortSel" title="排序方式">
+        <option value="default">默认排序</option>
+        <option value="recent">最近学习</option>
+        <option value="progress">学习进度</option>
+      </select>
     </div>
 
     <!-- ── Review due (spaced repetition) ── -->
@@ -688,6 +708,7 @@
           a.className = 'card';
           a.href = c.key ? '#/m/' + c.key : '#';
           a.dataset.cat = c.cat;
+          a.dataset.oidx = String(i);
           if (c.progress) a.dataset.progress = c.progress;
           if (c.total) a.dataset.total = String(c.total);
           var idx = (i + 1 < 10 ? '0' : '') + (i + 1);
@@ -768,6 +789,35 @@
       });
 
       searchInput.addEventListener('input', filter);
+
+      /* ── 排序：默认 / 最近学习 / 学习进度（基于 il_progress，零侵入） ── */
+      function progressPct(card, store) {
+        var key = card.dataset.progress;
+        if (!key) return -1;
+        var p = store[key];
+        if (!p || !p.steps || !p.steps.length) return 0;
+        var total = parseInt(card.dataset.total || p.steps.length, 10);
+        return Math.round(p.steps.length / total * 100);
+      }
+      function sortCards() {
+        var mode = document.getElementById('sortSel').value;
+        var store = readProgress();
+        var kids = Array.prototype.slice.call(grid.querySelectorAll('.card'));
+        kids.sort(function (a, b) {
+          if (mode === 'recent') {
+            var la = (store[a.dataset.progress] && store[a.dataset.progress].last) || 0;
+            var lb = (store[b.dataset.progress] && store[b.dataset.progress].last) || 0;
+            return lb - la;
+          }
+          if (mode === 'progress') {
+            var da = progressPct(a, store), db = progressPct(b, store);
+            if (da !== db) return db - da;
+          }
+          return parseInt(a.dataset.oidx, 10) - parseInt(b.dataset.oidx, 10);
+        });
+        kids.forEach(function (el) { grid.appendChild(el); });
+      }
+      document.getElementById('sortSel').addEventListener('change', sortCards);
 
       /* Keyboard shortcut: / to focus search */
       document.addEventListener('keydown', function (e) {

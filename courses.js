@@ -156,5 +156,23 @@ window.IL_COURSES = [
     size: '63 KB',
     progress: 'sql',
     total: 9
+  },
+  {
+      key: 'redis',
+    cat: 'cs',
+    title: 'Redis 数据结构',
+    desc: '迷你 redis-cli 命令台：String、Hash、List、Set、ZSet、过期与持久化',
+    size: '57 KB',
+    progress: 'redis',
+    total: 9
+  },
+  {
+      key: 'prompt',
+    cat: 'tools',
+    title: 'AI 提示词工程',
+    desc: '提示词评分引擎：四要素、few-shot、思维链、角色约束与反模式识别',
+    size: '51 KB',
+    progress: 'prompt',
+    total: 9
   }
 ];

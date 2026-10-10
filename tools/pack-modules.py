@@ -29,6 +29,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'sql-interactive.html': 'sql',
     'k8s-interactive.html': 'k8s',
     'http-interactive.html': 'http',
+    'redis-interactive.html': 'redis',
+    'prompt-interactive.html': 'prompt',
 }
 
 os.makedirs('modules', exist_ok=True)
