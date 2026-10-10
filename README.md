@@ -1,6 +1,6 @@
 # 交互式学习库
 
-一个纯前端的交互式学习知识库，涵盖 DevOps、计算机科学、自动化控制与开发工具等主题。每个学习专题都是自包含的单文件 HTML 模块，无需后端，直接在浏览器中打开即可学习。
+一个纯前端的交互式学习知识库，涵盖 DevOps、计算机科学、自动化控制与开发工具等主题。采用**单页壳 + 数据驱动**架构：唯一的 `index.html` 导航/容器页按需加载各模块的数据文件，无需后端，直接在浏览器中打开即可学习。
 
 [Live Demo →](https://iroqi.github.io/interactive-learning/)
 
@@ -8,13 +8,14 @@
 
 ## 项目概览
 
-本项目以 **单文件 HTML 模块** 为核心设计理念，每个学习专题都是一个独立的、自包含的交互式页面。通过 `index.html` 导航页统一索引和分类，用户可按主题筛选和搜索课程。
+本项目以 **单页壳（SPA）+ 数据驱动加载** 为核心设计理念：导航页从 `courses.js` 渲染课程卡片，点击卡片后按需加载 `modules/<key>.js` 中的模块内容（HTML/CSS/JS 数据），在同一页面内完成学习，无需新开网页。
 
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
 | 学习专题 | 15 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
+| 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
 
@@ -24,9 +25,14 @@
 
 ```
 .
-├── index.html                         # 导航目录页（唯一的结构性入口）
-├── courses.js                         # 课程数据源（导航页卡片/计数/页脚的唯一数据来源）
-├── {topic}-interactive.html           # 各学习模块（自包含，互不依赖）
+├── index.html                         # 唯一页面：导航 + 模块容器 + hash 路由
+├── courses.js                         # 课程数据源（卡片/计数/页脚的唯一来源）
+├── modules/                           # 模块数据文件（按需加载）
+│   ├── cf-workers.js                 # 每条 = { css, html, js, links, needsReady }
+│   ├── docker.js
+│   └── ...                            # 共 15 个模块
+├── tools/
+│   └── pack-modules.py                # 构建脚本：模块 HTML → modules/*.js 数据
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
 ├── .gitignore
@@ -37,58 +43,50 @@
 
 ## 学习专题
 
+> 所有模块入口统一在导航页 `index.html`（点卡片即进入对应模块，`#/m/<key>` 路由）。
+
 ### DevOps
 
 | 模块 | 描述 |
 |------|------|
-| [cf-workers-interactive.html](cf-workers-interactive.html) | Cloudflare Workers — Serverless 边缘计算与部署 |
-| [docker-interactive.html](docker-interactive.html) | Docker 入门：从镜像到容器 — 容器化核心概念与 Dockerfile |
-| [gh-actions-interactive.html](gh-actions-interactive.html) | GitHub Actions Workflow — CI/CD 流水线与矩阵构建（含 4 级渐进关卡） |
-| [makefile-interactive.html](makefile-interactive.html) | Makefile 从零到实战 — 构建自动化利器 |
+| cf-workers | Cloudflare Workers — Serverless 边缘计算与部署 |
+| docker | Docker 入门：从镜像到容器 — 容器化核心概念与 Dockerfile |
+| gh-actions | GitHub Actions Workflow — CI/CD 流水线与矩阵构建（含 4 级渐进关卡） |
+| makefile | Makefile 从零到实战 — 构建自动化利器 |
 
 ### CS 基础
 
 | 模块 | 描述 |
 |------|------|
-| [cs-interactive.html](cs-interactive.html) | CS 基础工具互动学习 — 命令行与文件系统 |
-| [net-interactive.html](net-interactive.html) | 网络基础与协议 — TCP/IP、HTTP、DNS 与分层模型 |
+| cs | CS 基础工具互动学习 — 命令行与文件系统 |
+| net | 网络基础与协议 — TCP/IP、HTTP、DNS 与分层模型 |
 
 ### 自动化
 
 | 模块 | 描述 |
 |------|------|
-| [n8n-interactive.html](n8n-interactive.html) | n8n 工作流自动化 — 节点编排与条件逻辑 |
-| [pid-interactive.html](pid-interactive.html) | PID 控制系统互动学习 — 实时仿真调参，专题入口另含三讲视频课件 |
-| [vfd-interactive.html](vfd-interactive.html) | 变频器交互式学习 — 参数配置与电机控制实践 |
-| [plc-interactive.html](plc-interactive.html) | PLC 交互式学习 — 控制器原理、梯形图编程与工业自动化仿真 |
+| n8n | n8n 工作流自动化 — 节点编排与条件逻辑 |
+| pid | PID 控制系统互动学习 — 实时仿真调参，专题入口另含三讲视频课件 |
+| vfd | 变频器交互式学习 — 参数配置与电机控制实践 |
+| plc | PLC 交互式学习 — 控制器原理、梯形图编程与工业自动化仿真 |
 
-> PID 专题下的 `pid-courseware/` 三讲视频课件从 `pid-interactive.html` 页面内进入，不单独占卡片入口。
+> PID 专题下的 `pid-courseware/` 三讲视频课件从 PID 模块页内进入，不单独占卡片入口。
 
 ### 开发工具
 
 | 模块 | 描述 |
 |------|------|
-| [vscode-interactive.html](vscode-interactive.html) | VSCode 配置文件学习 — settings、快捷键与扩展管理 |
-| [yaml-interactive.html](yaml-interactive.html) | YAML 标记语言 — 容器编排与云原生配置 |
-| [web-interactive.html](web-interactive.html) | 建站全流程仿真学习 — 域名、DNS、部署与 SSL 配置 |
-| [git-interactive.html](git-interactive.html) | Git 版本控制 — 对象模型、三区流动、提交图模拟、分支合并与协作（9 个里程碑，进度自动保存） |
-| [bash-interactive.html](bash-interactive.html) | Shell 脚本 — 内置迷你终端：变量、引号、管道、重定向、条件、循环与函数（9 个里程碑，进度自动保存） |
+| vscode | VSCode 配置文件学习 — settings、快捷键与扩展管理 |
+| yaml | YAML 标记语言 — 容器编排与云原生配置 |
+| web | 建站全流程仿真学习 — 域名、DNS、部署与 SSL 配置 |
+| git | Git 版本控制 — 对象模型、三区流动、提交图模拟、分支合并与协作（9 个里程碑，进度自动保存） |
+| bash | Shell 脚本 — 内置迷你终端：变量、引号、管道、重定向、条件、循环与函数（9 个里程碑，进度自动保存） |
 
 ---
 
 ## 本地使用
 
-无需任何构建工具或依赖，直接用浏览器打开 `index.html` 即可：
-
-```bash
-# macOS / Linux
-open index.html
-
-# Windows
-start index.html
-
-# 或使用任意 HTTP 服务器（如 VS Code Live Server）
-```
+无需任何构建工具或依赖，直接用浏览器打开 `index.html` 即可（或使用任意 HTTP 服务器，如 VS Code Live Server）。模块数据通过按需加载自动取用，支持 `file://` 直接打开。
 
 ### 搜索与筛选
 
@@ -100,16 +98,17 @@ start index.html
 
 ## 添加新学习模块
 
-导航页采用**数据驱动**架构：卡片、分类计数、页脚数字全部由 `courses.js` 的 `window.IL_COURSES` 数组渲染生成，`index.html` 无需再手动添加任何 HTML。
+导航页采用**数据驱动**架构：卡片、分类计数、页脚数字全部由 `courses.js` 的 `window.IL_COURSES` 数组渲染生成，`index.html` 无需再手动添加任何 HTML；模块内容以数据文件形式放在 `modules/<key>.js`，**整个库只有一个 HTML 页面**。
 
-### 1. 创建模块文件
+### 1. 创建模块数据
 
-在仓库根目录新建 `{topic}-interactive.html`，命名规范：小写英文 + 连字符 + `-interactive` 后缀。
+在仓库根目录新建 `{topic}-interactive.html`（命名规范：小写英文 + 连字符 + `-interactive` 后缀），要求**自包含**（CSS 和 JavaScript 全部内联，`lang="zh-CN"`，UTF-8，CDN 仅引入字体）。然后运行打包脚本，将其转换为数据文件：
 
-模块文件要求：
-- **自包含**：CSS 和 JavaScript 全部内联
-- **编码**：`lang="zh-CN"`，UTF-8
-- **字体**：CDN 仅引入字体，不引入任何 JS/CSS 框架
+```bash
+python3 tools/pack-modules.py   # 在 tools/pack-modules.py 的 KEYS 中登记新模块后执行
+```
+
+脚本会生成 `modules/<key>.js`：`window.IL_MODULES['<key>'] = { css, html, js, links, needsReady }`，由 `index.html` 壳页按需加载渲染，无需再保留独立 HTML 页面。
 
 ### 2. 注册课程数据
 
@@ -117,7 +116,7 @@ start index.html
 
 ```js
 {
-  file: 'tmux-interactive.html',   // 模块文件名
+  key: 'tmux',                     // 模块标识（对应 modules/tmux.js）
   cat: 'tools',                    // 分类：devops / cs / automation / tools
   title: 'tmux 终端复用',
   desc: 'session 管理与分屏操作',
@@ -140,12 +139,12 @@ start index.html
 - **模块 key** 与 `courses.js` 记录中的 `progress` 字段保持一致（如 Git 模块为 `git`）
 - `total` 字段声明该模块的里程碑总数（如 Git 为 9）
 
-参考实现见 `git-interactive.html` 脚本内的 `loadProgress` / `saveProgress` / `completeMilestone`。
+参考实现见 `modules/git.js` 数据内的 `loadProgress` / `saveProgress` / `completeMilestone`。
 
 ### 4. Commit 并推送
 
 ```bash
-git add index.html 新模块.html
+git add index.html courses.js modules/ tools/
 git commit -m "feat: 添加 xxx 学习模块"
 git push origin main
 ```
