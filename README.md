@@ -13,7 +13,7 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 21 个（持续扩展中） |
+| 学习专题 | 23 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
@@ -31,7 +31,7 @@
 ├── modules/                           # 模块数据文件（按需加载）
 │   ├── cf-workers.js                 # 每条 = { css, html, js, links, needsReady }
 │   ├── docker.js
-│   └── ...                            # 共 21 个模块
+│   └── ...                            # 共 23 个模块
 ├── tools/
 │   └── pack-modules.py                # 构建脚本：模块 HTML → modules/*.js 数据
 │
@@ -55,6 +55,8 @@
 | gh-actions | GitHub Actions Workflow — CI/CD 流水线与矩阵构建（含 4 级渐进关卡） |
 | k8s | Kubernetes 交互式学习 — 迷你 kubectl 模拟器：集群架构、Pod/标签、Deployment 滚动更新、Service、探针与存储（9 个里程碑，进度自动保存） |
 | makefile | Makefile 从零到实战 — 构建自动化利器 |
+| terraform | Terraform 基础设施即代码 — 迷你 plan/apply/destroy 引擎：HCL 语法、变量、状态、模块化、隐式依赖与生命周期（9 个里程碑，进度自动保存） |
+| nginx | Nginx 配置与运维 — 迷你 nginx -t 校验器：架构、配置层级、静态文件、虚拟主机、反向代理、重定向与 HTTPS（9 个里程碑，进度自动保存） |
 
 ### CS 基础
 
@@ -88,6 +90,8 @@
 | sql | SQL 查询 — 迷你查询引擎：SELECT、过滤、排序、聚合分组、JOIN 联表与实战提取（9 个里程碑，进度自动保存） |
 | redis | Redis 数据结构 — 迷你 redis-cli 命令台：String、Hash、List、Set、ZSet、过期与持久化（9 个里程碑，进度自动保存） |
 | prompt | AI 提示词工程 — 提示词评分引擎：四要素、few-shot、思维链、角色约束与反模式识别（9 个里程碑，进度自动保存） |
+| terraform | Terraform 基础设施即代码 — 迷你 plan/apply/destroy 引擎：HCL 语法、变量、状态、模块化、隐式依赖与生命周期（9 个里程碑，进度自动保存） |
+| nginx | Nginx 配置与运维 — 迷你 nginx -t 校验器：架构、配置层级、静态文件、虚拟主机、反向代理、重定向与 HTTPS（9 个里程碑，进度自动保存） |
 
 ---
 
@@ -97,7 +101,7 @@
 
 ### 搜索与筛选
 
-- **搜索**：在导航页顶部的搜索框输入关键词，实时过滤课程
+- **搜索**：在导航页顶部的搜索框输入关键词，实时过滤课程；支持空格分隔的**多关键词 AND 匹配**（如 `redis 命令` 需同时命中标题或描述）
 - **筛选**：点击分类 Pill（DevOps / CS 基础 / 自动化 / 开发工具）按主题筛选
 - **排序**：导航页右侧排序下拉可选「最近学习 / 学习进度」，基于 `il_progress` 即时重排
 - **快捷键**：按 `/` 聚焦搜索框，按 `Esc` 清空搜索

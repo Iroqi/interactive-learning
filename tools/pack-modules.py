@@ -31,6 +31,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'http-interactive.html': 'http',
     'redis-interactive.html': 'redis',
     'prompt-interactive.html': 'prompt',
+    'terraform-interactive.html': 'terraform',
+    'nginx-interactive.html': 'nginx',
 }
 
 os.makedirs('modules', exist_ok=True)

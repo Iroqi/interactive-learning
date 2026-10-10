@@ -174,5 +174,23 @@ window.IL_COURSES = [
     size: '51 KB',
     progress: 'prompt',
     total: 9
+  },
+  {
+      key: 'terraform',
+    cat: 'devops',
+    title: 'Terraform 基础设施即代码',
+    desc: '迷你 plan/apply/destroy 引擎：HCL 语法、变量、状态、模块化、隐式依赖与生命周期',
+    size: '50 KB',
+    progress: 'terraform',
+    total: 9
+  },
+  {
+      key: 'nginx',
+    cat: 'devops',
+    title: 'Nginx 配置与运维',
+    desc: '迷你 nginx -t 校验器：架构、配置层级、静态文件、虚拟主机、反向代理、重定向与 HTTPS',
+    size: '47 KB',
+    progress: 'nginx',
+    total: 9
   }
 ];

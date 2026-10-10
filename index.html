@@ -752,7 +752,11 @@
           var title = card.querySelector('h3').textContent.toLowerCase();
           var desc = card.querySelector('.card-desc').textContent.toLowerCase();
           var matchCat = activeCat === 'all' || cat === activeCat;
-          var matchSearch = !query || title.indexOf(query) !== -1 || desc.indexOf(query) !== -1;
+          /* 多关键词 AND：空格分隔，全部命中标题或描述才显示 */
+          var terms = query ? query.split(/\s+/) : [];
+          var matchSearch = !terms.length || terms.every(function (t) {
+            return title.indexOf(t) !== -1 || desc.indexOf(t) !== -1;
+          });
           var show = matchCat && matchSearch;
 
           if (show) {
