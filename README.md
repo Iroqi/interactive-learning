@@ -13,8 +13,9 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 13 个（持续扩展中） |
+| 学习专题 | 14 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
+| 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
 
 ---
@@ -69,6 +70,7 @@
 | [vscode-interactive.html](vscode-interactive.html) | VSCode 配置文件学习 — settings、快捷键与扩展管理 |
 | [yaml-interactive.html](yaml-interactive.html) | YAML 标记语言 — 容器编排与云原生配置 |
 | [web-interactive.html](web-interactive.html) | 建站全流程仿真学习 — 域名、DNS、部署与 SSL 配置 |
+| [git-interactive.html](git-interactive.html) | Git 版本控制 — 对象模型、三区流动、提交图模拟、分支合并与协作（9 个里程碑，进度自动保存） |
 
 ---
 
@@ -110,7 +112,7 @@ start index.html
 打开 `index.html`，在 `<div class="grid" id="grid">` 内追加一张卡片：
 
 ```html
-<a class="card" data-cat="分类" href="文件名.html">
+<a class="card" data-cat="分类" data-progress="模块key" data-total="里程碑数" href="文件名.html">
   <div class="card-head">
     <span class="badge" data-b="分类">分类显示名</span>
     <span class="card-idx">序号</span>
@@ -126,13 +128,24 @@ start index.html
 
 > **一个系列只占一张卡片。** 同一主题下的多讲/子页面（如 PID 专题的 `pid-courseware/` 三讲视频课件）不各自建卡片，而是在系列入口页内提供跳转，`index.html` 只保留该专题的一个入口。
 
-### 3. 同步更新数据
+### 3. 启用进度追踪（可选，推荐）
+
+`index.html` 会自动读取 localStorage 中的 `il_progress`，为带 `data-progress` 属性的卡片渲染进度条与「继续学习」横幅。模块侧只需遵守约定：
+
+- **存储 key**：`il_progress`，值为 JSON 对象
+- **模块条目**：`{ "<模块key>": { "steps": [已解锁里程碑索引], "quiz": {"score":..,"total":..}, "last": 时间戳, "done": bool } }`
+- **模块 key** 与卡片 `data-progress` 保持一致（如 Git 模块为 `git`）
+- `data-total` 声明该模块的里程碑总数（如 Git 为 9）
+
+参考实现见 `git-interactive.html` 脚本内的 `loadProgress` / `saveProgress` / `completeMilestone`。
+
+### 4. 同步更新数据
 
 - 更新筛选按钮中的 count 数字
 - 更新顶部 stats 区的课程总数
 - 更新 footer 中的总数
 
-### 4. Commit 并推送
+### 5. Commit 并推送
 
 ```bash
 git add index.html 新模块.html

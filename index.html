@@ -398,6 +398,54 @@
     .badge[data-b="automation"] { background: rgba(240,160,75,0.1); color: var(--automation); }
     .badge[data-b="tools"]      { background: rgba(240,104,136,0.1); color: var(--tools); }
 
+    /* ── Continue strip ── */
+    .continue-strip {
+      display: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(211, 168, 83, 0.35);
+      border-radius: 12px;
+      font-size: 13px;
+      color: var(--text);
+      text-decoration: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .continue-strip.show { display: flex; }
+    .continue-strip:hover { border-color: rgba(211, 168, 83, 0.6); transform: translateY(-1px); }
+    .continue-strip .cs-title { font-weight: 700; color: var(--accent); }
+    .continue-strip .cs-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+    .continue-strip .cs-go {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap;
+    }
+    .continue-strip .cs-go svg { width: 12px; height: 12px; }
+    .continue-wrap { padding: 6px 40px 0; }
+    @media (max-width: 1000px) { .continue-wrap { padding-left: 24px; padding-right: 24px; } }
+    @media (max-width: 640px) { .continue-wrap { padding-left: 16px; padding-right: 16px; } }
+
+    /* ── Card progress ── */
+    .card-progress { margin-top: 12px; }
+    .card-progress .cp-track {
+      display: block; height: 4px; border-radius: 999px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      overflow: hidden; margin-bottom: 5px;
+    }
+    .card-progress .cp-fill {
+      display: block; height: 100%; width: 0;
+      background: linear-gradient(90deg, var(--cat-color, var(--accent)), var(--accent));
+      border-radius: 999px; transition: width 0.5s ease;
+    }
+    .card-progress .cp-label {
+      font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+      letter-spacing: 0.02em;
+    }
+    .card-progress .cp-label.cp-done { color: var(--cat-color, var(--accent)); font-weight: 600; }
+
     /* Hidden card animation */
     .card.filtered-out {
       opacity: 0 !important;
@@ -470,12 +518,20 @@
         <input type="text" id="search" class="search-input" placeholder="搜索课程..." autocomplete="off">
       </div>
       <div class="filters" id="filters">
-        <button class="pill active" data-cat="all">全部 <span class="count">13</span></button>
+        <button class="pill active" data-cat="all">全部 <span class="count">14</span></button>
         <button class="pill" data-cat="devops">DevOps <span class="count">4</span></button>
         <button class="pill" data-cat="cs">CS 基础 <span class="count">2</span></button>
         <button class="pill" data-cat="automation">自动化 <span class="count">4</span></button>
-        <button class="pill" data-cat="tools">开发工具 <span class="count">3</span></button>
+        <button class="pill" data-cat="tools">开发工具 <span class="count">4</span></button>
       </div>
+    </div>
+
+    <!-- ── Continue Learning ── -->
+    <div class="continue-wrap">
+      <a class="continue-strip" id="continueStrip" href="#">
+        <span><span class="cs-title" id="csTitle"></span> <span class="cs-meta" id="csMeta"></span></span>
+        <span class="cs-go">继续学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
+      </a>
     </div>
 
     <!-- ── Course Grid ── -->
@@ -638,10 +694,23 @@
           </div>
         </a>
 
+        <a class="card" data-cat="tools" data-progress="git" data-total="9" href="git-interactive.html">
+          <div class="card-head">
+            <span class="badge" data-b="tools">开发工具</span>
+            <span class="card-idx">13</span>
+          </div>
+          <h3>Git 版本控制</h3>
+          <p class="card-desc">对象模型、三区流动、提交图模拟、分支合并与团队协作的完整交互式学习</p>
+          <div class="card-foot">
+            <span class="card-meta">~64 KB</span>
+            <span class="card-go">开始学习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
+          </div>
+        </a>
+
         <a class="card" data-cat="automation" href="plc-interactive.html">
           <div class="card-head">
             <span class="badge" data-b="automation">自动化</span>
-            <span class="card-idx">13</span>
+            <span class="card-idx">14</span>
           </div>
           <h3>PLC 交互式学习</h3>
           <p class="card-desc">可编程逻辑控制器原理、梯形图编程与工业自动化仿真模拟</p>
@@ -655,7 +724,7 @@
     </div>
 
     <!-- ── Footer ── -->
-    <footer class="foot">13 INTERACTIVE COURSES &middot; 4 DOMAINS &middot; BUILT WITH INTERACTIVE-LEARNING SKILL</footer>
+    <footer class="foot">14 INTERACTIVE COURSES &middot; 4 DOMAINS &middot; BUILT WITH INTERACTIVE-LEARNING SKILL</footer>
 
   </div>
 
@@ -726,6 +795,55 @@
           filter();
         }
       });
+
+      /* ── Progress tracking (localStorage: il_progress) ── */
+      function readProgress() {
+        try { return JSON.parse(localStorage.getItem('il_progress') || '{}'); }
+        catch (e) { return {}; }
+      }
+
+      function initProgress() {
+        var store = readProgress();
+        var best = null;
+
+        cards.forEach(function (card) {
+          var key = card.dataset.progress;
+          if (!key) return;
+          var p = store[key];
+          if (!p || !p.steps || !p.steps.length) return;
+
+          var total = parseInt(card.dataset.total || p.steps.length, 10);
+          var n = p.steps.length;
+          var done = !!(p.done || n >= total);
+
+          var wrap = document.createElement('div');
+          wrap.className = 'card-progress';
+          wrap.innerHTML = '<span class="cp-track"><span class="cp-fill" style="width:' +
+            Math.min(100, Math.round(n / total * 100)) + '%"></span></span>' +
+            '<span class="cp-label' + (done ? ' cp-done' : '') + '">' +
+            (done ? '✓ 已完成' : '已解锁 ' + n + ' / ' + total + ' 步') + '</span>';
+          card.appendChild(wrap);
+
+          if (!done && (!best || (p.last || 0) > (best.last || 0))) {
+            best = { key: key, last: p.last || 0 };
+          }
+        });
+
+        if (best) {
+          var target = document.querySelector('.card[data-progress="' + best.key + '"]');
+          if (target) {
+            var strip = document.getElementById('continueStrip');
+            strip.href = target.getAttribute('href');
+            var p = store[best.key];
+            var total = parseInt(target.dataset.total || p.steps.length, 10);
+            document.getElementById('csTitle').textContent = target.querySelector('h3').textContent;
+            document.getElementById('csMeta').textContent = '· 已解锁 ' + p.steps.length + ' / ' + total + ' 步';
+            strip.classList.add('show');
+          }
+        }
+      }
+
+      initProgress();
     })();
   </script>
 </body>
