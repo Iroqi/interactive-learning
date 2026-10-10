@@ -26,6 +26,7 @@ KEYS = {  # explicit mapping to avoid surprises
     'bash-interactive.html': 'bash',
     'plc-interactive.html': 'plc',
     'regex-interactive.html': 'regex',
+    'sql-interactive.html': 'sql',
 }
 
 os.makedirs('modules', exist_ok=True)

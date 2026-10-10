@@ -129,5 +129,14 @@ window.IL_COURSES = [
     size: '47 KB',
     progress: 'regex',
     total: 9
+  },
+  {
+      key: 'sql',
+    cat: 'cs',
+    title: 'SQL 查询',
+    desc: '迷你查询引擎：SELECT、过滤、排序、聚合分组、JOIN 联表与实战提取',
+    size: '63 KB',
+    progress: 'sql',
+    total: 9
   }
 ];
