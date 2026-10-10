@@ -13,7 +13,7 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 14 个（持续扩展中） |
+| 学习专题 | 15 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
@@ -71,6 +71,7 @@
 | [yaml-interactive.html](yaml-interactive.html) | YAML 标记语言 — 容器编排与云原生配置 |
 | [web-interactive.html](web-interactive.html) | 建站全流程仿真学习 — 域名、DNS、部署与 SSL 配置 |
 | [git-interactive.html](git-interactive.html) | Git 版本控制 — 对象模型、三区流动、提交图模拟、分支合并与协作（9 个里程碑，进度自动保存） |
+| [bash-interactive.html](bash-interactive.html) | Shell 脚本 — 内置迷你终端：变量、引号、管道、重定向、条件、循环与函数（9 个里程碑，进度自动保存） |
 
 ---
 
@@ -130,7 +131,7 @@ start index.html
 
 ### 3. 启用进度追踪（可选，推荐）
 
-`index.html` 会自动读取 localStorage 中的 `il_progress`，为带 `data-progress` 属性的卡片渲染进度条与「继续学习」横幅。模块侧只需遵守约定：
+`index.html` 会自动读取 localStorage 中的 `il_progress`，为带 `data-progress` 属性的卡片渲染进度条与「继续学习」横幅，并在导航页顶部汇总「我的学习进度」（进行中 / 已完成 / 未开始模块 + 总里程碑解锁数）。模块侧只需遵守约定：
 
 - **存储 key**：`il_progress`，值为 JSON 对象
 - **模块条目**：`{ "<模块key>": { "steps": [已解锁里程碑索引], "quiz": {"score":..,"total":..}, "last": 时间戳, "done": bool } }`
