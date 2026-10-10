@@ -25,6 +25,7 @@
 ```
 .
 ├── index.html                         # 导航目录页（唯一的结构性入口）
+├── courses.js                         # 课程数据源（导航页卡片/计数/页脚的唯一数据来源）
 ├── {topic}-interactive.html           # 各学习模块（自包含，互不依赖）
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
@@ -99,6 +100,8 @@ start index.html
 
 ## 添加新学习模块
 
+导航页采用**数据驱动**架构：卡片、分类计数、页脚数字全部由 `courses.js` 的 `window.IL_COURSES` 数组渲染生成，`index.html` 无需再手动添加任何 HTML。
+
 ### 1. 创建模块文件
 
 在仓库根目录新建 `{topic}-interactive.html`，命名规范：小写英文 + 连字符 + `-interactive` 后缀。
@@ -108,45 +111,38 @@ start index.html
 - **编码**：`lang="zh-CN"`，UTF-8
 - **字体**：CDN 仅引入字体，不引入任何 JS/CSS 框架
 
-### 2. 更新导航页
+### 2. 注册课程数据
 
-打开 `index.html`，在 `<div class="grid" id="grid">` 内追加一张卡片：
+打开 `courses.js`，在 `window.IL_COURSES` 数组末尾追加一条记录：
 
-```html
-<a class="card" data-cat="分类" data-progress="模块key" data-total="里程碑数" href="文件名.html">
-  <div class="card-head">
-    <span class="badge" data-b="分类">分类显示名</span>
-    <span class="card-idx">序号</span>
-  </div>
-  <h3>课程标题</h3>
-  <p class="card-desc">一句话描述</p>
-  <div class="card-foot">
-    <span class="card-meta">~XX KB</span>
-    <span class="card-go">开始学习 <svg ...></svg></span>
-  </div>
-</a>
+```js
+{
+  file: 'tmux-interactive.html',   // 模块文件名
+  cat: 'tools',                    // 分类：devops / cs / automation / tools
+  title: 'tmux 终端复用',
+  desc: 'session 管理与分屏操作',
+  size: '33 KB',
+  progress: 'tmux',                // 可选：进度追踪 key（与模块内 localStorage 一致）
+  total: 9                         // 可选：里程碑总数（配合 progress 使用）
+}
 ```
+
+保存后导航页自动完成：卡片渲染、分类计数、页脚总数、进度条与「我的学习进度」总览的联动。**不再需要手动改 `index.html`。**
 
 > **一个系列只占一张卡片。** 同一主题下的多讲/子页面（如 PID 专题的 `pid-courseware/` 三讲视频课件）不各自建卡片，而是在系列入口页内提供跳转，`index.html` 只保留该专题的一个入口。
 
 ### 3. 启用进度追踪（可选，推荐）
 
-`index.html` 会自动读取 localStorage 中的 `il_progress`，为带 `data-progress` 属性的卡片渲染进度条与「继续学习」横幅，并在导航页顶部汇总「我的学习进度」（进行中 / 已完成 / 未开始模块 + 总里程碑解锁数）。模块侧只需遵守约定：
+`index.html` 会自动读取 localStorage 中的 `il_progress`，为带 `data-progress` 的卡片渲染进度条与「继续学习」横幅，并在导航页顶部汇总「我的学习进度」（进行中 / 已完成 / 未开始模块 + 总里程碑解锁数）。模块侧只需遵守约定：
 
 - **存储 key**：`il_progress`，值为 JSON 对象
 - **模块条目**：`{ "<模块key>": { "steps": [已解锁里程碑索引], "quiz": {"score":..,"total":..}, "last": 时间戳, "done": bool } }`
-- **模块 key** 与卡片 `data-progress` 保持一致（如 Git 模块为 `git`）
-- `data-total` 声明该模块的里程碑总数（如 Git 为 9）
+- **模块 key** 与 `courses.js` 记录中的 `progress` 字段保持一致（如 Git 模块为 `git`）
+- `total` 字段声明该模块的里程碑总数（如 Git 为 9）
 
 参考实现见 `git-interactive.html` 脚本内的 `loadProgress` / `saveProgress` / `completeMilestone`。
 
-### 4. 同步更新数据
-
-- 更新筛选按钮中的 count 数字
-- 更新顶部 stats 区的课程总数
-- 更新 footer 中的总数
-
-### 5. Commit 并推送
+### 4. Commit 并推送
 
 ```bash
 git add index.html 新模块.html
