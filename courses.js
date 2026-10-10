@@ -192,5 +192,23 @@ window.IL_COURSES = [
     size: '47 KB',
     progress: 'nginx',
     total: 9
+  },
+  {
+      key: 'netsec',
+    cat: 'cs',
+    title: '网络安全基础',
+    desc: '迷你漏洞雷达：识别 XSS、SQL 注入、CSRF、SSRF 等漏洞类型并选择正确修复',
+    size: '49 KB',
+    progress: 'netsec',
+    total: 9
+  },
+  {
+      key: 'async',
+    cat: 'cs',
+    title: 'JavaScript 异步与事件循环',
+    desc: '输出预测器：同步、微任务、宏任务、async/await 的执行顺序预测与即时核对',
+    size: '45 KB',
+    progress: 'async',
+    total: 9
   }
 ];

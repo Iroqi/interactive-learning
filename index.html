@@ -517,6 +517,31 @@
     }
     .overview .ov-btn:hover { border-color: var(--accent); color: var(--accent); }
     .overview .ov-import-note { font-size: 10px; color: var(--text-muted); }
+    .overview .ov-btn.danger:hover { border-color: #ef476f; color: #ef476f; }
+
+    /* ── Category dashboard ── */
+    .ov-cats {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 20px;
+    }
+    .ov-cats.show { display: block; }
+    .ov-cats-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .ov-cat { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+    .ov-cat:last-child { margin-bottom: 0; }
+    .ov-cat-name {
+      width: 76px; flex: none; text-align: right;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-secondary);
+    }
+    .ov-cat-bar { flex: 1; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .ov-cat-fill { display: block; height: 100%; width: 0; border-radius: 999px; transition: width 0.5s ease; }
+    .ov-cat-num { width: 96px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    @media (max-width: 1000px) { .ov-cats { margin-left: 24px; margin-right: 24px; } }
+    @media (max-width: 640px) { .ov-cats { margin-left: 16px; margin-right: 16px; } }
     @media (max-width: 1000px) { .overview-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .overview-wrap { padding-left: 16px; padding-right: 16px; } }
 
@@ -654,9 +679,16 @@
         <span class="ov-actions">
           <button type="button" class="ov-btn" id="btnExport">导出进度</button>
           <button type="button" class="ov-btn" id="btnImport">导入进度</button>
+          <button type="button" class="ov-btn danger" id="btnReset" title="清空全部模块的学习进度">重置进度</button>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </span>
       </div>
+    </div>
+
+    <!-- ── Category Dashboard ── -->
+    <div class="ov-cats" id="ovCats">
+      <div class="ov-cats-title">分类学习看板</div>
+      <div id="ovCatsRows"></div>
     </div>
 
     <!-- ── Course Grid ── -->
@@ -904,7 +936,39 @@
           ov.classList.add('show');
         }
 
+        renderCatBars(store);
+
         showDueReview(store);
+      }
+
+      /* ── 分类学习看板：每类已解锁步数 / 总步数 ── */
+      var CAT_COLORS = { devops: '#3ecfb4', cs: '#918cf6', automation: '#f0a04b', tools: '#f06888' };
+      function renderCatBars(store) {
+        var el = document.getElementById('ovCats');
+        if (!el) return;
+        var acc = {};
+        Object.keys(CAT_COLORS).forEach(function (k) { acc[k] = { done: 0, total: 0 }; });
+        courses.forEach(function (c) {
+          var a = acc[c.cat];
+          if (!a) return;
+          var total = c.total || 9;
+          var p = store[c.progress];
+          a.total += total;
+          if (p && p.steps) a.done += Math.min(p.steps.length, total);
+        });
+        var any = Object.keys(acc).some(function (k) { return acc[k].done > 0; });
+        if (!any) { el.classList.remove('show'); return; }
+        var html = '';
+        Object.keys(acc).forEach(function (k) {
+          var a = acc[k];
+          if (!a.total) return;
+          var pct = Math.round(a.done / a.total * 100);
+          html += '<div class="ov-cat"><span class="ov-cat-name">' + (CAT_LABEL[k] || k) + '</span>' +
+            '<span class="ov-cat-bar"><span class="ov-cat-fill" style="width:' + pct + '%;background:' + CAT_COLORS[k] + '"></span></span>' +
+            '<span class="ov-cat-num">' + a.done + ' / ' + a.total + ' 步 · ' + pct + '%</span></div>';
+        });
+        document.getElementById('ovCatsRows').innerHTML = html;
+        el.classList.add('show');
       }
 
       /* ── 连续学习天数：聚合所有模块 last 时间戳的去重日期 ── */
@@ -1062,6 +1126,15 @@
       importFile.addEventListener('change', function () {
         if (importFile.files && importFile.files[0]) importProgressFile(importFile.files[0]);
         importFile.value = '';
+      });
+
+      /* 重置全部进度（confirm 保护，清空后重载） */
+      document.getElementById('btnReset').addEventListener('click', function () {
+        if (!window.confirm('确定要清空全部模块的学习进度吗？此操作不可撤销，可先导出备份。')) return;
+        try {
+          localStorage.removeItem('il_progress');
+          location.reload();
+        } catch (e) { /* storage unavailable */ }
       });
 
       renderCards();

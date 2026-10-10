@@ -33,6 +33,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'prompt-interactive.html': 'prompt',
     'terraform-interactive.html': 'terraform',
     'nginx-interactive.html': 'nginx',
+    'netsec-interactive.html': 'netsec',
+    'async-interactive.html': 'async',
 }
 
 os.makedirs('modules', exist_ok=True)
