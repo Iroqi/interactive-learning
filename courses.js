@@ -120,5 +120,14 @@ window.IL_COURSES = [
     title: 'PLC 交互式学习',
     desc: '可编程逻辑控制器原理、梯形图编程与工业自动化仿真模拟',
     size: '71 KB'
+  },
+  {
+      key: 'regex',
+    cat: 'tools',
+    title: '正则表达式',
+    desc: '实时匹配引擎：字符类、量词、分组捕获、锚点边界与实战提取',
+    size: '47 KB',
+    progress: 'regex',
+    total: 9
   }
 ];

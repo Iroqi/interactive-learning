@@ -25,6 +25,7 @@ KEYS = {  # explicit mapping to avoid surprises
     'git-interactive.html': 'git',
     'bash-interactive.html': 'bash',
     'plc-interactive.html': 'plc',
+    'regex-interactive.html': 'regex',
 }
 
 os.makedirs('modules', exist_ok=True)
