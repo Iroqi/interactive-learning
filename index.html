@@ -11,16 +11,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0b0e14;
-      --bg-card: #11161f;
-      --bg-elevated: #181d28;
-      --text: #e4e6ea;
-      --text-secondary: #878da0;
-      --text-muted: #505668;
-      --accent: #d4a853;
-      --accent-dim: rgba(211, 168, 83, 0.11);
-      --border: #1f242f;
-      --border-hover: #2e3442;
+      --bg: #0a0a23;
+      --bg-card: #1b1b32;
+      --bg-elevated: #232342;
+      --text: #f5f6f7;
+      --text-secondary: #c5c6c7;
+      --text-muted: #8a8aa0;
+      --accent: #3d9be9;
+      --accent-dim: rgba(61, 155, 233, 0.12);
+      --border: #2e2e48;
+      --border-hover: #3a3a55;
       --devops: #3ecfb4;
       --cs: #918cf6;
       --automation: #f0a04b;
@@ -38,8 +38,8 @@
       --text: #1b2230;
       --text-secondary: #5b6472;
       --text-muted: #9aa1ad;
-      --accent: #a9760f;
-      --accent-dim: rgba(169, 118, 15, 0.10);
+      --accent: #2563eb;
+      --accent-dim: rgba(37, 99, 235, 0.10);
       --border: #e2e6ec;
       --border-hover: #c9d0db;
     }
@@ -893,6 +893,106 @@
     </div>
     <div id="moduleRoot"></div>
   </div>
+
+  <!-- ── FreeCodeCamp-style course skin（置于模块样式之后，统一全部模块视觉） ── -->
+  <style id="courseSkin">
+    /* ============ 统一变量：所有模块的强调色 → FFC 蓝 ============ */
+    :root {
+      --bg: #0a0a23; --card: #1b1b32; --raise: #232342; --border: #2e2e48; --line: #2e2e48;
+      --text: #f5f6f7; --dim: #c5c6c7; --muted: #a7a8ab;
+      --bg2: #1b1b32; --bg3: #232342; --surface: #1b1b32; --surface-alt: #16162b;
+      --surface2: #232342; --surface3: #2a2a40; --bg-secondary: #16162b; --surface-hover: #2a2a40;
+      --card-2: #232342; --card-light: #232342; --bg-warm: #0a0a23;
+      --accent: #3d9be9; --accent2: #6cb0ee; --primary: #3d9be9; --primary-light: #6cb0ee;
+      --primary-dark: #2e7cc4; --primary-bg: rgba(61, 155, 233, 0.12);
+      --indigo: #3d9be9; --indigo-light: #6cb0ee; --brand: #3d9be9; --success: #3d9be9;
+      --k8s: #3d9be9; --redis: #3d9be9; --prompt: #3d9be9; --tf: #3d9be9; --nginx: #3d9be9;
+      --netsec: #3d9be9; --async: #3d9be9; --ts: #3d9be9; --perm: #3d9be9; --compose: #3d9be9;
+      --algo: #3d9be9; --tx: #3d9be9; --sd: #3d9be9; --css: #3d9be9; --sqlidx: #3d9be9;
+      --rust: #3d9be9; --helm: #3d9be9; --prom: #3d9be9; --jwt: #3d9be9;
+    }
+    /* ============ 页面基调：统一背景 / 字体 / 文字 ============ */
+    body { background: #0a0a23 !important; color: #f5f6f7; }
+    .mast, .hero, .container { max-width: 860px; }
+    h1, h2, h3, .hero h1, .hero-title, .sec-title, .section-title, .level-header, .step-header, .level-title {
+      color: #f5f6f7 !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+    }
+    .subtitle, .mast-count, .progress-meta, .lead, .hero-sub, .level-meta, .step-desc, .sec-desc, .section-desc, .card-desc {
+      color: #c5c6c7 !important;
+    }
+    /* ============ 徽章 / 标题号 ============ */
+    .mast .badge, .badge { background: #3d9be9 !important; }
+    .num, .step-tag, .q-num, .level-num { color: #3d9be9 !important; border-color: #3d9be9 !important; }
+    /* ============ 进度条：统一 FFC 蓝 ============ */
+    .progress-track, .progress-bar, .progress-strip, .progress-bar-wrap { background: #232342 !important; }
+    .progress-fill { background: #3d9be9 !important; }
+    .progress-strip .fill, .progress-strip span { background: #3d9be9 !important; }
+    /* ============ 代码 / 面板 ============ */
+    pre, .code-block, .code-area, .code-editor, .expr-input, .expr-input-area, .sandbox-editor, .lab, .lab-body, .md-editor-pane, .md-preview-pane, .editor-area, .console, .explorer-code {
+      background: #0a0a23 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+    }
+    pre .cmt, .code-comment, .c-cmd, .lab-hint { color: #8a8aa0; }
+    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #6cb0ee; background: #1b1b32; border-color: #2e2e48; }
+    .insight, .insight-box, .warn-box, .hint-panel, .gotcha, .result, .lab-info, .rt-info, .lab-tip, .hint-reveal {
+      background: rgba(61, 155, 233, 0.08) !important; border-color: rgba(61, 155, 233, 0.35) !important;
+    }
+    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #3d9be9; }
+    .c-ok, .c-warn { color: #6cb0ee; }
+    /* ============ 卡片 / 面板（覆盖各代模块） ============ */
+    .card, .concept-card, .km-card, .knowledge-card, .level-card, .task-card, .aha-pane, .result-card,
+    .flip-card, .cw-card, .cm-node, .expr-challenge, .explorer-card, .sim-panel, .concept-tree, .concept-block,
+    .quiz-q, .quiz-container, .clab, .clab-head, .predict-box, .route-card, .cmp-row {
+      background: #1b1b32 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+    }
+    .clab-head, .code-toolbar, .lab-head, .sim-header, .card-head, .cm-head { background: #16162b !important; border-color: #2e2e48 !important; }
+    /* ============ 顶栏（M3 老模块） ============ */
+    .nav-bar, .sticky-nav, .top-bar, .top-nav, .header, .header-controls, .module-bar, .sidebar, .hero-nav {
+      background: #16162b !important; border-color: #2e2e48 !important;
+    }
+    .nav-bar a, .top-nav a, .top-bar a, .sticky-nav a, .nav-link, .nav-item, .step-nav a, .sidebar a {
+      color: #c5c6c7 !important;
+    }
+    .nav-bar a:hover, .top-nav a:hover, .nav-link:hover, .step-nav a:hover, .sidebar a:hover, .nav-item:hover, .step-number.on {
+      color: #3d9be9 !important;
+    }
+    /* ============ 按钮：统一 FFC 蓝 ============ */
+    .clab-btn, .btn, .btn-primary, .btn-check, .btn-row button, .lab-btn, .sim-btn, .ex-actions button {
+      background: #3d9be9 !important; color: #fff !important; border-color: #3d9be9 !important;
+    }
+    .clab-btn:hover, .btn:hover, .btn-primary:hover, .btn-row button:hover, .ex-actions button:hover {
+      background: #2e7cc4 !important; color: #fff !important;
+    }
+    .btn-secondary, .btn-outline, .btn-ghost, .btn-hint, .icon-btn, .theme-toggle {
+      background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important;
+    }
+    .btn-secondary:hover, .btn-outline:hover, .btn-ghost:hover, .icon-btn:hover, .theme-toggle:hover {
+      border-color: #3d9be9 !important; color: #3d9be9 !important;
+    }
+    /* ============ 选择题（统一 FFC 卡片式） ============ */
+    .opt-row, .check-label, .expr-item, .dfl-toggle, .route-input, .input-row {
+      background: #1b1b32 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+    }
+    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #3d9be9 !important; }
+    .opt-row input, .check-label input, .expr-item input { accent-color: #3d9be9; }
+    .opt-row.correct { border-color: #3d9be9 !important; background: rgba(61, 155, 233, 0.14) !important; }
+    .opt-row.wrong { border-color: #d24d4d !important; background: rgba(210, 77, 77, 0.12) !important; }
+    .result.ok, .check-result.ok, .quiz-score { color: #d6e8fb; }
+    .result.err, .check-result.err { color: #f8d7d7; }
+    /* ============ 实验台输入 ============ */
+    .clab-body textarea, .clab-body input, .lab-body textarea, .lab-body input, .expr-input, .route-input, .code-area, .explorer-input, .md-editor-pane {
+      background: #0a0a23 !important; border-color: #2e2e48 !important; color: #f5f6f7;
+    }
+    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #3d9be9 !important; }
+    /* ============ 底部导航 / toast / footer ============ */
+    .nav, .nav-foot, .nav-inner { background: rgba(10, 10, 35, 0.94) !important; border-top-color: #2e2e48 !important; border-color: #2e2e48 !important; }
+    .nav-btn, .nav-foot a, .btn-nav { background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important; }
+    .nav-btn:hover, .nav-foot a:hover { border-color: #3d9be9 !important; color: #3d9be9 !important; }
+    .nav-label { color: #a7a8ab; }
+    .toast { background: #1b1b32 !important; border-color: #3d9be9 !important; color: #d6e8fb; }
+    .footer, .foot-note, .note { color: #5a5a6e; }
+    /* ============ 测验分数 ============ */
+    .score-num-big { color: #3d9be9 !important; }
+  </style>
 
   <script src="courses.js"></script>
   <script>
