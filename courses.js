@@ -318,5 +318,23 @@ window.IL_COURSES = [
     size: '44 KB',
     progress: 'jwt',
     total: 9
+  },
+  {
+      key: 'dockerfile',
+    cat: 'devops',
+    title: 'Dockerfile 构建',
+    desc: '迷你判读器：指令语义、多阶段构建、层缓存、HEALTHCHECK 与构建步骤预测',
+    size: '43 KB',
+    progress: 'dockerfile',
+    total: 9
+  },
+  {
+      key: 'go',
+    cat: 'cs',
+    title: 'Go 并发',
+    desc: '迷你输出预测器：goroutine、channel、select、WaitGroup、Mutex 与死锁判断',
+    size: '42 KB',
+    progress: 'go',
+    total: 9
   }
 ];

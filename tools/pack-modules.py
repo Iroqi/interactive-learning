@@ -47,6 +47,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'helm-interactive.html': 'helm',
     'prometheus-interactive.html': 'prometheus',
     'jwt-interactive.html': 'jwt',
+    'dockerfile-interactive.html': 'dockerfile',
+    'go-interactive.html': 'go',
 }
 
 os.makedirs('modules', exist_ok=True)

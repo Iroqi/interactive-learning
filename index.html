@@ -705,6 +705,29 @@
     @media (max-width: 1000px) { .ov-heat { margin-left: 24px; margin-right: 24px; } }
     @media (max-width: 640px) { .ov-heat { margin-left: 16px; margin-right: 16px; } }
 
+    /* ── Quiz trend ── */
+    .ov-quiz {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 20px;
+    }
+    .ov-quiz.show { display: block; }
+    .ov-quiz-title {
+      display: flex; align-items: baseline; gap: 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .ov-quiz-title .qm-meta { font-size: 10px; letter-spacing: 0; color: var(--text-secondary); font-family: var(--font-mono); }
+    .qz-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .qz-name { width: 170px; flex: none; text-align: right; font-size: 11px; font-weight: 600; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qz-bar { flex: 1; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .qz-fill { display: block; height: 100%; width: 0; background: #198eee; border-radius: 999px; transition: width 0.5s ease; }
+    .qz-num { width: 64px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    .qz-avg { margin-top: 4px; font-size: 11px; color: var(--devops); font-family: var(--font-mono); }
+    @media (max-width: 1000px) { .ov-quiz { margin-left: 24px; margin-right: 24px; } }
+    @media (max-width: 640px) { .ov-quiz { margin-left: 16px; margin-right: 16px; } }
+
     /* Hidden card animation */
     .card.filtered-out {
       opacity: 0 !important;
@@ -870,6 +893,12 @@
       <div class="ov-heat-title">学习热力图 <span class="hm-meta" id="ovHeatMeta"></span></div>
       <div class="hm-grid" id="ovHeatGrid"></div>
       <div class="hm-legend">少 <span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span> 多</div>
+    </div>
+
+    <!-- ── Quiz Trend ── -->
+    <div class="ov-quiz" id="ovQuiz">
+      <div class="ov-quiz-title">测验成绩趋势 <span class="qm-meta" id="ovQuizMeta"></span></div>
+      <div id="ovQuizRows"></div>
     </div>
 
     <!-- ── Course Grid ── -->
@@ -1319,6 +1348,7 @@
         renderGoal(store);
         renderBadges(store);
         renderHeatmap(store);
+        renderQuizTrend(store);
 
         showDueReview(store);
       }
@@ -1511,6 +1541,36 @@
         var activeDays = cells.filter(function (cell) { return cell.n > 0; }).length;
         if (activeDays === 0) return; /* 无学习记录时不展示热力图 */
         document.getElementById('ovHeatMeta').textContent = '近 90 天活跃 ' + activeDays + ' 天';
+        el.classList.add('show');
+      }
+
+      /* ── 测验成绩趋势：聚合各模块 quiz 成绩 ── */
+      function renderQuizTrend(store) {
+        var el = document.getElementById('ovQuiz');
+        if (!el) return;
+        var rows = [];
+        cards.forEach(function (card) {
+          var key = card.dataset.progress;
+          if (!key) return;
+          var p = store[key];
+          if (p && p.quiz && p.quiz.total) {
+            var title = card.querySelector('.card-title');
+            rows.push({ name: title ? title.textContent : key, score: p.quiz.score, total: p.quiz.total });
+          }
+        });
+        if (!rows.length) return;
+        rows.sort(function (a, b) { return (b.score / b.total) - (a.score / a.total); });
+        var totalPct = 0;
+        var html = rows.map(function (r) {
+          var pct = Math.round(r.score / r.total * 100);
+          totalPct += pct;
+          return '<div class="qz-row"><span class="qz-name">' + esc(r.name) + '</span>' +
+            '<span class="qz-bar"><span class="qz-fill" style="width:' + pct + '%"></span></span>' +
+            '<span class="qz-num">' + r.score + '/' + r.total + '</span></div>';
+        }).join('');
+        document.getElementById('ovQuizRows').innerHTML = html;
+        var avg = Math.round(totalPct / rows.length);
+        document.getElementById('ovQuizMeta').textContent = rows.length + ' 个模块完成测验 · 平均 ' + avg + ' 分';
         el.classList.add('show');
       }
 
