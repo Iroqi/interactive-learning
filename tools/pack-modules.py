@@ -35,6 +35,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'nginx-interactive.html': 'nginx',
     'netsec-interactive.html': 'netsec',
     'async-interactive.html': 'async',
+    'ts-interactive.html': 'ts',
+    'permissions-interactive.html': 'permissions',
 }
 
 os.makedirs('modules', exist_ok=True)

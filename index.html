@@ -542,6 +542,31 @@
     .ov-cat-num { width: 96px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     @media (max-width: 1000px) { .ov-cats { margin-left: 24px; margin-right: 24px; } }
     @media (max-width: 640px) { .ov-cats { margin-left: 16px; margin-right: 16px; } }
+
+    /* ── Daily goal ── */
+    .ov-goal {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 20px; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .ov-goal.show { display: flex; }
+    .og-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .og-input {
+      width: 150px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; outline: none;
+    }
+    .og-input:focus { border-color: rgba(211, 168, 83, 0.4); }
+    .og-note { font-size: 10px; color: var(--text-muted); }
+    .og-bar { flex: 1; min-width: 160px; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    .og-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--devops)); border-radius: 999px; transition: width 0.5s ease; }
+    .og-num { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
+    .og-num.og-done { color: var(--devops); font-weight: 700; }
+    @media (max-width: 1000px) { .ov-goal { margin-left: 24px; margin-right: 24px; } }
+    @media (max-width: 640px) { .ov-goal { margin-left: 16px; margin-right: 16px; } }
     @media (max-width: 1000px) { .overview-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .overview-wrap { padding-left: 16px; padding-right: 16px; } }
 
@@ -683,6 +708,12 @@
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </span>
       </div>
+    </div>
+
+    <!-- ── Daily Goal ── -->
+    <div class="ov-goal" id="ovGoal">
+      <span class="og-label">今日目标</span>
+      <span id="ovGoalBody"></span>
     </div>
 
     <!-- ── Category Dashboard ── -->
@@ -937,6 +968,7 @@
         }
 
         renderCatBars(store);
+        renderGoal(store);
 
         showDueReview(store);
       }
@@ -969,6 +1001,53 @@
         });
         document.getElementById('ovCatsRows').innerHTML = html;
         el.classList.add('show');
+      }
+
+      /* ── 今日目标：每日里程碑目标（il_goal，按天生效） ── */
+      function todayStr() {
+        var d = new Date();
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      }
+      function renderGoal(store) {
+        var el = document.getElementById('ovGoal');
+        if (!el) return;
+        var goal = null;
+        try {
+          var g = JSON.parse(localStorage.getItem('il_goal') || 'null');
+          if (g && g.date === todayStr() && g.target > 0) goal = g;
+        } catch (e) { /* storage unavailable */ }
+        var todayMs = 0;
+        var todayKey = new Date().toDateString();
+        Object.keys(store).forEach(function (k) {
+          var p = store[k];
+          if (!p || !p.last) return;
+          if (new Date(p.last).toDateString() === todayKey) todayMs += (p.steps || []).length;
+        });
+        var body = document.getElementById('ovGoalBody');
+        if (!goal) {
+          body.innerHTML = '<input type="number" id="goalInput" class="og-input" min="1" max="50" placeholder="今天想解锁几个里程碑？">' +
+            '<button type="button" class="ov-btn" id="goalSave">设定</button><span class="og-note">按天生效，次日自动清零</span>';
+          el.classList.add('show');
+          var save = document.getElementById('goalSave');
+          if (save) save.addEventListener('click', function () {
+            var v = parseInt(document.getElementById('goalInput').value, 10);
+            if (!v || v < 1) return;
+            localStorage.setItem('il_goal', JSON.stringify({ date: todayStr(), target: Math.min(v, 50) }));
+            renderGoal(store);
+          });
+          return;
+        }
+        var pct = Math.min(100, Math.round(todayMs / goal.target * 100));
+        var done = todayMs >= goal.target;
+        body.innerHTML = '<span class="og-bar"><span class="og-fill" style="width:' + pct + '%"></span></span>' +
+          '<span class="og-num' + (done ? ' og-done' : '') + '">' + todayMs + ' / ' + goal.target + ' 里程碑' + (done ? ' · 已达成 ✓' : '') + '</span>' +
+          '<button type="button" class="ov-btn" id="goalEdit">修改</button>';
+        el.classList.add('show');
+        var edit = document.getElementById('goalEdit');
+        if (edit) edit.addEventListener('click', function () {
+          localStorage.removeItem('il_goal');
+          renderGoal(store);
+        });
       }
 
       /* ── 连续学习天数：聚合所有模块 last 时间戳的去重日期 ── */

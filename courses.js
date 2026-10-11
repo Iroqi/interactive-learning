@@ -210,5 +210,23 @@ window.IL_COURSES = [
     size: '45 KB',
     progress: 'async',
     total: 9
+  },
+  {
+      key: 'ts',
+    cat: 'tools',
+    title: 'TypeScript 类型系统',
+    desc: '迷你判读器：类型标注、推断、interface、联合类型、函数类型、泛型与实用类型',
+    size: '42 KB',
+    progress: 'ts',
+    total: 9
+  },
+  {
+      key: 'permissions',
+    cat: 'cs',
+    title: 'Linux 文件权限',
+    desc: '迷你 chmod 计算器：rwx 符号与数字换算、umask、目录权限、特殊位',
+    size: '44 KB',
+    progress: 'permissions',
+    total: 9
   }
 ];
