@@ -228,5 +228,23 @@ window.IL_COURSES = [
     size: '44 KB',
     progress: 'permissions',
     total: 9
+  },
+  {
+      key: 'compose',
+    cat: 'devops',
+    title: 'Docker Compose',
+    desc: '迷你配置校验器：services、端口映射、命名卷、依赖与健康检查解析校验',
+    size: '47 KB',
+    progress: 'compose',
+    total: 9
+  },
+  {
+      key: 'algo',
+    cat: 'cs',
+    title: '算法与数据结构基础',
+    desc: '迷你复杂度评估器：估 O()、辨结构（栈/队列/哈希/链表/树/图）',
+    size: '48 KB',
+    progress: 'algo',
+    total: 9
   }
 ];

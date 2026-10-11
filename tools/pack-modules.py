@@ -37,6 +37,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'async-interactive.html': 'async',
     'ts-interactive.html': 'ts',
     'permissions-interactive.html': 'permissions',
+    'compose-interactive.html': 'compose',
+    'algo-interactive.html': 'algo',
 }
 
 os.makedirs('modules', exist_ok=True)

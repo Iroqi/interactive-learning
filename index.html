@@ -329,6 +329,47 @@
       margin-bottom: 18px;
     }
 
+    .card-head-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-star {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 17px;
+      line-height: 1;
+      color: var(--text-muted);
+      opacity: 0.5;
+      padding: 0;
+      transition: opacity 0.2s, color 0.2s, transform 0.15s;
+      position: relative;
+      z-index: 2;
+    }
+    .card-star:hover { opacity: 1; color: #facc15; transform: scale(1.18); }
+    .card-star.on { opacity: 1; color: #facc15; }
+
+    .toast-box {
+      position: fixed;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%) translateY(14px);
+      background: rgba(20, 24, 34, 0.96);
+      border: 1px solid rgba(250, 204, 21, 0.45);
+      color: #fde68a;
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      z-index: 90;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s, transform 0.22s;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .toast-box.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     .badge {
       font-size: 10px;
       font-weight: 700;
@@ -764,6 +805,54 @@
       var CAT_LABEL = { devops: 'DevOps', cs: 'CS 基础', automation: '自动化', tools: '开发工具' };
       var ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg>';
 
+      /* ═════════ 收藏（il_star：星标置顶） ═════════ */
+      var STAR_ON = '&#9733;';   /* ★ */
+      var STAR_OFF = '&#9734;';  /* ☆ */
+
+      function readStars() {
+        try {
+          var arr = JSON.parse(localStorage.getItem('il_star') || '[]');
+          return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+      }
+      function writeStars(arr) {
+        try { localStorage.setItem('il_star', JSON.stringify(arr)); } catch (e) { /* storage unavailable */ }
+      }
+      function isStarred(key) {
+        return readStars().indexOf(key) !== -1;
+      }
+      function toggleStar(key) {
+        var arr = readStars();
+        var i = arr.indexOf(key);
+        if (i === -1) {
+          arr.push(key);
+          toast('★ 已收藏：' + key);
+        } else {
+          arr.splice(i, 1);
+          toast('☆ 已取消收藏：' + key);
+        }
+        writeStars(arr);
+        updateStarIcons();
+        sortCards();
+      }
+      function updateStarIcons() {
+        cards.forEach(function (card) {
+          var btn = card.querySelector('.card-star');
+          if (!btn) return;
+          btn.innerHTML = isStarred(btn.dataset.star) ? STAR_ON : STAR_OFF;
+          btn.classList.toggle('on', isStarred(btn.dataset.star));
+        });
+      }
+      function toast(msg) {
+        var t = document.getElementById('toastBox');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+      }
+      var toastTimer = null;
+
       function renderCards() {
         grid.innerHTML = '';
         cards = courses.map(function (c, i) {
@@ -778,7 +867,12 @@
           a.innerHTML =
             '<div class="card-head">' +
               '<span class="badge" data-b="' + esc(c.cat) + '">' + esc(CAT_LABEL[c.cat] || c.cat) + '</span>' +
-              '<span class="card-idx">' + idx + '</span>' +
+              '<span class="card-head-right">' +
+                '<button type="button" class="card-star' + (isStarred(c.key) ? ' on' : '') + '" data-star="' + esc(c.key) + '" title="收藏/取消收藏" aria-label="收藏">' +
+                  (isStarred(c.key) ? STAR_ON : STAR_OFF) +
+                '</button>' +
+                '<span class="card-idx">' + idx + '</span>' +
+              '</span>' +
             '</div>' +
             '<h3>' + esc(c.title) + '</h3>' +
             '<p class="card-desc">' + esc(c.desc) + '</p>' +
@@ -869,8 +963,13 @@
       function sortCards() {
         var mode = document.getElementById('sortSel').value;
         var store = readProgress();
+        var stars = readStars();
         var kids = Array.prototype.slice.call(grid.querySelectorAll('.card'));
         kids.sort(function (a, b) {
+          /* 星标置顶：任何模式下收藏都排在最前 */
+          var sa = stars.indexOf(a.dataset.progress) !== -1 ? 1 : 0;
+          var sb = stars.indexOf(b.dataset.progress) !== -1 ? 1 : 0;
+          if (sa !== sb) return sb - sa;
           if (mode === 'recent') {
             var la = (store[a.dataset.progress] && store[a.dataset.progress].last) || 0;
             var lb = (store[b.dataset.progress] && store[b.dataset.progress].last) || 0;
@@ -884,6 +983,14 @@
         });
         kids.forEach(function (el) { grid.appendChild(el); });
       }
+      /* 星标点击：不触发卡片跳转 */
+      grid.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.card-star') : null;
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleStar(btn.dataset.star);
+      });
       document.getElementById('sortSel').addEventListener('change', sortCards);
 
       /* Keyboard shortcut: / to focus search */
@@ -1217,9 +1324,11 @@
       });
 
       renderCards();
+      sortCards();
       initProgress();
       route();
     })();
   </script>
+  <div class="toast-box" id="toastBox"></div>
 </body>
 </html>
