@@ -839,6 +839,7 @@
         <span class="ov-milestones" id="ovMilestones"></span>
         <span class="ov-actions">
           <button type="button" class="ov-btn" id="btnExport">导出进度</button>
+          <button type="button" class="ov-btn" id="btnReport" title="把学习进度生成为 Markdown 学习报告并下载">学习报告</button>
           <button type="button" class="ov-btn" id="btnImport">导入进度</button>
           <button type="button" class="ov-btn danger" id="btnReset" title="清空全部模块的学习进度">重置进度</button>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -1303,11 +1304,14 @@
       /* ── 成就徽章：按进度/连学/精通/满分自动解锁（il_badges） ── */
       var BADGES = [
         { id: 'streak3', icon: '&#x1F525;', name: '连学 3 天', req: '连续学习天数 ≥ 3' },
+        { id: 'streak7', icon: '&#x1F3C5;', name: '连学 7 天', req: '连续学习天数 ≥ 7' },
         { id: 'master1', icon: '&#x1F3C6;', name: '首个精通', req: '完成任意 1 个模块（全部里程碑）' },
         { id: 'master3', icon: '&#x1F48E;', name: '三连精通', req: '完成 3 个模块' },
         { id: 'catPioneer', icon: '&#x1F3AF;', name: '分类先锋', req: '同一分类完成 ≥ 2 个模块' },
         { id: 'perfect', icon: '&#x2705;', name: '测验满分', req: '任意模块测验全对' },
-        { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '完成模块数 ≥ 全部模块一半' }
+        { id: 'quizAvg7', icon: '&#x1F4AF;', name: '测验学霸', req: '已完成测验的平均分 ≥ 7/8' },
+        { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '完成模块数 ≥ 全部模块一半' },
+        { id: 'finisher', icon: '&#x1F3C1;', name: '全站通关', req: '完成全部模块（所有里程碑）' }
       ];
 
       function evaluateBadges(store) {
@@ -1329,14 +1333,23 @@
           var q = store[k] && store[k].quiz;
           return q && q.total && q.score === q.total;
         });
+        var quizScores = [];
+        Object.keys(store).forEach(function (k) {
+          var q = store[k] && store[k].quiz;
+          if (q && q.total && typeof q.score === 'number') quizScores.push(q.score);
+        });
+        var quizAvg = quizScores.length ? quizScores.reduce(function (a, b) { return a + b; }, 0) / quizScores.length : 0;
         var catPioneer = Object.keys(catDone).some(function (k) { return catDone[k] >= 2; });
         return {
           streak3: streak >= 3,
+          streak7: streak >= 7,
           master1: doneCount >= 1,
           master3: doneCount >= 3,
           catPioneer: catPioneer,
           perfect: perfect,
-          halfway: tracked > 0 && doneCount >= Math.ceil(tracked / 2)
+          quizAvg7: quizScores.length > 0 && quizAvg >= 7,
+          halfway: tracked > 0 && doneCount >= Math.ceil(tracked / 2),
+          finisher: tracked > 0 && doneCount >= tracked
         };
       }
 
@@ -1472,6 +1485,74 @@
         r.readAsText(file);
       }
 
+      /* ── 学习报告：il_progress + 课程元数据 → Markdown 下载 ── */
+      function fmtDate(ts) {
+        if (!ts) return '—';
+        var d = new Date(ts);
+        return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+      }
+      function exportReport() {
+        var store = {};
+        try { store = JSON.parse(localStorage.getItem('il_progress') || '{}'); }
+        catch (e) { store = {}; }
+        var catNames = { devops: 'DevOps', cs: '计算机科学', automation: '自动化', tools: '效率工具' };
+        var lines = [];
+        lines.push('# 交互式学习 · 学习报告');
+        lines.push('');
+        lines.push('生成时间：' + new Date().toLocaleString('zh-CN') + '（浏览器本地）');
+        lines.push('');
+        var doneCount = 0, tracked = 0, quizDone = 0, quizSum = 0;
+        var rows = courses.map(function (c) {
+          var key = c.progress;
+          if (!key) return null;
+          tracked++;
+          var p = store[key] || {};
+          var total = parseInt(c.total || 9, 10);
+          var steps = p.steps ? p.steps.length : 0;
+          var done = !!(p.done || steps >= total);
+          if (done) doneCount++;
+          var quizTxt = '—';
+          if (p.quiz && p.quiz.total) {
+            quizTxt = p.quiz.score + '/' + p.quiz.total;
+            quizDone++; quizSum += p.quiz.score;
+          }
+          var status = done ? '已掌握' : (steps > 0 ? '进行中' : '未开始');
+          return {
+            title: c.title || key,
+            cat: catNames[c.cat] || c.cat,
+            status: status,
+            steps: steps + '/' + total,
+            quiz: quizTxt,
+            last: fmtDate(p.last)
+          };
+        }).filter(Boolean);
+        var pct = tracked ? Math.round(doneCount / tracked * 100) : 0;
+        var quizAvgTxt = quizDone ? (Math.round(quizSum / quizDone * 100) / 100).toFixed(2) : '—';
+        lines.push('## 概览');
+        lines.push('');
+        lines.push('- 模块总数：' + tracked);
+        lines.push('- 已完成：' + doneCount + '（' + pct + '%）');
+        lines.push('- 测验完成：' + quizDone + ' 个模块，平均 ' + quizAvgTxt + '/8');
+        lines.push('- 学习报告由本地进度生成，未提交任何个人数据');
+        lines.push('');
+        lines.push('## 模块明细');
+        lines.push('');
+        lines.push('| 模块 | 分类 | 状态 | 里程碑 | 测验 | 最近学习 |');
+        lines.push('|---|---|---|---|---|---|');
+        rows.forEach(function (r) {
+          lines.push('| ' + r.title + ' | ' + r.cat + ' | ' + r.status + ' | ' + r.steps + ' | ' + r.quiz + ' | ' + r.last + ' |');
+        });
+        lines.push('');
+        var blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'learning-report-' + new Date().toISOString().slice(0, 10) + '.md';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 500);
+      }
+
 
       /* ═════════ 单页壳：按需加载模块数据（modules/<key>.js）并渲染 ═════════ */
       var navView = document.getElementById('navView');
@@ -1549,6 +1630,7 @@
 
       /* 备份恢复按钮 */
       document.getElementById('btnExport').addEventListener('click', exportProgress);
+      document.getElementById('btnReport').addEventListener('click', exportReport);
       var importFile = document.getElementById('importFile');
       document.getElementById('btnImport').addEventListener('click', function () { importFile.click(); });
       importFile.addEventListener('change', function () {

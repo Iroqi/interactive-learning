@@ -291,5 +291,32 @@ window.IL_COURSES = [
     size: '43 KB',
     progress: 'rust',
     total: 9
+  },
+  {
+      key: 'helm',
+    cat: 'devops',
+    title: 'Helm chart 模板',
+    desc: '迷你渲染器：模板表达式、模板函数、values 覆盖、release 生命周期与 hooks',
+    size: '44 KB',
+    progress: 'helm',
+    total: 9
+  },
+  {
+      key: 'prometheus',
+    cat: 'devops',
+    title: 'Prometheus 监控',
+    desc: '迷你 PromQL 查询台：指标类型、rate/increase、sum by、告警规则与可用性',
+    size: '44 KB',
+    progress: 'prometheus',
+    total: 9
+  },
+  {
+      key: 'jwt',
+    cat: 'cs',
+    title: 'JWT 认证令牌',
+    desc: '迷你解码器：三段式、Base64Url、验签、过期判断与常见漏洞防护',
+    size: '44 KB',
+    progress: 'jwt',
+    total: 9
   }
 ];

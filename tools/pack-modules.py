@@ -44,6 +44,9 @@ KEYS = {  # explicit mapping to avoid surprises
     'css-interactive.html': 'css',
     'sqlidx-interactive.html': 'sqlidx',
     'rust-interactive.html': 'rust',
+    'helm-interactive.html': 'helm',
+    'prometheus-interactive.html': 'prometheus',
+    'jwt-interactive.html': 'jwt',
 }
 
 os.makedirs('modules', exist_ok=True)
