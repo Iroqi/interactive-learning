@@ -41,6 +41,9 @@ KEYS = {  # explicit mapping to avoid surprises
     'algo-interactive.html': 'algo',
     'transactions-interactive.html': 'transactions',
     'systemd-interactive.html': 'systemd',
+    'css-interactive.html': 'css',
+    'sqlidx-interactive.html': 'sqlidx',
+    'rust-interactive.html': 'rust',
 }
 
 os.makedirs('modules', exist_ok=True)

@@ -30,6 +30,22 @@
       --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
     }
 
+    /* ── Light theme（il_theme=light / 系统亮色） ── */
+    html[data-theme="light"] {
+      --bg: #f5f6f8;
+      --bg-card: #ffffff;
+      --bg-elevated: #eef0f4;
+      --text: #1b2230;
+      --text-secondary: #5b6472;
+      --text-muted: #9aa1ad;
+      --accent: #a9760f;
+      --accent-dim: rgba(169, 118, 15, 0.10);
+      --border: #e2e6ec;
+      --border-hover: #c9d0db;
+    }
+    html[data-theme="light"] body::before { opacity: 0.55; }
+    html[data-theme="light"] .card-star:hover { color: #ca8a04; }
+
     html { scroll-behavior: smooth; }
 
     body {
@@ -63,6 +79,26 @@
       text-align: center;
       position: relative;
     }
+
+    .theme-btn {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s, color 0.2s, transform 0.15s;
+    }
+    .theme-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.06); }
+    @media (max-width: 640px) { .theme-btn { top: 16px; right: 16px; } }
 
     .hero-badge {
       display: inline-flex;
@@ -643,6 +679,32 @@
     @media (max-width: 1000px) { .overview-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .overview-wrap { padding-left: 16px; padding-right: 16px; } }
 
+    /* ── Learning heatmap（近 90 天） ── */
+    .ov-heat {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 20px;
+    }
+    .ov-heat.show { display: block; }
+    .ov-heat-title {
+      display: flex; align-items: baseline; gap: 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .ov-heat-title .hm-meta { font-size: 10px; letter-spacing: 0; color: var(--text-secondary); font-family: var(--font-mono); }
+    .hm-grid { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
+    .hm-col { display: flex; flex-direction: column; gap: 3px; }
+    .hm-cell { width: 11px; height: 11px; border-radius: 3px; background: var(--bg-elevated); border: 1px solid var(--border); }
+    .hm-cell.l1 { background: #0e4429; border-color: #0e4429; }
+    .hm-cell.l2 { background: #006d32; border-color: #006d32; }
+    .hm-cell.l3 { background: #26a641; border-color: #26a641; }
+    .hm-cell.l4 { background: #39d353; border-color: #39d353; }
+    .hm-legend { display: flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+    .hm-legend .hm-cell { border: none; }
+    @media (max-width: 1000px) { .ov-heat { margin-left: 24px; margin-right: 24px; } }
+    @media (max-width: 640px) { .ov-heat { margin-left: 16px; margin-right: 16px; } }
+
     /* Hidden card animation */
     .card.filtered-out {
       opacity: 0 !important;
@@ -725,6 +787,7 @@
 
     <!-- ── Hero ── -->
     <header class="hero">
+      <button type="button" id="btnTheme" class="theme-btn" title="主题：自动跟随系统">◐</button>
       <div class="hero-badge">Interactive Learning</div>
       <h1>交互式<em>学习</em>库</h1>
       <p class="hero-sub">精心打造的互动学习体验，涵盖 DevOps、计算机科学、工业自动化与开发工具</p>
@@ -801,6 +864,13 @@
       <div class="ov-badges-row" id="ovBadgesRow"></div>
     </div>
 
+    <!-- ── Learning Heatmap ── -->
+    <div class="ov-heat" id="ovHeat">
+      <div class="ov-heat-title">学习热力图 <span class="hm-meta" id="ovHeatMeta"></span></div>
+      <div class="hm-grid" id="ovHeatGrid"></div>
+      <div class="hm-legend">少 <span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span><span class="hm-cell l4"></span> 多</div>
+    </div>
+
     <!-- ── Course Grid ── -->
     <div class="grid-wrap">
       <div class="grid" id="grid">
@@ -826,6 +896,38 @@
   <script src="courses.js"></script>
   <script>
     (function () {
+      /* ═════════ 主题切换：il_theme（light / dark / auto） ═════════ */
+      function applyTheme() {
+        var t = 'auto';
+        try { t = localStorage.getItem('il_theme') || 'auto'; } catch (e) { /* storage unavailable */ }
+        var dark = t === 'dark' ||
+          (t === 'auto' && (!window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches));
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        var btn = document.getElementById('btnTheme');
+        if (btn) {
+          btn.textContent = t === 'light' ? '☀' : (t === 'dark' ? '☾' : '◐');
+          btn.title = '主题：' + (t === 'light' ? '亮色' : (t === 'dark' ? '暗色' : '自动跟随系统')) + '（点击切换）';
+        }
+      }
+      applyTheme();
+      var themeBtn = document.getElementById('btnTheme');
+      if (themeBtn) {
+        themeBtn.addEventListener('click', function () {
+          var t = 'auto';
+          try { t = localStorage.getItem('il_theme') || 'auto'; } catch (e) { /* noop */ }
+          t = t === 'auto' ? 'light' : (t === 'light' ? 'dark' : 'auto');
+          try { localStorage.setItem('il_theme', t); } catch (e) { /* noop */ }
+          applyTheme();
+        });
+      }
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+          var t = 'auto';
+          try { t = localStorage.getItem('il_theme') || 'auto'; } catch (e) { /* noop */ }
+          if (t === 'auto') applyTheme();
+        });
+      }
+
       /* ═════════ 数据驱动：卡片 / 计数 / 页脚全部由 IL_COURSES 生成 ═════════ */
       var searchInput = document.getElementById('search');
       var filterBtns = document.querySelectorAll('#filters .pill');
@@ -1115,6 +1217,7 @@
         renderCatBars(store);
         renderGoal(store);
         renderBadges(store);
+        renderHeatmap(store);
 
         showDueReview(store);
       }
@@ -1257,6 +1360,44 @@
             '<span class="b-ico">' + b.icon + '</span>' + esc(b.name) + (on ? ' &#10003;' : '') + '</span>';
         }).join('');
         document.getElementById('ovBadgesCount').textContent = '· ' + unlocked.length + ' / ' + BADGES.length + ' 已解锁';
+        el.classList.add('show');
+      }
+
+      /* ── 学习热力图：近 90 天 GitHub 风格日历（聚合各模块 last） ── */
+      function renderHeatmap(store) {
+        var el = document.getElementById('ovHeat');
+        if (!el) return;
+        var counts = {};
+        Object.keys(store).forEach(function (k) {
+          var p = store[k];
+          if (p && p.last) {
+            var ds = new Date(p.last).toDateString();
+            counts[ds] = (counts[ds] || 0) + 1;
+          }
+        });
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        var start = new Date(today); start.setDate(start.getDate() - 89);
+        var dow = (start.getDay() + 6) % 7; /* 周一起始 */
+        start.setDate(start.getDate() - dow);
+        var cells = [];
+        var d = new Date(start);
+        while (d <= today) {
+          cells.push({ key: d.toDateString(), n: counts[d.toDateString()] || 0, date: new Date(d) });
+          d.setDate(d.getDate() + 1);
+        }
+        var grid = '';
+        for (var c = 0; c < cells.length; c += 7) {
+          var col = cells.slice(c, c + 7);
+          grid += '<div class="hm-col">' + col.map(function (cell) {
+            var lvl = cell.n === 0 ? 0 : Math.min(4, cell.n);
+            var y = cell.date.getFullYear(), m = cell.date.getMonth() + 1, dd = cell.date.getDate();
+            return '<span class="hm-cell l' + lvl + '" title="' + y + '-' + m + '-' + dd + '：' + cell.n + ' 次学习"></span>';
+          }).join('') + '</div>';
+        }
+        document.getElementById('ovHeatGrid').innerHTML = grid;
+        var activeDays = cells.filter(function (cell) { return cell.n > 0; }).length;
+        if (activeDays === 0) return; /* 无学习记录时不展示热力图 */
+        document.getElementById('ovHeatMeta').textContent = '近 90 天活跃 ' + activeDays + ' 天';
         el.classList.add('show');
       }
 

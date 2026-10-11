@@ -264,5 +264,32 @@ window.IL_COURSES = [
     size: '49 KB',
     progress: 'systemd',
     total: 9
+  },
+  {
+      key: 'css',
+    cat: 'tools',
+    title: 'CSS 布局与盒模型',
+    desc: '迷你布局预测器：盒模型、选择器优先级、Flexbox/Grid、居中、断点与层叠',
+    size: '45 KB',
+    progress: 'css',
+    total: 9
+  },
+  {
+      key: 'sqlidx',
+    cat: 'cs',
+    title: 'SQL 索引与 EXPLAIN',
+    desc: '迷你判读器：全表扫描、B+ 树、最左前缀、覆盖索引与失效场景',
+    size: '43 KB',
+    progress: 'sqlidx',
+    total: 9
+  },
+  {
+      key: 'rust',
+    cat: 'cs',
+    title: 'Rust 所有权',
+    desc: '迷你 borrow-checker：move/Copy、借用冲突、生命周期与 Option/Result',
+    size: '43 KB',
+    progress: 'rust',
+    total: 9
   }
 ];

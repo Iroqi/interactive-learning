@@ -221,3 +221,33 @@
 4. SQL 索引优化、主题切换、CSS 布局预测进入 Backlog（Round 8 候选）。
 
 > 取舍依据：transactions 与 systemd 都是"判读/命令可验证"的引擎型主题；徽章是壳层低成本激励项，复用既有进度数据、无新存储结构；SQL 索引优化仍量大，待模块稳定后专门一轮。
+
+---
+
+# 第八轮迭代（Round 8）
+
+## 24. 现状盘点（Round 7 之后）
+- 31 个模块（新增 transactions、systemd）；壳层已有复习提醒、连续学习、进度备份、导航排序、多关键词搜索、分类看板、进度重置、今日目标、星标收藏、成就徽章。
+- Round 7 Backlog（自 Round 5 累积三轮回）：SQL 索引优化、主题切换、CSS 布局预测。
+
+## 25. 发散：Round 8 候选
+| 候选 | 迷你引擎/形态 | 价值 | 成本 | 风险 |
+|------|---------------|------|------|------|
+| **CSS 布局预测** | 迷你布局预测器（盒模型计算、flexbox 主轴/交叉轴、grid 轨道、居中方案） | 高：Backlog 点名，前端刚需，计算可验证 | 中 | 低 |
+| **SQL 索引与 EXPLAIN** | 迷你 EXPLAIN 判读器（type/key/rows、最左前缀、覆盖索引、失效场景） | 高：Backlog 点名，数据库性能核心，判读可验证 | 中 | 低 |
+| **Rust 所有权** | 迷你 borrow-checker 判读器（move/Copy、借用冲突、生命周期） | 高：CS 领域热度最高的话题之一，规则可验证 | 中 | 低 |
+| **主题切换（暗/亮）** | 壳层：il_theme 持久化 + prefers-color-scheme 自动跟随 | 中高：Backlog 点名，低风险（CSS 变量单一来源） | 中 | 低 |
+| **学习热力图** | 壳层：近 90 天 GitHub 风格学习日历（聚合各模块 last 时间戳） | 中：可视化激励，与 streak 互补 | 低 | 低 |
+| 错题本（quiz 错题聚合） | 壳层 | 中 | 高 | 中（需模块记录错题） |
+| Helm chart 模板 | 迷你模板引擎 | 中 | 高 | 中 |
+| Prometheus 监控 | 迷你 PromQL 查询台 | 中 | 高 | 中 |
+
+## 26. 收敛：Round 8 实施项
+1. **CSS 布局模块**（`css`，tools）—— 迷你布局预测器：盒模型尺寸计算、选择器优先级计算器、flexbox 主轴/交叉轴预测、flex 伸缩分配、grid 轨道与区域、居中方案判断、响应式断点、BFC 与 z-index 层叠；9 里程碑 + 进度。
+2. **SQL 索引模块**（`sqlidx`，cs）—— 迷你 EXPLAIN 判读器：全表扫描 vs 索引、B+ 树结构、EXPLAIN 关键字段（type/key/rows/Extra）、单列/复合索引最左前缀、覆盖索引、like 前导通配符与函数包裹等失效场景、回表；9 里程碑 + 进度。
+3. **Rust 所有权模块**（`rust`，cs）—— 迷你 borrow-checker 判读器：所有权三规则、move 与 Copy、借用与引用、可变/不可变借用冲突（"已借用不可再变"场景）、生命周期标注判断、String vs &str、Option/Result 处理；9 里程碑 + 进度。
+4. **壳层主题切换**：il_theme（light/dark/auto），顶栏切换按钮 + 自动跟随系统 prefers-color-scheme；CSS 变量单一来源定义亮/暗两套。
+5. **壳层学习热力图**：近 90 天 GitHub 风格热力日历（聚合全部模块 last 时间戳逐日计数），进度总览下方展示，与连续学习/徽章形成激励闭环。
+6. SQL 索引优化本轮以独立模块消化；错题本、Helm、Prometheus 进入 Backlog（Round 9 候选）。
+
+> 取舍依据：CSS/SQL 索引是 Backlog 积压三轮回的硬需求，Rust 是纯判读型主题（borrow checker 天然"对/错"可验证），三者均符合"无引擎不可教"原则；主题切换趁模块数还在可控范围（34）消化，避免继续累积；热力图纯壳层低成本，复用 il_progress 无需新数据结构。
