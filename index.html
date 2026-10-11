@@ -17,15 +17,15 @@
       --text: #f5f6f7;
       --text-secondary: #c5c6c7;
       --text-muted: #8a8aa0;
-      --accent: #3d9be9;
-      --accent-dim: rgba(61, 155, 233, 0.12);
+      --accent: #198eee;
+      --accent-dim: rgba(25, 142, 238, 0.12);
       --border: #2e2e48;
       --border-hover: #3a3a55;
-      --devops: #3ecfb4;
-      --cs: #918cf6;
-      --automation: #f0a04b;
-      --tools: #f06888;
-      --font-display: 'Fraunces', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+      --devops: #198eee;
+      --cs: #198eee;
+      --automation: #198eee;
+      --tools: #198eee;
+      --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
       --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
     }
@@ -64,9 +64,9 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(62, 207, 180, 0.04), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(145, 140, 246, 0.04), transparent),
-        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(212, 168, 83, 0.03), transparent);
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(25, 142, 238, 0.05), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(25, 142, 238, 0.04), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(25, 142, 238, 0.03), transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -485,10 +485,10 @@
     .card[data-cat="automation"] { --cat-color: var(--automation); }
     .card[data-cat="tools"]      { --cat-color: var(--tools); }
 
-    .badge[data-b="devops"]     { background: rgba(62,206,180,0.1); color: var(--devops); }
-    .badge[data-b="cs"]         { background: rgba(145,140,246,0.1); color: var(--cs); }
-    .badge[data-b="automation"] { background: rgba(240,160,75,0.1); color: var(--automation); }
-    .badge[data-b="tools"]      { background: rgba(240,104,136,0.1); color: var(--tools); }
+    .badge[data-b="devops"]     { background: rgba(25,142,238,0.1); color: var(--devops); }
+    .badge[data-b="cs"]         { background: rgba(25,142,238,0.1); color: var(--cs); }
+    .badge[data-b="automation"] { background: rgba(25,142,238,0.1); color: var(--automation); }
+    .badge[data-b="tools"]      { background: rgba(25,142,238,0.1); color: var(--tools); }
 
     /* ── Continue strip ── */
     .continue-strip {
@@ -554,7 +554,7 @@
     }
     .card-progress .cp-fill {
       display: block; height: 100%; width: 0;
-      background: linear-gradient(90deg, var(--cat-color, var(--accent)), var(--accent));
+      background: var(--accent);
       border-radius: 999px; transition: width 0.5s ease;
     }
     .card-progress .cp-label {
@@ -639,7 +639,7 @@
     .og-input:focus { border-color: rgba(211, 168, 83, 0.4); }
     .og-note { font-size: 10px; color: var(--text-muted); }
     .og-bar { flex: 1; min-width: 160px; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
-    .og-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--devops)); border-radius: 999px; transition: width 0.5s ease; }
+    .og-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.5s ease; }
     .og-num { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
     .og-num.og-done { color: var(--devops); font-weight: 700; }
     @media (max-width: 1000px) { .ov-goal { margin-left: 24px; margin-right: 24px; } }
@@ -903,13 +903,13 @@
       --bg2: #1b1b32; --bg3: #232342; --surface: #1b1b32; --surface-alt: #16162b;
       --surface2: #232342; --surface3: #2a2a40; --bg-secondary: #16162b; --surface-hover: #2a2a40;
       --card-2: #232342; --card-light: #232342; --bg-warm: #0a0a23;
-      --accent: #3d9be9; --accent2: #6cb0ee; --primary: #3d9be9; --primary-light: #6cb0ee;
-      --primary-dark: #2e7cc4; --primary-bg: rgba(61, 155, 233, 0.12);
-      --indigo: #3d9be9; --indigo-light: #6cb0ee; --brand: #3d9be9; --success: #3d9be9;
-      --k8s: #3d9be9; --redis: #3d9be9; --prompt: #3d9be9; --tf: #3d9be9; --nginx: #3d9be9;
-      --netsec: #3d9be9; --async: #3d9be9; --ts: #3d9be9; --perm: #3d9be9; --compose: #3d9be9;
-      --algo: #3d9be9; --tx: #3d9be9; --sd: #3d9be9; --css: #3d9be9; --sqlidx: #3d9be9;
-      --rust: #3d9be9; --helm: #3d9be9; --prom: #3d9be9; --jwt: #3d9be9;
+      --accent: #198eee; --accent2: #4a9fe8; --primary: #198eee; --primary-light: #4a9fe8;
+      --primary-dark: #0a81f5; --primary-bg: rgba(25, 142, 238, 0.12);
+      --indigo: #198eee; --indigo-light: #4a9fe8; --brand: #198eee; --success: #4ade80; --green: #4ade80;
+      --k8s: #198eee; --redis: #198eee; --prompt: #198eee; --tf: #198eee; --nginx: #198eee;
+      --netsec: #198eee; --async: #198eee; --ts: #198eee; --perm: #198eee; --compose: #198eee;
+      --algo: #198eee; --tx: #198eee; --sd: #198eee; --css: #198eee; --sqlidx: #198eee;
+      --rust: #198eee; --helm: #198eee; --prom: #198eee; --jwt: #198eee;
     }
     /* ============ 页面基调：统一背景 / 字体 / 文字 ============ */
     body { background: #0a0a23 !important; color: #f5f6f7; }
@@ -921,23 +921,23 @@
       color: #c5c6c7 !important;
     }
     /* ============ 徽章 / 标题号 ============ */
-    .mast .badge, .badge { background: #3d9be9 !important; }
-    .num, .step-tag, .q-num, .level-num { color: #3d9be9 !important; border-color: #3d9be9 !important; }
+    .mast .badge, .badge { background: #198eee !important; }
+    .num, .step-tag, .q-num, .level-num { color: #198eee !important; border-color: #198eee !important; }
     /* ============ 进度条：统一 FFC 蓝 ============ */
     .progress-track, .progress-bar, .progress-strip, .progress-bar-wrap { background: #232342 !important; }
-    .progress-fill { background: #3d9be9 !important; }
-    .progress-strip .fill, .progress-strip span { background: #3d9be9 !important; }
+    .progress-fill { background: #198eee !important; }
+    .progress-strip .fill, .progress-strip span { background: #198eee !important; }
     /* ============ 代码 / 面板 ============ */
     pre, .code-block, .code-area, .code-editor, .expr-input, .expr-input-area, .sandbox-editor, .lab, .lab-body, .md-editor-pane, .md-preview-pane, .editor-area, .console, .explorer-code {
       background: #0a0a23 !important; border-color: #2e2e48 !important; color: #dfe0e2;
     }
     pre .cmt, .code-comment, .c-cmd, .lab-hint { color: #8a8aa0; }
-    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #6cb0ee; background: #1b1b32; border-color: #2e2e48; }
+    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #4a9fe8; background: #1b1b32; border-color: #2e2e48; }
     .insight, .insight-box, .warn-box, .hint-panel, .gotcha, .result, .lab-info, .rt-info, .lab-tip, .hint-reveal {
-      background: rgba(61, 155, 233, 0.08) !important; border-color: rgba(61, 155, 233, 0.35) !important;
+      background: rgba(25, 142, 238, 0.08) !important; border-color: rgba(25, 142, 238, 0.35) !important;
     }
-    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #3d9be9; }
-    .c-ok, .c-warn { color: #6cb0ee; }
+    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #198eee; }
+    .c-ok, .c-warn { color: #4a9fe8; }
     /* ============ 卡片 / 面板（覆盖各代模块） ============ */
     .card, .concept-card, .km-card, .knowledge-card, .level-card, .task-card, .aha-pane, .result-card,
     .flip-card, .cw-card, .cm-node, .expr-challenge, .explorer-card, .sim-panel, .concept-tree, .concept-block,
@@ -953,45 +953,45 @@
       color: #c5c6c7 !important;
     }
     .nav-bar a:hover, .top-nav a:hover, .nav-link:hover, .step-nav a:hover, .sidebar a:hover, .nav-item:hover, .step-number.on {
-      color: #3d9be9 !important;
+      color: #198eee !important;
     }
     /* ============ 按钮：统一 FFC 蓝 ============ */
     .clab-btn, .btn, .btn-primary, .btn-check, .btn-row button, .lab-btn, .sim-btn, .ex-actions button {
-      background: #3d9be9 !important; color: #fff !important; border-color: #3d9be9 !important;
+      background: #198eee !important; color: #fff !important; border-color: #198eee !important;
     }
     .clab-btn:hover, .btn:hover, .btn-primary:hover, .btn-row button:hover, .ex-actions button:hover {
-      background: #2e7cc4 !important; color: #fff !important;
+      background: #0a81f5 !important; color: #fff !important;
     }
     .btn-secondary, .btn-outline, .btn-ghost, .btn-hint, .icon-btn, .theme-toggle {
       background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important;
     }
     .btn-secondary:hover, .btn-outline:hover, .btn-ghost:hover, .icon-btn:hover, .theme-toggle:hover {
-      border-color: #3d9be9 !important; color: #3d9be9 !important;
+      border-color: #198eee !important; color: #198eee !important;
     }
     /* ============ 选择题（统一 FFC 卡片式） ============ */
     .opt-row, .check-label, .expr-item, .dfl-toggle, .route-input, .input-row {
       background: #1b1b32 !important; border-color: #2e2e48 !important; color: #dfe0e2;
     }
-    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #3d9be9 !important; }
-    .opt-row input, .check-label input, .expr-item input { accent-color: #3d9be9; }
-    .opt-row.correct { border-color: #3d9be9 !important; background: rgba(61, 155, 233, 0.14) !important; }
+    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #198eee !important; }
+    .opt-row input, .check-label input, .expr-item input { accent-color: #198eee; }
+    .opt-row.correct { border-color: #198eee !important; background: rgba(25, 142, 238, 0.14) !important; }
     .opt-row.wrong { border-color: #d24d4d !important; background: rgba(210, 77, 77, 0.12) !important; }
-    .result.ok, .check-result.ok, .quiz-score { color: #d6e8fb; }
+    .result.ok, .check-result.ok, .quiz-score { color: #ddeefc; }
     .result.err, .check-result.err { color: #f8d7d7; }
     /* ============ 实验台输入 ============ */
     .clab-body textarea, .clab-body input, .lab-body textarea, .lab-body input, .expr-input, .route-input, .code-area, .explorer-input, .md-editor-pane {
       background: #0a0a23 !important; border-color: #2e2e48 !important; color: #f5f6f7;
     }
-    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #3d9be9 !important; }
+    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #198eee !important; }
     /* ============ 底部导航 / toast / footer ============ */
     .nav, .nav-foot, .nav-inner { background: rgba(10, 10, 35, 0.94) !important; border-top-color: #2e2e48 !important; border-color: #2e2e48 !important; }
     .nav-btn, .nav-foot a, .btn-nav { background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important; }
-    .nav-btn:hover, .nav-foot a:hover { border-color: #3d9be9 !important; color: #3d9be9 !important; }
+    .nav-btn:hover, .nav-foot a:hover { border-color: #198eee !important; color: #198eee !important; }
     .nav-label { color: #a7a8ab; }
-    .toast { background: #1b1b32 !important; border-color: #3d9be9 !important; color: #d6e8fb; }
+    .toast { background: #1b1b32 !important; border-color: #198eee !important; color: #ddeefc; }
     .footer, .foot-note, .note { color: #5a5a6e; }
     /* ============ 测验分数 ============ */
-    .score-num-big { color: #3d9be9 !important; }
+    .score-num-big { color: #198eee !important; }
   </style>
 
   <script src="courses.js"></script>
@@ -1324,7 +1324,7 @@
       }
 
       /* ── 分类学习看板：每类已解锁步数 / 总步数 ── */
-      var CAT_COLORS = { devops: '#3ecfb4', cs: '#918cf6', automation: '#f0a04b', tools: '#f06888' };
+      var CAT_COLORS = { devops: '#198eee', cs: '#198eee', automation: '#198eee', tools: '#198eee' };
       function renderCatBars(store) {
         var el = document.getElementById('ovCats');
         if (!el) return;
