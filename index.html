@@ -608,6 +608,38 @@
     .og-num.og-done { color: var(--devops); font-weight: 700; }
     @media (max-width: 1000px) { .ov-goal { margin-left: 24px; margin-right: 24px; } }
     @media (max-width: 640px) { .ov-goal { margin-left: 16px; margin-right: 16px; } }
+
+    /* ── Badges ── */
+    .ov-badges {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 20px;
+    }
+    .ov-badges.show { display: block; }
+    .ov-badges-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .ov-badges-title .b-count { color: var(--accent); letter-spacing: 0; }
+    .ov-badges-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; padding: 7px 13px; border-radius: 999px;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-secondary); cursor: default;
+      transition: border-color 0.2s, opacity 0.2s;
+    }
+    .badge-chip .b-ico { font-size: 14px; line-height: 1; }
+    .badge-chip.locked { opacity: 0.38; filter: grayscale(0.7); }
+    .badge-chip.unlocked {
+      border-color: rgba(211,168,83,0.55); background: rgba(211,168,83,0.08);
+      color: var(--text);
+    }
+    .badge-chip:hover { border-color: var(--border-hover); }
+    .badge-chip.unlocked:hover { border-color: var(--accent); }
+    @media (max-width: 1000px) { .ov-badges { margin-left: 24px; margin-right: 24px; } }
+    @media (max-width: 640px) { .ov-badges { margin-left: 16px; margin-right: 16px; } }
     @media (max-width: 1000px) { .overview-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .overview-wrap { padding-left: 16px; padding-right: 16px; } }
 
@@ -761,6 +793,12 @@
     <div class="ov-cats" id="ovCats">
       <div class="ov-cats-title">分类学习看板</div>
       <div id="ovCatsRows"></div>
+    </div>
+
+    <!-- ── Achievement Badges ── -->
+    <div class="ov-badges" id="ovBadges">
+      <div class="ov-badges-title">成就徽章 <span class="b-count" id="ovBadgesCount"></span></div>
+      <div class="ov-badges-row" id="ovBadgesRow"></div>
     </div>
 
     <!-- ── Course Grid ── -->
@@ -1076,6 +1114,7 @@
 
         renderCatBars(store);
         renderGoal(store);
+        renderBadges(store);
 
         showDueReview(store);
       }
@@ -1158,6 +1197,70 @@
       }
 
       /* ── 连续学习天数：聚合所有模块 last 时间戳的去重日期 ── */
+      /* ── 成就徽章：按进度/连学/精通/满分自动解锁（il_badges） ── */
+      var BADGES = [
+        { id: 'streak3', icon: '&#x1F525;', name: '连学 3 天', req: '连续学习天数 ≥ 3' },
+        { id: 'master1', icon: '&#x1F3C6;', name: '首个精通', req: '完成任意 1 个模块（全部里程碑）' },
+        { id: 'master3', icon: '&#x1F48E;', name: '三连精通', req: '完成 3 个模块' },
+        { id: 'catPioneer', icon: '&#x1F3AF;', name: '分类先锋', req: '同一分类完成 ≥ 2 个模块' },
+        { id: 'perfect', icon: '&#x2705;', name: '测验满分', req: '任意模块测验全对' },
+        { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '完成模块数 ≥ 全部模块一半' }
+      ];
+
+      function evaluateBadges(store) {
+        var doneCount = 0, tracked = 0;
+        var catDone = {};
+        courses.forEach(function (c) {
+          var key = c.progress;
+          if (!key) return;
+          tracked++;
+          var p = store[key];
+          var total = parseInt(c.total || 9, 10);
+          if (p && (p.done || (p.steps && p.steps.length >= total))) {
+            doneCount++;
+            catDone[c.cat] = (catDone[c.cat] || 0) + 1;
+          }
+        });
+        var streak = computeStreak(store);
+        var perfect = Object.keys(store).some(function (k) {
+          var q = store[k] && store[k].quiz;
+          return q && q.total && q.score === q.total;
+        });
+        var catPioneer = Object.keys(catDone).some(function (k) { return catDone[k] >= 2; });
+        return {
+          streak3: streak >= 3,
+          master1: doneCount >= 1,
+          master3: doneCount >= 3,
+          catPioneer: catPioneer,
+          perfect: perfect,
+          halfway: tracked > 0 && doneCount >= Math.ceil(tracked / 2)
+        };
+      }
+
+      function renderBadges(store) {
+        var el = document.getElementById('ovBadges');
+        if (!el) return;
+        var res = evaluateBadges(store);
+        var unlocked = [];
+        try { unlocked = JSON.parse(localStorage.getItem('il_badges') || '[]'); }
+        catch (e) { unlocked = []; }
+        var newly = BADGES.filter(function (b) { return res[b.id] && unlocked.indexOf(b.id) === -1; });
+        if (newly.length) {
+          unlocked = BADGES.filter(function (b) { return res[b.id]; }).map(function (b) { return b.id; });
+          try { localStorage.setItem('il_badges', JSON.stringify(unlocked)); } catch (e) { /* storage unavailable */ }
+          toast('🏅 解锁成就：' + newly.map(function (b) { return b.name; }).join('、'));
+        }
+        var row = document.getElementById('ovBadgesRow');
+        row.innerHTML = BADGES.map(function (b) {
+          var on = !!res[b.id];
+          return '<span class="badge-chip ' + (on ? 'unlocked' : 'locked') + '" title="' + esc(b.req) + '">' +
+            '<span class="b-ico">' + b.icon + '</span>' + esc(b.name) + (on ? ' &#10003;' : '') + '</span>';
+        }).join('');
+        document.getElementById('ovBadgesCount').textContent = '· ' + unlocked.length + ' / ' + BADGES.length + ' 已解锁';
+        el.classList.add('show');
+      }
+
+      /* ── 连续学习天数：聚合所有模块 last 时间戳的去重日期 ── */
       function computeStreak(store) {
         var days = {};
         Object.keys(store).forEach(function (k) {
@@ -1171,8 +1274,6 @@
         while (days[cur.toDateString()]) { streak++; cur.setDate(cur.getDate() - 1); }
         return streak;
       }
-
-      /* ── 间隔重复：到期复习提醒（未完成 >3 天、已完成 >7 天未复习） ── */
       var REVIEW_DAY = 86400000;
       function showDueReview(store) {
         var now = Date.now();

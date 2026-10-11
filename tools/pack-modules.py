@@ -39,6 +39,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'permissions-interactive.html': 'permissions',
     'compose-interactive.html': 'compose',
     'algo-interactive.html': 'algo',
+    'transactions-interactive.html': 'transactions',
+    'systemd-interactive.html': 'systemd',
 }
 
 os.makedirs('modules', exist_ok=True)

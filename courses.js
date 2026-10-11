@@ -246,5 +246,23 @@ window.IL_COURSES = [
     size: '48 KB',
     progress: 'algo',
     total: 9
+  },
+  {
+      key: 'transactions',
+    cat: 'cs',
+    title: '数据库事务与隔离级别',
+    desc: '迷你判读器：脏读、不可重复读、幻读场景 → 隔离级别，MVCC 与锁',
+    size: '46 KB',
+    progress: 'transactions',
+    total: 9
+  },
+  {
+      key: 'systemd',
+    cat: 'devops',
+    title: 'Systemd 服务管理',
+    desc: '迷你 systemctl 命令台：启停、自启、unit 文件、日志与故障排查',
+    size: '49 KB',
+    progress: 'systemd',
+    total: 9
   }
 ];
