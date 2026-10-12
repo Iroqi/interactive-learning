@@ -11,22 +11,22 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0a0a23;
-      --bg-card: #1b1b32;
-      --bg-elevated: #232342;
-      --text: #f5f6f7;
-      --text-secondary: #c5c6c7;
-      --text-muted: #8a8aa0;
-      --accent: #198eee;
-      --accent-dim: rgba(25, 142, 238, 0.12);
-      --border: #2e2e48;
-      --border-hover: #3a3a55;
-      --devops: #198eee;
-      --cs: #198eee;
-      --automation: #198eee;
-      --tools: #198eee;
-      --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-      --font-body: 'Plus Jakarta Sans', -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --bg: #050507;
+      --bg-card: #0d0d12;
+      --bg-elevated: #131318;
+      --text: #d6ffe0;
+      --text-secondary: #9fcca9;
+      --text-muted: #5f7a66;
+      --accent: #00ff41;
+      --accent-dim: rgba(0, 255, 65, 0.12);
+      --border: #1a2a20;
+      --border-hover: #2a4a35;
+      --devops: #00ff41;
+      --cs: #00ff41;
+      --automation: #00ff41;
+      --tools: #00ff41;
+      --font-display: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+      --font-body: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', sans-serif;
       --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
     }
 
@@ -38,8 +38,8 @@
       --text: #1b2230;
       --text-secondary: #5b6472;
       --text-muted: #9aa1ad;
-      --accent: #2563eb;
-      --accent-dim: rgba(37, 99, 235, 0.10);
+      --accent: #008f45;
+      --accent-dim: rgba(0, 143, 69, 0.10);
       --border: #e2e6ec;
       --border-hover: #c9d0db;
     }
@@ -64,9 +64,9 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(25, 142, 238, 0.05), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(25, 142, 238, 0.04), transparent),
-        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(25, 142, 238, 0.03), transparent);
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0, 255, 65, 0.05), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(0, 255, 65, 0.04), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(0, 255, 65, 0.03), transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -485,10 +485,10 @@
     .card[data-cat="automation"] { --cat-color: var(--automation); }
     .card[data-cat="tools"]      { --cat-color: var(--tools); }
 
-    .badge[data-b="devops"]     { background: rgba(25,142,238,0.1); color: var(--devops); }
-    .badge[data-b="cs"]         { background: rgba(25,142,238,0.1); color: var(--cs); }
-    .badge[data-b="automation"] { background: rgba(25,142,238,0.1); color: var(--automation); }
-    .badge[data-b="tools"]      { background: rgba(25,142,238,0.1); color: var(--tools); }
+    .badge[data-b="devops"]     { background: rgba(0,255,65,0.1); color: var(--devops); }
+    .badge[data-b="cs"]         { background: rgba(0,255,65,0.1); color: var(--cs); }
+    .badge[data-b="automation"] { background: rgba(0,255,65,0.1); color: var(--automation); }
+    .badge[data-b="tools"]      { background: rgba(0,255,65,0.1); color: var(--tools); }
 
     /* ── Continue strip ── */
     .continue-strip {
@@ -722,7 +722,7 @@
     .qz-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     .qz-name { width: 170px; flex: none; text-align: right; font-size: 11px; font-weight: 600; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .qz-bar { flex: 1; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
-    .qz-fill { display: block; height: 100%; width: 0; background: #198eee; border-radius: 999px; transition: width 0.5s ease; }
+    .qz-fill { display: block; height: 100%; width: 0; background: #00ff41; border-radius: 999px; transition: width 0.5s ease; }
     .qz-num { width: 64px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     .qz-avg { margin-top: 4px; font-size: 11px; color: var(--devops); font-family: var(--font-mono); }
     @media (max-width: 1000px) { .ov-quiz { margin-left: 24px; margin-right: 24px; } }
@@ -927,100 +927,111 @@
   <style id="courseSkin">
     /* ============ 统一变量：所有模块的强调色 → FFC 蓝 ============ */
     :root {
-      --bg: #0a0a23; --card: #1b1b32; --raise: #232342; --border: #2e2e48; --line: #2e2e48;
-      --text: #f5f6f7; --dim: #c5c6c7; --muted: #a7a8ab;
-      --bg2: #1b1b32; --bg3: #232342; --surface: #1b1b32; --surface-alt: #16162b;
-      --surface2: #232342; --surface3: #2a2a40; --bg-secondary: #16162b; --surface-hover: #2a2a40;
-      --card-2: #232342; --card-light: #232342; --bg-warm: #0a0a23;
-      --accent: #198eee; --accent2: #4a9fe8; --primary: #198eee; --primary-light: #4a9fe8;
-      --primary-dark: #0a81f5; --primary-bg: rgba(25, 142, 238, 0.12);
-      --indigo: #198eee; --indigo-light: #4a9fe8; --brand: #198eee; --success: #4ade80; --green: #4ade80;
-      --k8s: #198eee; --redis: #198eee; --prompt: #198eee; --tf: #198eee; --nginx: #198eee;
-      --netsec: #198eee; --async: #198eee; --ts: #198eee; --perm: #198eee; --compose: #198eee;
-      --algo: #198eee; --tx: #198eee; --sd: #198eee; --css: #198eee; --sqlidx: #198eee;
-      --rust: #198eee; --helm: #198eee; --prom: #198eee; --jwt: #198eee;
+      --bg: #050507; --card: #0d0d12; --raise: #131318; --border: #1a2a20; --line: #1a2a20;
+      --text: #d6ffe0; --dim: #9fcca9; --muted: #5f7a66;
+      --bg2: #0d0d12; --bg3: #131318; --surface: #0d0d12; --surface-alt: #0d0d10;
+      --surface2: #131318; --surface3: #243a2c; --bg-secondary: #0d0d10; --surface-hover: #243a2c;
+      --card-2: #131318; --card-light: #131318; --bg-warm: #050507;
+      --accent: #00ff41; --accent2: #7dffa0; --primary: #00ff41; --primary-light: #7dffa0;
+      --primary-dark: #00d43a; --primary-bg: rgba(0, 255, 65, 0.12);
+      --indigo: #00ff41; --indigo-light: #7dffa0; --brand: #00ff41; --success: #4ade80; --green: #4ade80;
+      --k8s: #00ff41; --redis: #00ff41; --prompt: #00ff41; --tf: #00ff41; --nginx: #00ff41;
+      --netsec: #00ff41; --async: #00ff41; --ts: #00ff41; --perm: #00ff41; --compose: #00ff41;
+      --algo: #00ff41; --tx: #00ff41; --sd: #00ff41; --css: #00ff41; --sqlidx: #00ff41;
+      --rust: #00ff41; --helm: #00ff41; --prom: #00ff41; --jwt: #00ff41;
     }
     /* ============ 页面基调：统一背景 / 字体 / 文字 ============ */
-    body { background: #0a0a23 !important; color: #f5f6f7; }
+    body { background: #050507 !important; color: #d6ffe0; }
     .mast, .hero, .container { max-width: 860px; }
     h1, h2, h3, .hero h1, .hero-title, .sec-title, .section-title, .level-header, .step-header, .level-title {
-      color: #f5f6f7 !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+      color: #d6ffe0 !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
     }
     .subtitle, .mast-count, .progress-meta, .lead, .hero-sub, .level-meta, .step-desc, .sec-desc, .section-desc, .card-desc {
-      color: #c5c6c7 !important;
+      color: #9fcca9 !important;
     }
     /* ============ 徽章 / 标题号 ============ */
-    .mast .badge, .badge { background: #198eee !important; }
-    .num, .step-tag, .q-num, .level-num { color: #198eee !important; border-color: #198eee !important; }
+    .mast .badge, .badge { background: #00ff41 !important; }
+    .num, .step-tag, .q-num, .level-num { color: #00ff41 !important; border-color: #00ff41 !important; }
     /* ============ 进度条：统一 FFC 蓝 ============ */
-    .progress-track, .progress-bar, .progress-strip, .progress-bar-wrap { background: #232342 !important; }
-    .progress-fill { background: #198eee !important; }
-    .progress-strip .fill, .progress-strip span { background: #198eee !important; }
+    .progress-track, .progress-bar, .progress-strip, .progress-bar-wrap { background: #131318 !important; }
+    .progress-fill { background: #00ff41 !important; }
+    .progress-strip .fill, .progress-strip span { background: #00ff41 !important; }
     /* ============ 代码 / 面板 ============ */
     pre, .code-block, .code-area, .code-editor, .expr-input, .expr-input-area, .sandbox-editor, .lab, .lab-body, .md-editor-pane, .md-preview-pane, .editor-area, .console, .explorer-code {
-      background: #0a0a23 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+      background: #050507 !important; border-color: #1a2a20 !important; color: #c2d9c8;
     }
     pre .cmt, .code-comment, .c-cmd, .lab-hint { color: #8a8aa0; }
-    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #4a9fe8; background: #1b1b32; border-color: #2e2e48; }
+    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #7dffa0; background: #0d0d12; border-color: #1a2a20; }
     .insight, .insight-box, .warn-box, .hint-panel, .gotcha, .result, .lab-info, .rt-info, .lab-tip, .hint-reveal {
-      background: rgba(25, 142, 238, 0.08) !important; border-color: rgba(25, 142, 238, 0.35) !important;
+      background: rgba(0, 255, 65, 0.08) !important; border-color: rgba(0, 255, 65, 0.35) !important;
     }
-    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #198eee; }
-    .c-ok, .c-warn { color: #4a9fe8; }
+    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #00ff41; }
+    .c-ok, .c-warn { color: #7dffa0; }
     /* ============ 卡片 / 面板（覆盖各代模块） ============ */
     .card, .concept-card, .km-card, .knowledge-card, .level-card, .task-card, .aha-pane, .result-card,
     .flip-card, .cw-card, .cm-node, .expr-challenge, .explorer-card, .sim-panel, .concept-tree, .concept-block,
     .quiz-q, .quiz-container, .clab, .clab-head, .predict-box, .route-card, .cmp-row {
-      background: #1b1b32 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+      background: #0d0d12 !important; border-color: #1a2a20 !important; color: #c2d9c8;
     }
-    .clab-head, .code-toolbar, .lab-head, .sim-header, .card-head, .cm-head { background: #16162b !important; border-color: #2e2e48 !important; }
+    .clab-head, .code-toolbar, .lab-head, .sim-header, .card-head, .cm-head { background: #0d0d10 !important; border-color: #1a2a20 !important; }
     /* ============ 顶栏（M3 老模块） ============ */
     .nav-bar, .sticky-nav, .top-bar, .top-nav, .header, .header-controls, .module-bar, .sidebar, .hero-nav {
-      background: #16162b !important; border-color: #2e2e48 !important;
+      background: #0d0d10 !important; border-color: #1a2a20 !important;
     }
     .nav-bar a, .top-nav a, .top-bar a, .sticky-nav a, .nav-link, .nav-item, .step-nav a, .sidebar a {
-      color: #c5c6c7 !important;
+      color: #9fcca9 !important;
     }
     .nav-bar a:hover, .top-nav a:hover, .nav-link:hover, .step-nav a:hover, .sidebar a:hover, .nav-item:hover, .step-number.on {
-      color: #198eee !important;
+      color: #00ff41 !important;
     }
     /* ============ 按钮：统一 FFC 蓝 ============ */
     .clab-btn, .btn, .btn-primary, .btn-check, .btn-row button, .lab-btn, .sim-btn, .ex-actions button {
-      background: #198eee !important; color: #fff !important; border-color: #198eee !important;
+      background: #00ff41 !important; color: #fff !important; border-color: #00ff41 !important;
     }
     .clab-btn:hover, .btn:hover, .btn-primary:hover, .btn-row button:hover, .ex-actions button:hover {
-      background: #0a81f5 !important; color: #fff !important;
+      background: #00d43a !important; color: #fff !important;
     }
     .btn-secondary, .btn-outline, .btn-ghost, .btn-hint, .icon-btn, .theme-toggle {
-      background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important;
+      background: #0d0d12 !important; color: #9fcca9 !important; border-color: #1a2a20 !important;
     }
     .btn-secondary:hover, .btn-outline:hover, .btn-ghost:hover, .icon-btn:hover, .theme-toggle:hover {
-      border-color: #198eee !important; color: #198eee !important;
+      border-color: #00ff41 !important; color: #00ff41 !important;
     }
     /* ============ 选择题（统一 FFC 卡片式） ============ */
     .opt-row, .check-label, .expr-item, .dfl-toggle, .route-input, .input-row {
-      background: #1b1b32 !important; border-color: #2e2e48 !important; color: #dfe0e2;
+      background: #0d0d12 !important; border-color: #1a2a20 !important; color: #c2d9c8;
     }
-    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #198eee !important; }
-    .opt-row input, .check-label input, .expr-item input { accent-color: #198eee; }
-    .opt-row.correct { border-color: #198eee !important; background: rgba(25, 142, 238, 0.14) !important; }
+    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #00ff41 !important; }
+    .opt-row input, .check-label input, .expr-item input { accent-color: #00ff41; }
+    .opt-row.correct { border-color: #00ff41 !important; background: rgba(0, 255, 65, 0.14) !important; }
     .opt-row.wrong { border-color: #d24d4d !important; background: rgba(210, 77, 77, 0.12) !important; }
-    .result.ok, .check-result.ok, .quiz-score { color: #ddeefc; }
+    .result.ok, .check-result.ok, .quiz-score { color: #e6ffe9; }
     .result.err, .check-result.err { color: #f8d7d7; }
     /* ============ 实验台输入 ============ */
     .clab-body textarea, .clab-body input, .lab-body textarea, .lab-body input, .expr-input, .route-input, .code-area, .explorer-input, .md-editor-pane {
-      background: #0a0a23 !important; border-color: #2e2e48 !important; color: #f5f6f7;
+      background: #050507 !important; border-color: #1a2a20 !important; color: #d6ffe0;
     }
-    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #198eee !important; }
+    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #00ff41 !important; }
     /* ============ 底部导航 / toast / footer ============ */
-    .nav, .nav-foot, .nav-inner { background: rgba(10, 10, 35, 0.94) !important; border-top-color: #2e2e48 !important; border-color: #2e2e48 !important; }
-    .nav-btn, .nav-foot a, .btn-nav { background: #1b1b32 !important; color: #c5c6c7 !important; border-color: #2e2e48 !important; }
-    .nav-btn:hover, .nav-foot a:hover { border-color: #198eee !important; color: #198eee !important; }
-    .nav-label { color: #a7a8ab; }
-    .toast { background: #1b1b32 !important; border-color: #198eee !important; color: #ddeefc; }
-    .footer, .foot-note, .note { color: #5a5a6e; }
+    .nav, .nav-foot, .nav-inner { background: rgba(5, 5, 7, 0.94) !important; border-top-color: #1a2a20 !important; border-color: #1a2a20 !important; }
+    .nav-btn, .nav-foot a, .btn-nav { background: #0d0d12 !important; color: #9fcca9 !important; border-color: #1a2a20 !important; }
+    .nav-btn:hover, .nav-foot a:hover { border-color: #00ff41 !important; color: #00ff41 !important; }
+    .nav-label { color: #5f7a66; }
+    .toast { background: #0d0d12 !important; border-color: #00ff41 !important; color: #e6ffe9; }
+    .footer, .foot-note, .note { color: #4a5a4e; }
     /* ============ 测验分数 ============ */
-    .score-num-big { color: #198eee !important; }
+    .score-num-big { color: #00ff41 !important; }
+    /* ============ Geek terminal accents ============ */
+    .card, .ov-cats, .ov-goal, .ov-badges, .ov-heat, .ov-quiz, .overview { border-radius: 6px; }
+    .ov-btn, .nav-btn, .clab-btn, .badge, .pill, .hm-cell { border-radius: 4px; }
+    .opt-row, .quiz-q, .result, .clab, .card-badge, .lab { border-radius: 6px; }
+    .mast h1, .step h2, .card-title, .ov-title, .foot, .q-title { font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; }
+    a { text-decoration: none; }
+    a:hover { text-shadow: 0 0 8px rgba(0, 255, 65, 0.5); }
+    .card:hover { box-shadow: 0 0 0 1px #00ff41, 0 0 14px rgba(0, 255, 65, 0.14); }
+    ::selection { background: rgba(0, 255, 65, 0.25); }
+    .progress-fill, .qz-fill, .og-fill, .ov-cat-fill { box-shadow: 0 0 10px rgba(0, 255, 65, 0.4); }
+    .mast h1 em { text-shadow: 0 0 12px rgba(0, 255, 65, 0.35); }
   </style>
 
   <script src="courses.js"></script>
@@ -1354,7 +1365,7 @@
       }
 
       /* ── 分类学习看板：每类已解锁步数 / 总步数 ── */
-      var CAT_COLORS = { devops: '#198eee', cs: '#198eee', automation: '#198eee', tools: '#198eee' };
+      var CAT_COLORS = { devops: '#00ff41', cs: '#00ff41', automation: '#00ff41', tools: '#00ff41' };
       function renderCatBars(store) {
         var el = document.getElementById('ovCats');
         if (!el) return;
