@@ -51,6 +51,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'go-interactive.html': 'go',
     'oauth2-interactive.html': 'oauth2',
     'tls-interactive.html': 'tls',
+    'grpc-interactive.html': 'grpc',
+    'graphql-interactive.html': 'graphql',
 }
 
 os.makedirs('modules', exist_ok=True)

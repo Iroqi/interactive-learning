@@ -344,3 +344,30 @@
 - **注册与同步**：pack KEYS +oauth2/+tls（41 模块）、courses.js +2 条（41 课程）、README 模块表/统计/错题本特性行更新。
 - **验证**：smoke11.js 全量 14/14（41 卡片、错题本 2 条、趋势显示、oauth2/tls 各 10 step/8 双栏/7 选择里程碑/测验 8/8 wrongs=[]、regex 老模块渲染兼容）；chromium 采样 oauth2 页确认纯黑底 (#050507) + 右栏 (#0d0d12) + 双栏布局 + 霓虹绿强调。
 - 提交 `9c057c3` 推送 main 成功，HEAD == origin/main。
+
+---
+
+# 第十二轮迭代（Round 12）
+
+## 38. 现状盘点（Round 11 之后）
+- 41 个模块（devops 12 / cs 16 / automation 4 / tools 9）；错题本 `#ovWrong` 上线（quiz.wrongs 统一接口，M1 22 模块全覆盖）。
+- 双栏 challenge 模板 + Geek 终端风（纯黑 + 霓虹绿 + 等宽）锁定；每轮 smoke + chromium 验证后推送。
+- 学习闭环现状：测验 → 记录错题 → 错题本聚合 → 一键重学（跳转模块）。**缺口**：进入模块后错题不会优先呈现，用户需手动重做全部 8 题；尚无 API 传输/查询主题（grpc/graphql 空缺）。
+
+## 39. 发散：Round 12 候选
+| 候选 | 形态/引擎 | 价值 | 成本 | 风险 |
+|------|-----------|------|------|------|
+| **错题优先重做** | M1 22 模块 renderQuiz 前置重排：有 quiz.wrongs 时错题题序提前并标注 | 高：直接补学习闭环缺口 | 低（模板一致可批处理） | 低 |
+| **gRPC 模块** | 迷你调用链预测器：protobuf、四种方法类型、拦截器顺序、错误码重试（cs 双栏） | 高：微服务/面试高频 | 中 | 低 |
+| **GraphQL 模块** | 迷你 resolver 预测器：类型系统、resolver 树、N+1、DataLoader、mutation（cs 双栏） | 高：现代 API 热门 | 中 | 低 |
+| CDN 模块 | 缓存判读器：Cache-Control/ETag/回源/purge（devops） | 中高 | 中 | 低 |
+| 学习时长统计 | 壳层 session 计时与图表 | 中 | 中 | 中（语义模糊） |
+| 间隔复习排期 | 错题本按 1/3/7 天调度 | 中 | 中 | 中（无后台任务） |
+
+## 40. 收敛：Round 12 实施项
+1. **错题优先重做（M1 22 模块批量注入）**：renderQuiz 开头读取 `il_progress[MODULE_KEY].quiz.wrongs`，若存在则把错题题序提前（降序 splice/unshift 防索引错乱），重新测验后 wrongs 更新为新错题——形成"错题 → 重做 → 收敛"闭环；新模块（grpc/graphql）原生带该逻辑。
+2. **gRPC 模块**（`grpc`，cs，双栏布局）：HTTP/2 + protobuf + 四种方法类型 + 拦截器 + 错误码/重试 + 连接管理；迷你调用链预测器（输入方法类型与故障场景 → 预测调用行为）；9 里程碑。
+3. **GraphQL 模块**（`graphql`，cs，双栏布局）：schema/类型系统/查询参数/resolver 树/N+1 与 DataLoader/mutation/生产实践；迷你 resolver 预测器（输入查询字段 → 预测 resolver 调用次数与顺序）；9 里程碑。
+4. 总数 41 → 43；pack/courses/README 同步；错题本 UI 提示"错题优先重做"。
+
+> 取舍依据：错题优先重做成本极低（模板一致）且直接完成学习闭环，本轮必做；gRPC/GraphQL 补全"现代 API"主题带（REST 尚无专门模块，但 grpc/graphql 引擎性更强），均可用状态机/调用树预测落地；CDN 与间隔复习留待后续轮次。

@@ -354,5 +354,23 @@ window.IL_COURSES = [
     size: '45 KB',
     progress: 'tls',
     total: 9
+  },
+  {
+      key: 'grpc',
+    cat: 'cs',
+    title: 'gRPC 与 Protobuf',
+    desc: '迷你调用链预测器：HTTP/2、protobuf、四种方法类型、拦截器、错误码与重试',
+    size: '45 KB',
+    progress: 'grpc',
+    total: 9
+  },
+  {
+      key: 'graphql',
+    cat: 'cs',
+    title: 'GraphQL API',
+    desc: '迷你 resolver 预测器：schema、类型系统、查询语法、N+1 与 DataLoader',
+    size: '43 KB',
+    progress: 'graphql',
+    total: 9
   }
 ];

@@ -13,11 +13,11 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 41 个（持续扩展中） |
+| 学习专题 | 43 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动 |
-| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学）、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体） |
+| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体） |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
 
 ---
@@ -31,7 +31,7 @@
 ├── modules/                           # 模块数据文件（按需加载）
 │   ├── cf-workers.js                 # 每条 = { css, html, js, links, needsReady }
 │   ├── docker.js
-│   └── ...                            # 共 41 个模块
+│   └── ...                            # 共 43 个模块
 ├── tools/
 │   └── pack-modules.py                # 构建脚本：模块 HTML → modules/*.js 数据
 │
@@ -99,6 +99,8 @@
 | go | Go 并发 — 迷你输出预测器：goroutine、channel 阻塞、select、WaitGroup、Mutex、defer 顺序（9 个里程碑，进度自动保存） |
 | oauth2 | OAuth2 与 OIDC — 迷你流程预测器：授权码、PKCE、scope、token 刷新、state 防 CSRF、OIDC 验签（9 个里程碑，进度自动保存） |
 | tls | TLS 与 HTTPS — 迷你握手预测器：证书链、TLS 1.2/1.3、混合加密、HSTS、攻击防护（9 个里程碑，进度自动保存） |
+| grpc | gRPC 与 Protobuf — 迷你调用链预测器：HTTP/2、protobuf、四种方法类型、拦截器、错误码与重试（9 个里程碑，进度自动保存） |
+| graphql | GraphQL API — 迷你 resolver 预测器：schema、类型系统、查询语法、N+1 与 DataLoader（9 个里程碑，进度自动保存） |
 | ts | TypeScript 类型系统 — 迷你判读器：类型标注、推断、interface、联合类型、函数类型、泛型与实用类型（9 个里程碑，进度自动保存） |
 | yaml | YAML 标记语言 — 容器编排与云原生配置 |
 | web | 建站全流程仿真学习 — 域名、DNS、部署与 SSL 配置 |
