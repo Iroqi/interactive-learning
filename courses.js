@@ -336,5 +336,23 @@ window.IL_COURSES = [
     size: '42 KB',
     progress: 'go',
     total: 9
+  },
+  {
+      key: 'oauth2',
+    cat: 'cs',
+    title: 'OAuth2 与 OIDC',
+    desc: '迷你流程预测器：授权码、PKCE、scope、token 刷新、state 防 CSRF 与 OIDC 验签',
+    size: '45 KB',
+    progress: 'oauth2',
+    total: 9
+  },
+  {
+      key: 'tls',
+    cat: 'cs',
+    title: 'TLS 与 HTTPS',
+    desc: '迷你握手预测器：证书链、TLS 1.2/1.3 握手、混合加密、HSTS 与攻击防护',
+    size: '45 KB',
+    progress: 'tls',
+    total: 9
   }
 ];

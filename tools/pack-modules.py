@@ -49,6 +49,8 @@ KEYS = {  # explicit mapping to avoid surprises
     'jwt-interactive.html': 'jwt',
     'dockerfile-interactive.html': 'dockerfile',
     'go-interactive.html': 'go',
+    'oauth2-interactive.html': 'oauth2',
+    'tls-interactive.html': 'tls',
 }
 
 os.makedirs('modules', exist_ok=True)

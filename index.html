@@ -728,6 +728,32 @@
     @media (max-width: 1000px) { .ov-quiz { margin-left: 24px; margin-right: 24px; } }
     @media (max-width: 640px) { .ov-quiz { margin-left: 16px; margin-right: 16px; } }
 
+    /* ── Wrong-book ── */
+    .ov-wrong {
+      display: none;
+      max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid #1a2a20; border-radius: 6px;
+      padding: 14px 20px;
+    }
+    .ov-wrong.show { display: block; }
+    .ov-wrong-title {
+      display: flex; align-items: baseline; gap: 12px;
+      font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .ov-wrong-title .wm-meta { font-size: 10px; letter-spacing: 0; color: var(--text-secondary); font-family: var(--font-mono); }
+    .ow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+    .ow-item {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      background: var(--bg-elevated); border: 1px solid #1a2a20; border-radius: 6px;
+      color: var(--text-secondary); font-size: 12px; cursor: pointer; text-decoration: none;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .ow-item:hover { border-color: #00ff41; color: #00ff41; }
+    .ow-item b { font-family: var(--font-mono); color: #fbbf24; font-size: 13px; margin-right: 2px; }
+    .ow-item .ow-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ow-empty { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
     /* Hidden card animation */
     .card.filtered-out {
       opacity: 0 !important;
@@ -899,6 +925,12 @@
     <div class="ov-quiz" id="ovQuiz">
       <div class="ov-quiz-title">测验成绩趋势 <span class="qm-meta" id="ovQuizMeta"></span></div>
       <div id="ovQuizRows"></div>
+    </div>
+
+    <!-- ── Wrong Book ── -->
+    <div class="ov-wrong" id="ovWrong">
+      <div class="ov-wrong-title">错题本 <span class="wm-meta" id="ovWrongMeta"></span></div>
+      <div id="ovWrongGrid"></div>
     </div>
 
     <!-- ── Course Grid ── -->
@@ -1360,6 +1392,7 @@
         renderBadges(store);
         renderHeatmap(store);
         renderQuizTrend(store);
+        renderWrongBook(store);
 
         showDueReview(store);
       }
@@ -1439,6 +1472,30 @@
           localStorage.removeItem('il_goal');
           renderGoal(store);
         });
+      }
+
+      /* ── 错题本：聚合各模块 quiz.wrongs，错题优先，一键重学 ── */
+      function renderWrongBook(store) {
+        var el = document.getElementById('ovWrong');
+        if (!el) return;
+        var items = [];
+        cards.forEach(function (card) {
+          var key = card.dataset.progress;
+          if (!key) return;
+          var p = store[key];
+          if (!p || !p.quiz || !Array.isArray(p.quiz.wrongs) || !p.quiz.wrongs.length) return;
+          var title = card.querySelector('.card h3');
+          items.push({ key: key, name: title ? title.textContent : key, n: p.quiz.wrongs.length, href: card.getAttribute('href') });
+        });
+        if (!items.length) return;
+        items.sort(function (a, b) { return b.n - a.n; });
+        var html = items.map(function (it) {
+          return '<a class="ow-item" href="' + it.href + '" title="重学：' + esc(it.name) + '（' + it.n + ' 题答错）">' +
+            '<b>' + it.n + '</b><span class="ow-name">' + esc(it.name) + '</span></a>';
+        }).join('');
+        document.getElementById('ovWrongGrid').innerHTML = html;
+        document.getElementById('ovWrongMeta').textContent = items.length + ' 个模块有待复习错题';
+        el.classList.add('show');
       }
 
       /* ── 连续学习天数：聚合所有模块 last 时间戳的去重日期 ── */
@@ -1565,7 +1622,7 @@
           if (!key) return;
           var p = store[key];
           if (p && p.quiz && p.quiz.total) {
-            var title = card.querySelector('.card-title');
+            var title = card.querySelector('.card h3');
             rows.push({ name: title ? title.textContent : key, score: p.quiz.score, total: p.quiz.total });
           }
         });
