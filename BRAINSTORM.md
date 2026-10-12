@@ -335,3 +335,12 @@
 5. 总数 39 → 41；README/pack/courses 同步。
 
 > 取舍依据：错题本是 Round 9 起连续三轮的 Backlog，M1 模板自 Round 1 起保持一致（IIFE + quizData/renderQuiz/finishQuiz），具备脚本批处理条件，本轮必须兑现；OAuth2/TLS 是安全方向两大高频主题，且均可用"流程/握手状态机"可预测引擎落地，延续双栏模板；M3 老模块测验接口逐个改造成本高，先保证壳层容错 + M1 全覆盖。
+
+## 37. Round 11 执行记录（已完成并推送 `9c057c3`）
+- **测验接口统一**：node eval 批处理对 22 个 M1 模块三处注入——声明 `var quizWrongs = []`、答错分支 `quizWrongs.push(qi)`、`finishQuiz` 写 `g.quiz = { score, total, wrongs: quizWrongs }`；jsdom 验证 k8s/go/helm 全对 wrongs=[]、一错 wrongs=[1]。
+- **壳层错题本 `#ovWrong`**：CSS grid + HTML + JS `renderWrongBook(store)`（聚合 cards 各模块 quiz.wrongs，按错题数降序，点击卡片 href 直达重学）。修复 1 个真实缺陷：卡片标题选择器实为 `.card h3`（非 `.card-title`），quiz 趋势与错题本两处受益。smoke11-wrongbook.js 6/6。
+- **OAuth2/OIDC 模块**（oauth2，cs，双栏）：9 里程碑 + 8 题测验 + 流程预测器（stageInput/stageBtn/stageOut 状态机判读），quiz.wrongs 原生支持。
+- **TLS/HTTPS 模块**（tls，cs，双栏）：9 里程碑 + 8 题测验 + 握手预测器（hsInput/hsBtn/hsOut，TLS1.2/1.3 双路径 + 常见失败点），quiz.wrongs 原生支持。
+- **注册与同步**：pack KEYS +oauth2/+tls（41 模块）、courses.js +2 条（41 课程）、README 模块表/统计/错题本特性行更新。
+- **验证**：smoke11.js 全量 14/14（41 卡片、错题本 2 条、趋势显示、oauth2/tls 各 10 step/8 双栏/7 选择里程碑/测验 8/8 wrongs=[]、regex 老模块渲染兼容）；chromium 采样 oauth2 页确认纯黑底 (#050507) + 右栏 (#0d0d12) + 双栏布局 + 霓虹绿强调。
+- 提交 `9c057c3` 推送 main 成功，HEAD == origin/main。
