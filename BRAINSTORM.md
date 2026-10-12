@@ -371,3 +371,12 @@
 4. 总数 41 → 43；pack/courses/README 同步；错题本 UI 提示"错题优先重做"。
 
 > 取舍依据：错题优先重做成本极低（模板一致）且直接完成学习闭环，本轮必做；gRPC/GraphQL 补全"现代 API"主题带（REST 尚无专门模块，但 grpc/graphql 引擎性更强），均可用状态机/调用树预测落地；CDN 与间隔复习留待后续轮次。
+
+## 41. Round 12 执行记录（已完成并推送 `19f1f55`）
+- **错题优先重做（M1 22 模块）**：renderQuiz 前置逻辑——存在 `il_progress[key].quiz.wrongs` 时，把错题题序提前（降序 splice 取出 + concat 前置，保持错题原相对顺序）；重做后 wrongs 收敛为新错题。注入采用**字符串级锚点替换**（JSON 转义形式，不改格式）：此前 JSON.stringify 重写会把 `\n` 转义破坏导致 22 模块全语法错误，回滚改字符串级注入成功（每模块仅 1 行 diff）。jsdom 验证错题 [1,2] 排至 Q1/Q2、全对后 wrongs=[]、无错题不重排。
+- **错题本 UI**：条目新增上次成绩徽标 `score/total`，提示行"进入模块后错题优先重做"。
+- **gRPC 模块**（grpc，cs，双栏）：9 里程碑 + 8 题测验 + 调用链预测器（rpcInput/rpcBtn/rpcOut：实时推送→server-streaming、分片上传→client-streaming、视频会议→bidi、Unavailable 退避重试），quiz.wrongs + wrongs-first 原生。
+- **GraphQL 模块**（graphql，cs，双栏）：9 里程碑 + 8 题测验 + resolver 预测器（resInput/resBtn/resOut：单用户详情、N 用户帖子→N+1 修复、嵌套评论、分页），quiz.wrongs + wrongs-first 原生。
+- **注册与同步**：pack KEYS +grpc/+graphql（43 模块）、courses.js +2 条（43 课程）、README 模块表/统计/错题本特性更新。
+- **验证**：smoke12.js 全量 20/20（43 卡片、错题本徽标/提示、grpc/graphql 各 10 step/8 双栏/错题优先重排/7 选择里程碑/测验 8/8 wrongs 收敛、regex 老模块兼容）；chromium 采样确认纯黑底 + 霓虹绿 + 双栏。
+- 提交 `19f1f55` 推送 main 成功，HEAD == origin/main。
