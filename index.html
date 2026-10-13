@@ -1175,6 +1175,7 @@
           a.href = c.key ? '#/m/' + c.key : '#';
           a.dataset.cat = c.cat;
           a.dataset.oidx = String(i);
+          a.dataset.key = c.key || '';
           if (c.progress) a.dataset.progress = c.progress;
           if (c.total) a.dataset.total = String(c.total);
           var idx = (i + 1 < 10 ? '0' : '') + (i + 1);
@@ -1266,8 +1267,13 @@
       searchInput.addEventListener('input', filter);
 
       /* ── 排序：默认 / 最近学习 / 学习进度（基于 il_progress，零侵入） ── */
+      /* 进度 key：模块写 il_progress 用的键。声明了 progress 字段的取字段，
+         否则回退到卡片 key（统一进度协议后两者一致）。 */
+      function progKey(card) {
+        return card.dataset.progress || card.dataset.key || '';
+      }
       function progressPct(card, store) {
-        var key = card.dataset.progress;
+        var key = progKey(card);
         if (!key) return -1;
         var p = store[key];
         if (!p || !p.steps || !p.steps.length) return 0;
@@ -1281,12 +1287,12 @@
         var kids = Array.prototype.slice.call(grid.querySelectorAll('.card'));
         kids.sort(function (a, b) {
           /* 星标置顶：任何模式下收藏都排在最前 */
-          var sa = stars.indexOf(a.dataset.progress) !== -1 ? 1 : 0;
-          var sb = stars.indexOf(b.dataset.progress) !== -1 ? 1 : 0;
+          var sa = stars.indexOf(progKey(a)) !== -1 ? 1 : 0;
+          var sb = stars.indexOf(progKey(b)) !== -1 ? 1 : 0;
           if (sa !== sb) return sb - sa;
           if (mode === 'recent') {
-            var la = (store[a.dataset.progress] && store[a.dataset.progress].last) || 0;
-            var lb = (store[b.dataset.progress] && store[b.dataset.progress].last) || 0;
+            var la = (store[progKey(a)] && store[progKey(a)].last) || 0;
+            var lb = (store[progKey(b)] && store[progKey(b)].last) || 0;
             return lb - la;
           }
           if (mode === 'progress') {
@@ -1331,8 +1337,13 @@
         var best = null;
         var doneCount = 0, goingCount = 0, totalMs = 0, totalDoneMs = 0;
 
+        /* 可重入：从模块返回导航页时会再次调用，先清掉上一轮的进度条 */
         cards.forEach(function (card) {
-          var key = card.dataset.progress;
+          card.querySelectorAll('.card-progress').forEach(function (el) { el.remove(); });
+        });
+
+        cards.forEach(function (card) {
+          var key = progKey(card);
           if (!key) return;
           var p = store[key];
           if (!p || !p.steps || !p.steps.length) return;
@@ -1359,7 +1370,7 @@
         });
 
         if (best) {
-          var target = document.querySelector('.card[data-progress="' + best.key + '"]');
+          var target = cards.filter(function (c) { return progKey(c) === best.key; })[0];
           if (target) {
             var strip = document.getElementById('continueStrip');
             strip.href = target.getAttribute('href');
@@ -1374,7 +1385,7 @@
         /* Progress overview */
         if (doneCount + goingCount > 0) {
           var tracked = 0;
-          cards.forEach(function (c) { if (c.dataset.progress) tracked++; });
+          cards.forEach(function (c) { if (progKey(c)) tracked++; });
           var todoCount = tracked - doneCount - goingCount;
           var streak = computeStreak(store);
           var ov = document.getElementById('progressOverview');
@@ -1409,7 +1420,7 @@
           var a = acc[c.cat];
           if (!a) return;
           var total = c.total || 9;
-          var p = store[c.progress];
+          var p = store[c.progress || c.key];
           a.total += total;
           if (p && p.steps) a.done += Math.min(p.steps.length, total);
         });
@@ -1481,7 +1492,7 @@
         if (!el) return;
         var items = [];
         cards.forEach(function (card) {
-          var key = card.dataset.progress;
+          var key = progKey(card);
           if (!key) return;
           var p = store[key];
           if (!p || !p.quiz || !Array.isArray(p.quiz.wrongs) || !p.quiz.wrongs.length) return;
@@ -1518,7 +1529,7 @@
         var doneCount = 0, tracked = 0;
         var catDone = {};
         courses.forEach(function (c) {
-          var key = c.progress;
+          var key = c.progress || c.key;
           if (!key) return;
           tracked++;
           var p = store[key];
@@ -1620,7 +1631,7 @@
         if (!el) return;
         var rows = [];
         cards.forEach(function (card) {
-          var key = card.dataset.progress;
+          var key = progKey(card);
           if (!key) return;
           var p = store[key];
           if (p && p.quiz && p.quiz.total) {
@@ -1663,7 +1674,7 @@
         var now = Date.now();
         var due = [];
         cards.forEach(function (card) {
-          var key = card.dataset.progress;
+          var key = progKey(card);
           if (!key) return;
           var p = store[key];
           if (!p || !p.last) return;
@@ -1733,7 +1744,7 @@
         lines.push('');
         var doneCount = 0, tracked = 0, quizDone = 0, quizSum = 0;
         var rows = courses.map(function (c) {
-          var key = c.progress;
+          var key = c.progress || c.key;
           if (!key) return null;
           tracked++;
           var p = store[key] || {};
@@ -1843,6 +1854,9 @@
         cleanupModule();
         moduleView.hidden = true;
         navView.hidden = false;
+        /* 返回导航页时刷新进度视图：模块内可能刚解锁里程碑或产生错题 */
+        initProgress();
+        sortCards();
       }
 
       function route() {

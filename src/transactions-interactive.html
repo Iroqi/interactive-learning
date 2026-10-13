@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据库事务与隔离级别 交互式学习 · 迷你判读器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --tx: #fb923c;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(251,146,60,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--tx); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--tx), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--tx); font-size: 17px;
+    border: 1px solid rgba(251,146,60,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #fed7aa;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #fed7aa; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+  pre .tx1 { color: #fb923c; }
+  pre .tx2 { color: #38bdf8; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+  td.okc { color: #34d399; }
+  td.badc { color: #ef476f; }
+
+  .insight {
+    background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--tx); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--tx); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--tx);
+    border: 1px solid rgba(251,146,60,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(251,146,60,0.06); border: 1px solid rgba(251,146,60,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--tx); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--tx); color: var(--tx); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS 核心</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>数据库事务与<em>隔离级别</em></h1>
+    <p class="subtitle">迷你判读器 · 脏读 / 不可重复读 / 幻读 → 隔离级别 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 事务与 ACID ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>事务：要么全成，要么全败</h2>
+    <p class="lead">事务把多条 SQL 打包成<strong>一个原子单元</strong>。ACID：<strong>A</strong>tomicity（原子性：全成或全败）、<strong>C</strong>onsistency（一致性：约束始终满足）、<strong>I</strong>solation（隔离性：并发互不干扰）、<strong>D</strong>urability（持久性：提交后不丢）。</p>
+    <pre><span class="key">BEGIN</span>;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;  <span class="cmt">-- 要么都成功</span>
+<span class="key">COMMIT</span>;   <span class="cmt">-- 要么 ROLLBACK 全部回滚</span></pre>
+    <h3>练习：ACID</h3>
+    <div class="opts" id="acidOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="acid">A=原子性（全成或全败）、I=隔离性（并发互不干扰）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="acid">A=自动提交，每条 SQL 独立生效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="acid">I=索引优化</label>
+    </div>
+    <div class="result" id="acidResult"></div>
+  </section>
+
+  <!-- ═══ 2 判读 1：脏读 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>判读器：脏读</h2>
+    <p class="lead"><strong>脏读</strong>：T2 读到 T1 <strong>未提交</strong>的数据，T1 回滚后 T2 读到的是"幽灵数据"。唯一允许脏读的隔离级别是 <strong>Read Uncommitted</strong>。</p>
+    <pre><span class="tx1">T1</span>: UPDATE orders SET amount = 999;   <span class="cmt">-- 未提交</span>
+<span class="tx2">T2</span>: SELECT amount FROM orders;         <span class="cmt">-- 读到 999（脏读!）</span>
+<span class="tx1">T1</span>: ROLLBACK;                          <span class="cmt">-- 数据恢复，T2 白读</span></pre>
+    <h3>判读：上述"读到未提交数据"发生在哪个隔离级别？</h3>
+    <div class="opts" id="j1Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="j1">Read Uncommitted（唯一允许脏读）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="j1">Read Committed（不可能读到未提交数据）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="j1">Repeatable Read</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="j1">Serializable（最强隔离）</label>
+    </div>
+    <div class="result" id="j1Result"></div>
+  </section>
+
+  <!-- ═══ 3 判读 2：不可重复读 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>判读器：不可重复读</h2>
+    <p class="lead"><strong>不可重复读</strong>：同一条 SELECT 在事务内两次执行，结果不同——因为中间被<strong>其他已提交事务修改</strong>了。<strong>Read Committed</strong> 防止脏读，但允许不可重复读（每次读都取"当前已提交"快照）。</p>
+    <pre><span class="tx1">T1</span>: SELECT amount FROM orders WHERE id = 1;   <span class="cmt">-- 100</span>
+<span class="tx2">T2</span>: UPDATE orders SET amount = 200; COMMIT;    <span class="cmt">-- 已提交</span>
+<span class="tx1">T1</span>: SELECT amount FROM orders WHERE id = 1;   <span class="cmt">-- 200（不可重复读!）</span></pre>
+    <h3>判读："同事务内两次读到不同已提交值"——Read Committed 允许它吗？</h3>
+    <div class="opts" id="j2Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="j2">允许：Read Committed 每次读最新已提交值</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="j2">不允许：Read Committed 也能保证重复读一致</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="j2">只有 Read Uncommitted 才有这个问题</label>
+    </div>
+    <div class="result" id="j2Result"></div>
+  </section>
+
+  <!-- ═══ 4 隔离级别矩阵 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>隔离级别矩阵</h2>
+    <p class="lead">四个级别由弱到强，防的问题越来越多：</p>
+    <table>
+      <tr><th>隔离级别</th><th>脏读</th><th>不可重复读</th><th>幻读</th></tr>
+      <tr><td>Read Uncommitted</td><td class="badc">可能</td><td class="badc">可能</td><td class="badc">可能</td></tr>
+      <tr><td>Read Committed</td><td class="okc">防</td><td class="badc">可能</td><td class="badc">可能</td></tr>
+      <tr><td>Repeatable Read</td><td class="okc">防</td><td class="okc">防</td><td class="badc">可能*</td></tr>
+      <tr><td>Serializable</td><td class="okc">防</td><td class="okc">防</td><td class="okc">防</td></tr>
+    </table>
+    <p class="lead" style="font-size:12px">* MySQL 的 Repeatable Read 借助 MVCC 也能避免大部分幻读；理论定义下幻读在 RR 仍可能。</p>
+    <h3>练习：矩阵记忆</h3>
+    <div class="opts" id="matOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="mat">RC 防脏读但不防不可重复读；RR 防前两者；Serializable 全防</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="mat">RR 连幻读都能完全防住，不需要 Serializable</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="mat">RU 是最安全级别</label>
+    </div>
+    <div class="result" id="matResult"></div>
+  </section>
+
+  <!-- ═══ 5 判读 3：幻读 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>判读器：幻读</h2>
+    <p class="lead"><strong>幻读</strong>：事务内两次范围查询（WHERE 条件），第二次<strong>多出</strong>了符合条件的行——其他事务插入了新行。<strong>Repeatable Read</strong> 保证已存在的行不变，但新插入的"幻影行"仍可能出现。</p>
+    <pre><span class="tx1">T1</span>: SELECT COUNT(*) FROM orders WHERE amount > 100;   <span class="cmt">-- 2 行</span>
+<span class="tx2">T2</span>: INSERT INTO orders(amount) VALUES (999); COMMIT;      <span class="cmt">-- 新行</span>
+<span class="tx1">T1</span>: SELECT COUNT(*) FROM orders WHERE amount > 100;   <span class="cmt">-- 3 行（幻读!）</span></pre>
+    <h3>判读："范围查询多出幻影行"在哪个级别仍可能发生？</h3>
+    <div class="opts" id="j3Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="j3">Read Uncommitted / Read Committed / Repeatable Read 都可能</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="j3">只有 Read Uncommitted</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="j3">Repeatable Read 一定能防幻读</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="j3">所有级别都能防</label>
+    </div>
+    <div class="result" id="j3Result"></div>
+  </section>
+
+  <!-- ═══ 6 实战：转账 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>实战判读：银行转账</h2>
+    <p class="lead">账户扣款 + 入账必须<strong>原子且隔离</strong>。并发转账场景通常用 <strong>Serializable</strong> 或行锁 + RR：绝不允许读到中间态，也不允许余额凭空变化。</p>
+    <pre><span class="key">BEGIN</span>;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+<span class="key">COMMIT</span>;</pre>
+    <h3>判读：金融转账对"最强隔离"的需求，首选？</h3>
+    <div class="opts" id="finOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fin">Serializable（完全串行化，杜绝并发异常）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fin">Read Uncommitted（最快）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fin">隔离级别与转账无关</label>
+    </div>
+    <div class="result" id="finResult"></div>
+  </section>
+
+  <!-- ═══ 7 判读 4：组合场景 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>判读器：组合场景</h2>
+    <p class="lead">综合题：既要<strong>不读未提交</strong>数据，又要<strong>同一行两次读一致</strong>，还要<strong>容忍范围查询多行</strong>（可以接受幻读）——选哪个级别？</p>
+    <pre><span class="tx1">T1</span>: 读行 A（需两次一致）          <span class="cmt">→ 防脏读 + 防不可重复读</span>
+<span class="tx2">T2</span>: 可更新已提交行、可插入新行    <span class="cmt">→ 容忍幻读</span></pre>
+    <h3>判读：防脏读 + 防不可重复读、接受幻读，选？</h3>
+    <div class="opts" id="j4Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="j4">Repeatable Read</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="j4">Read Uncommitted</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="j4">Read Committed</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="j4">Serializable</label>
+    </div>
+    <div class="result" id="j4Result"></div>
+  </section>
+
+  <!-- ═══ 8 MVCC 与锁 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>MVCC 与锁</h2>
+    <p class="lead"><strong>MVCC</strong>（多版本并发控制）：每个事务看到自己的"快照版本"，读写互不阻塞——这是 MySQL InnoDB 实现 RC/RR 的方式。<strong>行锁/表锁</strong>：写写互斥；<strong>间隙锁</strong>（Gap Lock）锁住范围防插入（幻读）。</p>
+    <pre><span class="key">-- 写锁：其他写事务必须等待</span>
+UPDATE accounts SET balance = 0 WHERE id = 1;   <span class="cmt">-- 行 X 锁，未提交</span>
+<span class="key">-- 读：MVCC 快照，不阻塞</span>
+SELECT balance FROM accounts WHERE id = 1;       <span class="cmt">-- 读到自己的版本</span></pre>
+    <h3>练习：MVCC 与锁</h3>
+    <div class="opts" id="mvccOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="mvcc">MVCC 用快照让读写不互斥；写写用锁互斥；间隙锁防幻读</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="mvcc">MVCC 让所有操作都不需要锁</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="mvcc">锁只能锁整张表</label>
+    </div>
+    <div class="result" id="mvccResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：ACID → 脏读 → 不可重复读 → 隔离级别矩阵 → 幻读 → 转账实战 → 组合判读 → MVCC 与锁 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 在 MySQL 里开两个会话，实测各隔离级别下的读写行为；<br>
+      ② 事务里尽量"短小"，减少锁持有时间；<br>
+      ③ 报表类长事务用 RC + 分页，避免长时间快照与锁；<br>
+      ④ 用 <code>SHOW VARIABLES LIKE 'tx_isolation'</code> 确认当前级别，再设计并发策略。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">数据库事务与隔离级别 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'transactions';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 ACID 正确
+     1 判读 1（脏读）正确
+     2 判读 2（不可重复读）正确
+     3 隔离级别矩阵正确
+     4 判读 3（幻读）正确
+     5 实战转账正确
+     6 判读 4（组合）正确
+     7 MVCC 与锁正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定（label→input 冒泡防重入） ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('acidOpts', 'a', 'acidResult',
+    '正确！A=原子性、C=一致性、I=隔离性、D=持久性。',
+    '不对。A 是原子性（全成或全败）；I 是隔离性，与索引无关。', 0);
+  bindOpts('j1Opts', 'a', 'j1Result',
+    '正确！Read Uncommitted 是唯一允许读到未提交数据的级别，因此会发生脏读。',
+    '不对。读到未提交数据 = 脏读，只有 Read Uncommitted 允许。', 1);
+  bindOpts('j2Opts', 'a', 'j2Result',
+    '正确！Read Committed 每次读最新已提交值，事务内两次读可能不同（不可重复读）。',
+    '不对。RC 防脏读，但每次读都取最新已提交值，不保证重复读一致。', 2);
+  bindOpts('matOpts', 'a', 'matResult',
+    '正确！RC 防脏读、RR 防脏读+不可重复读、Serializable 全防（包括幻读）。',
+    '不对。RR 在理论定义下仍可能幻读；RU 是最弱的级别。', 3);
+  bindOpts('j3Opts', 'a', 'j3Result',
+    '正确！幻读在 RU / RC / RR 三个级别都可能发生（理论定义），Serializable 才彻底防住。',
+    '不对。范围查询多出幻影行，RC 与 RR 都可能发生，RU 更不用说。', 4);
+  bindOpts('finOpts', 'a', 'finResult',
+    '正确！金融转账要求最强隔离，Serializable 杜绝并发异常；也可用行锁 + RR 折中。',
+    '不对。转账绝不能允许并发异常，Read Uncommitted 会读到中间态。', 5);
+  bindOpts('j4Opts', 'a', 'j4Result',
+    '正确！Repeatable Read = 防脏读 + 防不可重复读 + 容忍幻读，正好匹配需求。',
+    '不对。RC 防脏读但允许不可重复读；RU 两个都不防。', 6);
+  bindOpts('mvccOpts', 'a', 'mvccResult',
+    '正确！MVCC 快照让读写不互斥；写写用锁；间隙锁锁住范围防幻读插入。',
+    '不对。MVCC 只管读写分离，写写仍互斥；间隙锁专防幻读。', 7);
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: 'ACID 中的 I 代表？', opts: ['索引', '隔离性（Isolation）', '集成', '瞬时'], right: 1, expl: '隔离性：并发事务互不干扰。' },
+    { q: '读到其他事务未提交的数据，叫？', opts: ['幻读', '脏读', '不可重复读', '丢失更新'], right: 1, expl: '未提交数据 = 脏读。' },
+    { q: '事务内两次读同一行，结果不同（其他事务已提交），叫？', opts: ['脏读', '幻读', '不可重复读', '死锁'], right: 2, expl: '同行的两次读不一致 = 不可重复读。' },
+    { q: '范围查询多出幻影行，叫？', opts: ['脏读', '幻读', '不可重复读', '回滚'], right: 1, expl: '新插入的行出现在范围里 = 幻读。' },
+    { q: 'Read Committed 能防？', opts: ['脏读', '幻读', '不可重复读', '全部'], right: 0, expl: 'RC 每次读最新已提交值，防脏读。' },
+    { q: 'Repeatable Read 防不了（理论定义）？', opts: ['脏读', '不可重复读', '幻读', '原子性'], right: 2, expl: 'RR 防脏读+不可重复读，幻读仍可能。' },
+    { q: '银行转账首选？', opts: ['Read Uncommitted', 'Read Committed', 'Serializable', '不隔离'], right: 2, expl: '最强隔离杜绝并发异常。' },
+    { q: 'MVCC 的作用是？', opts: ['读写互斥', '快照版本让读写不阻塞', '删除数据', '加密'], right: 1, expl: 'MVCC 多版本并发控制，读写不互斥。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握数据库事务与隔离级别的核心机制。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

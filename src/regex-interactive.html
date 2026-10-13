@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正则表达式 · 互动学习</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --bg: #0e1117;
+    --bg2: #0a0d12;
+    --card: #151a22;
+    --raise: #1b222c;
+    --border: #242c38;
+    --text: #e6e9ef;
+    --text2: #9aa4b2;
+    --dim: #5b6572;
+    --accent: #d4a853;
+    --accent2: #e6c98a;
+    --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --serif: 'Cormorant Garamond', 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    --ok: #4ade80;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--body); background: var(--bg); color: var(--text);
+    line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(212,168,83,0.07), transparent),
+      radial-gradient(ellipse 50% 35% at 90% 5%, rgba(140,120,255,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(240,81,51,0.04), transparent);
+  }
+  .container { max-width: 940px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .mast { max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center; }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08); }
+  .mast-count { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .mast h1 { font-family: var(--serif); font-size: 52px; font-weight: 600; line-height: 1.1; margin: 6px 0 4px; }
+  .mast h1 em { font-style: italic; color: var(--accent); }
+  .mast .subtitle { color: var(--text2); font-size: 14px; }
+
+  .progress-strip { max-width: 940px; margin: 18px auto 6px; padding: 0 24px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .progress-strip .prog { flex: 1; height: 6px; background: var(--raise); border-radius: 999px; overflow: hidden; }
+  .progress-strip .prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.5s ease; }
+  .progress-strip .plabel { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+  .progress-strip .pdone { color: var(--ok); font-weight: 600; }
+
+  .step { max-width: 940px; margin: 18px auto; padding: 28px 28px 24px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 14px; }
+  .step h2 { display: flex; align-items: baseline; gap: 12px; font-family: var(--serif);
+    font-size: 26px; font-weight: 600; margin-bottom: 12px; }
+  .step h2 .num { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 1px; }
+  .step p.lead { color: var(--text2); font-size: 14px; margin-bottom: 14px; }
+  .step p.lead b { color: var(--text); }
+  .step ul { padding-left: 20px; color: var(--text2); font-size: 13.5px; margin-bottom: 14px; }
+  .step li { margin: 4px 0; }
+  .step li b, .step li code { color: var(--text); }
+
+  code, .mono { font-family: var(--mono); font-size: 0.92em; background: rgba(212,168,83,0.1);
+    color: var(--accent2); padding: 1px 6px; border-radius: 5px; }
+  .eg { font-family: var(--mono); font-size: 0.85em; background: #0b0e14; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; color: var(--text2); margin: 8px 0; overflow-x: auto; white-space: pre; }
+  .eg b { color: var(--accent2); font-weight: 600; }
+
+  .lab { margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .lab-head { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--raise);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .lab-head label { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+  .lab-head input[type=text] { font-family: var(--mono); font-size: 13px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 6px 10px; min-width: 130px; outline: none; }
+  .lab-head input:focus { border-color: var(--accent); }
+  .lab-head .flags { display: flex; gap: 10px; align-items: center; }
+  .lab-head .flag { display: flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .lab-body { padding: 0; }
+  .lab-body textarea { width: 100%; min-height: 90px; background: var(--bg2); border: 0;
+    border-bottom: 1px solid var(--border); color: var(--text); font-family: var(--mono);
+    font-size: 13px; line-height: 1.6; padding: 12px 14px; resize: vertical; outline: none; }
+  .lab-out { padding: 10px 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.9; min-height: 40px; }
+  .lab-out .mt { background: rgba(212,168,83,0.25); color: var(--accent2); border-radius: 3px; padding: 1px 2px; }
+  .lab-out .mg { background: rgba(74,222,128,0.2); color: var(--ok); border-radius: 3px; padding: 1px 2px; }
+  .lab-out .err { color: var(--err); }
+  .lab-info { padding: 4px 14px 12px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .lab-info b { color: var(--text2); font-weight: 400; }
+
+  .btn { display: inline-block; font-family: var(--mono); font-size: 12px; background: var(--raise);
+    border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 8px;
+    cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: rgba(212,168,83,0.15); border-color: rgba(212,168,83,0.5); color: var(--accent); }
+  .btn.primary:hover { background: rgba(212,168,83,0.25); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.ok { border-color: var(--ok); color: var(--ok); }
+
+  .check-result { margin-top: 10px; font-family: var(--mono); font-size: 12px; min-height: 20px; }
+  .check-result.ok { color: var(--ok); }
+  .check-result.fail { color: var(--err); }
+  .check-result.hint { color: var(--dim); }
+
+  .quiz-q { margin-bottom: 16px; }
+  .quiz-q .q { font-size: 13.5px; color: var(--text); margin-bottom: 8px; }
+  .quiz-q .q span { color: var(--accent); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+  .quiz-q .opts { display: flex; flex-direction: column; gap: 6px; }
+  .quiz-q .opt { display: flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12.5px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  .quiz-q .opt:hover { border-color: var(--text2); }
+  .quiz-q .opt.sel { border-color: var(--accent); background: rgba(212,168,83,0.08); }
+  .quiz-q .opt.correct { border-color: var(--ok); color: var(--ok); }
+  .quiz-q .opt.wrong { border-color: var(--err); color: var(--err); }
+  .quiz-score { font-family: var(--mono); font-size: 13px; margin-top: 8px; min-height: 22px; }
+
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--raise); border: 1px solid var(--border); color: var(--text);
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 99;
+    transition: transform 0.3s ease; opacity: 0; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  .nav-foot { max-width: 940px; margin: 28px auto; padding: 0 24px; display: flex; justify-content: space-between; gap: 12px; }
+  .nav-foot a { font-size: 12px; color: var(--text2); text-decoration: none; padding: 9px 16px;
+    border: 1px solid var(--border); border-radius: 999px; transition: color 0.2s, border-color 0.2s; }
+  .nav-foot a:hover { color: var(--accent); border-color: var(--accent); }
+  .foot-note { text-align: center; color: var(--dim); font-size: 12px; padding: 20px 0 36px; }
+  .foot-note a { color: var(--text2); }
+
+  @media (max-width: 700px) {
+    .mast h1 { font-size: 38px; }
+    .step { padding: 20px 16px; }
+    .lab-head { flex-direction: column; align-items: flex-start; }
+  }
+
+</style>
+</head>
+<body>
+
+
+<div class="mast">
+  <div class="mast-top">
+    <span class="badge">REGEX LAB</span>
+    <span class="mast-count" id="stepLabel">1 / 12</span>
+  </div>
+  <h1>正则<em>表达式</em></h1>
+  <p class="subtitle">从字面量到捕获组 —— 实时匹配，动手学正则</p>
+</div>
+
+<div class="progress-strip">
+  <div class="prog"><i id="progressFill"></i></div>
+  <span class="plabel" id="progressLabel">0 / 9 里程碑</span>
+</div>
+
+<div class="container">
+
+  <!-- ═══ 01 正则是什么 ═══ -->
+  <section class="step">
+    <h2><span class="num">01</span>正则是什么</h2>
+    <p class="lead">正则表达式（Regular Expression）是用一段<em>模式</em>在文本中<em>查找</em>、<em>提取</em>、<em>替换</em>匹配内容的小型语言。它不是编程语言的专属——从编辑器搜索到日志分析、从表单校验到爬虫清洗，处处都是它。</p>
+    <ul>
+      <li><b>字面量</b>：<code>cat</code> 精确匹配字符串 "cat"</li>
+      <li><b>元字符</b>：<code>.</code> <code>\d</code> <code>[a-z]</code> 一类字符的占位符</li>
+      <li><b>量词</b>：<code>*</code> <code>+</code> <code>{2,4}</code> 控制出现次数</li>
+    </ul>
+    <p class="lead">先动手。下面是实时匹配器：改 pattern、flags 或文本，匹配立即高亮。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="expPattern" value="cat" spellcheck="false">
+        <span class="flags">
+          <span class="flag"><input type="checkbox" id="expGi"> i</span>
+          <span class="flag"><input type="checkbox" id="expGg" checked> g</span>
+        </span>
+        <button class="btn" id="expCheck">检查 ✓</button>
+      </div>
+      <div class="lab-body">
+        <textarea id="expText" spellcheck="false">The cat sat on the mat.
+A catalog of cat videos.</textarea>
+      </div>
+      <div class="lab-out" id="expOut"></div>
+      <div class="lab-info" id="expInfo"></div>
+      <div class="check-result" id="expResult">目标：写出能匹配到「cat」的正则（提示：试试 \bcat\b）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 02 字面量与元字符 ═══ -->
+  <section class="step">
+    <h2><span class="num">02</span>字面量与元字符</h2>
+    <p class="lead">正则里的字符分两类：<b>字面量</b>（匹配自身，如 <code>a</code> <code>1</code> <code>_</code>）与 <b>元字符</b>（有特殊含义）。最常见的元字符：</p>
+    <div class="eg"><b>.</b>  任意单个字符（换行除外）
+<b>\d</b>  数字 ≡ [0-9]     <b>\D</b>  非数字
+<b>\w</b>  单词字符 ≡ [A-Za-z0-9_]   <b>\W</b>  非单词字符
+<b>\s</b>  空白（空格/Tab/换行）    <b>\S</b>  非空白
+<b>[abc]</b>  a/b/c 之一     <b>[^abc]</b>  除 a/b/c 外</div>
+    <p class="lead">注意 <code>\b</code> 是<b>单词边界</b>：<code>\bcat\b</code> 不会匹配 "catalog" 里的 cat。</p>
+    <ul>
+      <li>要匹配元字符本身需转义：<code>\.</code> 匹配点号，<code>\\</code> 匹配反斜杠</li>
+      <li>连字符在字符类里表示范围：<code>[0-9]</code>、<code>[a-fA-F]</code></li>
+    </ul>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c2Pattern" value="\d+" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c2Gg" checked> g</span></span>
+        <button class="btn" id="c2Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c2Text" spellcheck="false">Version 2.4.1 released
+Build 2026, branch main-07</textarea></div>
+      <div class="lab-out" id="c2Out"></div>
+      <div class="lab-info" id="c2Info"></div>
+      <div class="check-result" id="c2Result">任务：写出匹配「所有连续数字串」的 pattern（如 2 4 1 2026 07）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 03 字符类 ═══ -->
+  <section class="step">
+    <h2><span class="num">03</span>字符类</h2>
+    <p class="lead">方括号 <code>[...]</code> 定义<b>字符集合</b>——匹配集合中<b>任意一个</b>字符：</p>
+    <div class="eg"><b>[aeiou]</b>  任意元音
+<b>[0-9]{4}</b>  恰好 4 位数字（年份）
+<b>[A-Za-z_]</b>  字母或下划线（变量名首字符）
+<b>[^\s]</b>  任意非空白</div>
+    <p class="lead">常用缩写与字符类等价：<code>\d</code> = <code>[0-9]</code>，<code>\w</code> = <code>[A-Za-z0-9_]</code>，<code>\s</code> = <code>[ \t\n\r\f\v]</code>。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c3Pattern" value="[A-Z][a-z]+" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c3Gg" checked> g</span></span>
+        <button class="btn" id="c3Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c3Text" spellcheck="false">The Quick Brown Fox jumps over the lazy dog
+ID: A1B2C3, code: xYz</textarea></div>
+      <div class="lab-out" id="c3Out"></div>
+      <div class="lab-info" id="c3Info"></div>
+      <div class="check-result" id="c3Result">任务：匹配「大写字母开头的单词」（如 The Quick Brown Fox ID）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 04 量词 ═══ -->
+  <section class="step">
+    <h2><span class="num">04</span>量词</h2>
+    <p class="lead">量词控制<b>前一个元素</b>出现的次数：</p>
+    <div class="eg"><b>*</b>     0 次或多次     colou?r → color / colour
+<b>+</b>     1 次或多次     \d+ → 连续数字
+<b>?</b>     0 次或 1 次    https?://
+<b>{n}</b>   恰好 n 次      \d{4} → 年份
+<b>{n,}</b>  至少 n 次      \d{2,} → 两位以上
+<b>{n,m}</b> n 到 m 次      [0-9a-f]{6} → 十六进制颜色</div>
+    <p class="lead">默认是<b>贪婪</b>（尽量多匹配）。加 <code>?</code> 变<b>懒惰</b>：<code>&lt;.+&gt;</code> 贪婪，<code>&lt;.+?&gt;</code> 逐段匹配。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c4Pattern" value="\d{2,}" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c4Gg" checked> g</span></span>
+        <button class="btn" id="c4Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c4Text" spellcheck="false">HTTP/2.0 200 OK (127.0.0.1:8080)
+Session 42 · retries: 7 · timeout 3000ms</textarea></div>
+      <div class="lab-out" id="c4Out"></div>
+      <div class="lab-info" id="c4Info"></div>
+      <div class="check-result" id="c4Result">任务：只匹配「两位及以上的连续数字」（2 0 7 不算，42 200 8080 3000 算）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 05 锚点与边界 ═══ -->
+  <section class="step">
+    <h2><span class="num">05</span>锚点与边界</h2>
+    <p class="lead">锚点不消耗字符，只<b>断言位置</b>：</p>
+    <div class="eg"><b>^</b>  行首        ^ERROR → 匹配以 ERROR 开头的行
+<b>$</b>  行尾        done$ → 匹配以 done 结尾的行
+<b>\b</b>  单词边界    \bcat\b → cat 而非 catalog
+<b>\B</b>  非边界      \Bcat → catalog 里的 cat</div>
+    <p class="lead">配合多行标志 <code>m</code>，<code>^</code>/<code>$</code> 会按每行生效（默认只对整个文本生效）。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c5Pattern" value="^ERROR" spellcheck="false">
+        <span class="flags">
+          <span class="flag"><input type="checkbox" id="c5Gm" checked> m</span>
+          <span class="flag"><input type="checkbox" id="c5Gg" checked> g</span>
+        </span>
+        <button class="btn" id="c5Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c5Text" spellcheck="false">INFO  startup complete
+ERROR failed to connect db
+WARN  retrying in 3s
+ERROR timeout after 5 retries</textarea></div>
+      <div class="lab-out" id="c5Out"></div>
+      <div class="lab-info" id="c5Info"></div>
+      <div class="check-result" id="c5Result">任务：匹配「以 ERROR 开头的行首」的 ERROR（共 2 处）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 06 分组与捕获 ═══ -->
+  <section class="step">
+    <h2><span class="num">06</span>分组与捕获</h2>
+    <p class="lead">圆括号 <code>(...)</code> 有两个作用：<b>分组</b>（把多个元素当整体应用量词）与<b>捕获</b>（把匹配内容存入组，供提取/反向引用）。</p>
+    <div class="eg"><b>(ab)+</b>     ab 整体重复 → ab abab ababab
+<b>(\d{2})-(\d{2})</b>  两个捕获组：\1 → 12，\2 → 34
+<b>(?:abc)</b>  只分组不捕获
+<b>\1</b>       反向引用：(\w)\1 → "aa" "oo" 等叠字</div>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c6Pattern" value="\w+=(\w+)" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c6Gg" checked> g</span></span>
+        <button class="btn" id="c6Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c6Text" spellcheck="false">name=alice role=admin
+env=prod region=ap-southeast-1</textarea></div>
+      <div class="lab-out" id="c6Out"></div>
+      <div class="lab-info" id="c6Info"></div>
+      <div class="check-result" id="c6Result">任务：匹配 key=value 对，并让「value」成为第 1 个捕获组</div>
+    </div>
+  </section>
+
+  <!-- ═══ 07 选择 ═══ -->
+  <section class="step">
+    <h2><span class="num">07</span>选择</h2>
+    <p class="lead">竖线 <code>|</code> 表示<b>或</b>：匹配左边或右边。</p>
+    <div class="eg"><b>cat|dog</b>     cat 或 dog
+<b>jpg|png|webp</b>  三种扩展名
+<b>^(GET|POST|PUT)$</b>  仅这三个 HTTP 方法
+<b>gr(ea|ey)</b>  分组 + 选择 → grey / gray</div>
+    <p class="lead">选择的范围是从左边最近的边界到右边最近的边界——用括号收紧范围：<code>col(o|ou)r</code>。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c7Pattern" value="\b(green|red)\b" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c7Gg" checked> g</span></span>
+        <button class="btn" id="c7Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c7Text" spellcheck="false">green light, red light
+greenish is not green, redeye is not red</textarea></div>
+      <div class="lab-out" id="c7Out"></div>
+      <div class="lab-info" id="c7Info"></div>
+      <div class="check-result" id="c7Result">任务：匹配完整的单词 green 或 red（greenish/redeye 不算）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 08 标志位 ═══ -->
+  <section class="step">
+    <h2><span class="num">08</span>标志位</h2>
+    <p class="lead">标志位写在正则末尾，改变整体行为：</p>
+    <div class="eg"><b>i</b>  忽略大小写     /hello/i → Hello HELLO hello
+<b>g</b>  全局匹配（找全部）默认只找第一个
+<b>m</b>  多行：^ $ 按行生效
+<b>s</b>  单行：让 . 也匹配换行
+<b>u</b>  Unicode 模式（建议始终开启）</div>
+    <p class="lead">实战常用组合：<code>/error/i</code> 大小写不敏感地找 error；<code>/^#\w+/gm</code> 提取每行的 markdown 标题。</p>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c8Pattern" value="hello" spellcheck="false">
+        <span class="flags">
+          <span class="flag"><input type="checkbox" id="c8Gi"> i</span>
+          <span class="flag"><input type="checkbox" id="c8Gg" checked> g</span>
+        </span>
+        <button class="btn" id="c8Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c8Text" spellcheck="false">Hello world! Say hello again.
+HELLO? hello, hello!</textarea></div>
+      <div class="lab-out" id="c8Out"></div>
+      <div class="lab-info" id="c8Info"></div>
+      <div class="check-result" id="c8Result">任务：勾上 i 标志，让 5 处 hello（各种大小写）全部匹配</div>
+    </div>
+  </section>
+
+  <!-- ═══ 09 实战：邮箱 ═══ -->
+  <section class="step">
+    <h2><span class="num">09</span>实战：邮箱</h2>
+    <p class="lead">把知识串起来。常用邮箱校验模式：<code>\b[\w.+-]+@[\w-]+(\.[\w-]+)+\b</code>，拆解：</p>
+    <ul>
+      <li><code>[\w.+-]+</code> —— 用户名（字母数字、点、加减号）</li>
+      <li><code>@</code> —— 分隔符</li>
+      <li><code>[\w-]+(\.[\w-]+)+</code> —— 域名（如 example.com.cn）</li>
+    </ul>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c9Pattern" value="\b[\w.+-]+@[\w-]+(\.[\w-]+)+\b" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c9Gg" checked> g</span></span>
+        <button class="btn" id="c9Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c9Text" spellcheck="false">Contact: alice@example.com or bob.lee+dev@mail.example.co.uk
+Invalid ones: @nouser.com, user@, user@nodomain, user@.com</textarea></div>
+      <div class="lab-out" id="c9Out"></div>
+      <div class="lab-info" id="c9Info"></div>
+      <div class="check-result" id="c9Result">任务：匹配 2 个合法邮箱（不匹配 4 个非法样例）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 10 实战：提取信息 ═══ -->
+  <section class="step">
+    <h2><span class="num">10</span>实战：提取信息</h2>
+    <p class="lead">正则最常见的用途不是校验，而是<b>提取</b>——日志、HTML、URL 里抓数据。看捕获组怎么用：</p>
+    <div class="eg"># 从 URL 提取域名（组 1）
+https?://([\w.-]+)
+# 从访问日志提取 IP + 状态码（组 1、组 2）
+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})[^"]*" (\d{3})</div>
+    <div class="lab">
+      <div class="lab-head">
+        <label>PATTERN</label><input type="text" id="c10Pattern" value="https?://([\w.-]+)" spellcheck="false">
+        <span class="flags"><span class="flag"><input type="checkbox" id="c10Gg" checked> g</span></span>
+        <button class="btn" id="c10Check">检查 ✓</button>
+      </div>
+      <div class="lab-body"><textarea id="c10Text" spellcheck="false">Deploy: https://api.example.com/v1
+Docs: https://docs.example.co.uk/guide
+CDN: http://static.cdn.net/assets</textarea></div>
+      <div class="lab-out" id="c10Out"></div>
+      <div class="lab-info" id="c10Info"></div>
+      <div class="check-result" id="c10Result">任务：匹配 URL，并让「域名」成为第 1 个捕获组（下方信息栏应显示 3 个域名）</div>
+    </div>
+  </section>
+
+  <!-- ═══ 11 速查表 ═══ -->
+  <section class="step">
+    <h2><span class="num">11</span>速查表</h2>
+    <p class="lead">常用模式与速记——复制即用：</p>
+    <div class="eg"><b>[\w.+-]+@[\w-]+(\.[\w-]+)+</b>   邮箱
+<b>https?://[\w./-]+</b>             URL
+<b>\b1[3-9]\d{9}\b</b>              大陆手机号
+<b>\d{4}-\d{2}-\d{2}</b>            YYYY-MM-DD
+<b>[A-Za-z_]\w*</b>                  标识符
+<b>\$\{?(\w+)\}?</b>                  ${var} / $var
+<b>^\s*#.*$</b>                      注释行（多行模式）
+<b>\b(\w+)\b\s+\1\b</b>              重复单词
+<b>(?<=@)[\w.-]+</b>                 邮箱域名（后行断言）
+<b>(?&lt;!\d)\d{4}(?!\d)</b>         独立 4 位数字（前后断言）</div>
+    <p class="lead">正则表达式的学习曲线：先会写，再会读，最后会调。调试时**从最简单能匹配的版本开始，逐步加约束**。</p>
+  </section>
+
+  <!-- ═══ 12 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">12</span>掌握度测验</h2>
+    <p class="lead">8 道题检验掌握度，答对 6 题以上解锁最终里程碑。</p>
+
+    <div class="quiz-q">
+      <div class="q"><span>Q1</span>匹配任意单个数字，应该用：</div>
+      <div class="opts" data-q="0">
+        <div class="opt" data-opt="0">\d</div>
+        <div class="opt" data-opt="1">\w</div>
+        <div class="opt" data-opt="2">\s</div>
+        <div class="opt" data-opt="3">.</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q2</span>\bcat\b 对 "catalog" 会：</div>
+      <div class="opts" data-q="1">
+        <div class="opt" data-opt="0">匹配到 cat</div>
+        <div class="opt" data-opt="1">不匹配（单词边界约束）</div>
+        <div class="opt" data-opt="2">匹配 catalog</div>
+        <div class="opt" data-opt="3">报错</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q3</span>要匹配 "colour" 和 "color" 两种写法：</div>
+      <div class="opts" data-q="2">
+        <div class="opt" data-opt="0">colou?r</div>
+        <div class="opt" data-opt="1">colou*r</div>
+        <div class="opt" data-opt="2">colou+r</div>
+        <div class="opt" data-opt="3">col(ou)r</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q4</span>\d{2,3} 对 "1234" 会匹配：</div>
+      <div class="opts" data-q="3">
+        <div class="opt" data-opt="0">12 和 34</div>
+        <div class="opt" data-opt="1">123（贪婪优先）</div>
+        <div class="opt" data-opt="2">1234</div>
+        <div class="opt" data-opt="3">什么都不匹配</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q5</span>分组 "(\d{2})-(\d{2})" 匹配 "12-34"，\1 的值是：</div>
+      <div class="opts" data-q="4">
+        <div class="opt" data-opt="0">34</div>
+        <div class="opt" data-opt="1">12</div>
+        <div class="opt" data-opt="2">12-34</div>
+        <div class="opt" data-opt="3">-</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q6</span>多行标志 m 的作用是：</div>
+      <div class="opts" data-q="5">
+        <div class="opt" data-opt="0">忽略大小写</div>
+        <div class="opt" data-opt="1">让 ^ $ 按每行生效</div>
+        <div class="opt" data-opt="2">让 . 匹配换行</div>
+        <div class="opt" data-opt="3">全局匹配</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q7</span>提取 "key=value" 中的 value，最合适的 pattern：</div>
+      <div class="opts" data-q="6">
+        <div class="opt" data-opt="0">key=(value)</div>
+        <div class="opt" data-opt="1">key=(\w+)</div>
+        <div class="opt" data-opt="2">(key=value)</div>
+        <div class="opt" data-opt="3">\w+=\w+</div>
+      </div>
+    </div>
+    <div class="quiz-q">
+      <div class="q"><span>Q8</span>(?:abc) 与 (abc) 的区别：</div>
+      <div class="opts" data-q="7">
+        <div class="opt" data-opt="0">没有区别</div>
+        <div class="opt" data-opt="1">(?:abc) 分组但不捕获</div>
+        <div class="opt" data-opt="2">(?:abc) 不能用于量词</div>
+        <div class="opt" data-opt="3">(abc) 不能反向引用</div>
+      </div>
+    </div>
+
+    <button class="btn primary" id="quizSubmit">提交测验</button>
+    <div class="quiz-score" id="quizScore"></div>
+  </section>
+
+</div>
+
+<div class="nav-foot">
+  <a href="#" id="navPrev">← 上一节</a>
+  <a href="#" id="navNext">下一节 →</a>
+</div>
+
+<p class="foot-note">回到 <a href="index.html">交互式学习库导航页</a> · 进度自动保存在本机浏览器</p>
+
+<div class="toast" id="toast"></div>
+
+
+
+
+<script>
+
+  (function () {
+    var TOTAL_STEPS = 12;
+    var TOTAL_MILESTONES = 9;
+    var MODULE_KEY = 'regex';
+    var steps = Array.prototype.slice.call(document.querySelectorAll('.step'));
+    var currentStep = 0;
+    var milestones = [];
+    var toastEl = document.getElementById('toast');
+    var toastTimer = null;
+
+    function $(id) { return document.getElementById(id); }
+    function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
+    }
+
+    /* ── 导航 ── */
+    function showNav() {
+      $('stepLabel').textContent = (currentStep + 1) + ' / ' + TOTAL_STEPS;
+      $('navPrev').style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+      $('navNext').textContent = currentStep === TOTAL_STEPS - 1 ? '完成 ✓' : '下一节 →';
+    }
+    function scrollToStep(i) {
+      if (i < 0 || i >= TOTAL_STEPS) return;
+      currentStep = i; showNav();
+      steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    $('navPrev').addEventListener('click', function (e) { e.preventDefault(); scrollToStep(currentStep - 1); });
+    $('navNext').addEventListener('click', function (e) { e.preventDefault(); scrollToStep(currentStep + 1); });
+    window.addEventListener('scroll', function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    });
+
+    /* ── 进度持久化（与导航页 il_progress 约定一致） ── */
+    function loadProgress() {
+      try {
+        var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+        var m = store[MODULE_KEY];
+        if (m && m.steps) { for (var i = 0; i < m.steps.length; i++) milestones[m.steps[i]] = true; }
+      } catch (e) {}
+    }
+    function saveProgress() {
+      var done = [];
+      for (var i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) done.push(i);
+      try {
+        var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+        var g = store[MODULE_KEY] || {};
+        g.steps = done;
+        g.last = Date.now();
+        g.done = done.length >= TOTAL_MILESTONES;
+        store[MODULE_KEY] = g;
+        localStorage.setItem('il_progress', JSON.stringify(store));
+      } catch (e) {}
+    }
+    function refreshProgress() {
+      var n = 0;
+      for (var i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) n++;
+      var fill = $('progressFill'), label = $('progressLabel');
+      fill.style.width = Math.round(n / TOTAL_MILESTONES * 100) + '%';
+      label.textContent = n + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+      if (n >= TOTAL_MILESTONES) { label.classList.add('pdone'); label.textContent = '✓ 全部完成 ' + TOTAL_MILESTONES + ' / ' + TOTAL_MILESTONES; }
+    }
+    function completeMilestone(i) {
+      if (i < 0 || i >= TOTAL_MILESTONES) return;
+      if (milestones[i]) return;
+      milestones[i] = true;
+      refreshProgress(); saveProgress();
+      toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+    }
+
+    /* ── 实时匹配器 ── */
+    function makeMatcher(patternId, flagMap, textId, outId, infoId) {
+      var pat = $(patternId), txt = $(textId), out = $(outId), info = $(infoId);
+      /* flagMap: { 标志字符: checkboxId }，如 { i: 'expGi', g: 'expGg' } */
+      function flagsStr() {
+        var s = '';
+        Object.keys(flagMap).forEach(function (f) { if ($(flagMap[f]).checked) s += f; });
+        return s;
+      }
+      function render() {
+        var pattern = pat.value;
+        var text = txt.value;
+        var f = flagsStr();
+        if (!pattern) { out.innerHTML = '<span class="dim">等待输入 pattern…</span>'; info.textContent = ''; return; }
+        var re;
+        try {
+          re = new RegExp(pattern, f.indexOf('g') >= 0 ? f : f + 'g');
+        } catch (e) {
+          out.innerHTML = '<span class="err">✗ 非法正则：' + esc(e.message) + '</span>';
+          info.textContent = '';
+          return;
+        }
+        var hasG = f.indexOf('g') >= 0;
+        var count = 0;
+        var html = '';
+        var m;
+        var last = 0;
+        var groups = [];
+        if (hasG) {
+          while ((m = re.exec(text)) !== null) {
+            html += esc(text.slice(last, m.index)) + '<span class="mt">' + esc(m[0]) + '</span>';
+            count++;
+            var g = [];
+            for (var i = 1; i < m.length; i++) g.push(m[i] === undefined ? '∅' : m[i]);
+            if (g.length) groups.push(g);
+            last = m.index + m[0].length;
+            if (m[0] === '') re.lastIndex++;
+          }
+        } else {
+          m = re.exec(text);
+          if (m) {
+            html += esc(text.slice(0, m.index)) + '<span class="mt">' + esc(m[0]) + '</span>' + esc(text.slice(m.index + m[0].length));
+            count = 1;
+            var g2 = [];
+            for (var i = 1; i < m.length; i++) g2.push(m[i] === undefined ? '∅' : m[i]);
+            if (g2.length) groups.push(g2);
+          } else { html = esc(text); }
+        }
+        html += esc(text.slice(last));
+        out.innerHTML = html || '<span class="dim">(空文本)</span>';
+        var infoParts = ['匹配 ' + count + ' 处'];
+        if (groups.length) {
+          var gsHtml = groups.slice(0, 5).map(function (g) { return '[' + g.join(', ') + ']'; }).join('  ');
+          infoParts.push('捕获组: ' + gsHtml);
+        }
+        info.textContent = infoParts.join(' · ');
+        return count;
+      }
+      pat.addEventListener('input', render);
+      txt.addEventListener('input', render);
+      Object.keys(flagMap).forEach(function (f) { $(flagMap[f]).addEventListener('change', render); });
+      render();
+      return render;
+    }
+
+    /* ── 练习检查（每个练习返回是否达成） ── */
+    function matchesCount(pattern, flags, text) {
+      try { var re = new RegExp(pattern, flags); return text.match(re) ? text.match(re).length : 0; }
+      catch (e) { return -1; }
+    }
+    function setResult(id, ok, msg) {
+      var el = $(id);
+      el.className = 'check-result ' + (ok ? 'ok' : 'fail');
+      el.textContent = (ok ? '✓ ' : '✗ ') + msg;
+    }
+
+    var exp = makeMatcher('expPattern', { i: 'expGi', g: 'expGg' }, 'expText', 'expOut', 'expInfo');
+    var c2 = makeMatcher('c2Pattern', { g: 'c2Gg' }, 'c2Text', 'c2Out', 'c2Info');
+    var c3 = makeMatcher('c3Pattern', { g: 'c3Gg' }, 'c3Text', 'c3Out', 'c3Info');
+    var c4 = makeMatcher('c4Pattern', { g: 'c4Gg' }, 'c4Text', 'c4Out', 'c4Info');
+    var c5 = makeMatcher('c5Pattern', { m: 'c5Gm', g: 'c5Gg' }, 'c5Text', 'c5Out', 'c5Info');
+    var c6 = makeMatcher('c6Pattern', { g: 'c6Gg' }, 'c6Text', 'c6Out', 'c6Info');
+    var c7 = makeMatcher('c7Pattern', { g: 'c7Gg' }, 'c7Text', 'c7Out', 'c7Info');
+    var c8 = makeMatcher('c8Pattern', { i: 'c8Gi', g: 'c8Gg' }, 'c8Text', 'c8Out', 'c8Info');
+    var c9 = makeMatcher('c9Pattern', { g: 'c9Gg' }, 'c9Text', 'c9Out', 'c9Info');
+    var c10 = makeMatcher('c10Pattern', { g: 'c10Gg' }, 'c10Text', 'c10Out', 'c10Info');
+
+    /* M0 字面量：\bcat\b 至少匹配 1 处 */
+    $('expCheck').addEventListener('click', function () {
+      var n = matchesCount($('expPattern').value, $('expGg').checked ? 'g' : '', $('expText').value);
+      if (n >= 1) { setResult('expResult', true, '匹配 ' + n + ' 处 "cat"'); completeMilestone(0); }
+      else setResult('expResult', false, '还没有匹配到 cat，试试 \bcat\b');
+    });
+
+    /* M1 字符类：\d 或 [0-9] 匹配数字 */
+    $('c2Check').addEventListener('click', function () {
+      var p = $('c2Pattern').value;
+      var n = matchesCount(p, 'g', $('c2Text').value);
+      var usesDigit = /\\(d|[0-9])/.test(p) || /\[0-9\]/.test(p);
+      if (n >= 1 && usesDigit) { setResult('c2Result', true, '匹配到 ' + n + ' 处数字'); completeMilestone(1); }
+      else setResult('c2Result', false, '需要用到 \d 或 [0-9] 且至少匹配 1 处');
+    });
+
+    /* M2 量词：\d{2,} 或 \d+ 匹配两位以上数字 */
+    $('c4Check').addEventListener('click', function () {
+      var p = $('c4Pattern').value;
+      var m = new RegExp(p, 'g').exec($('c4Text').value);
+      var ok = m && /[{}]/.test(p) ? m[0].length >= 2 : false;
+      var n = matchesCount(p, 'g', $('c4Text').value);
+      var hasQuant = /\{[0-9, ]+\}|\+|\{2,\}/.test(p);
+      if (ok && hasQuant) { setResult('c4Result', true, m[0] + ' 等 ' + n + ' 处，长度 ≥ 2'); completeMilestone(2); }
+      else setResult('c4Result', false, '用 {2,}（或 {2,3}）限定至少 2 位数字');
+    });
+
+    /* M3 锚点：^ERROR 行首 */
+    $('c5Check').addEventListener('click', function () {
+      var p = $('c5Pattern').value;
+      var m = $('c5Text').value;
+      var re = new RegExp(p, 'gm');
+      var hits = m.match(re) || [];
+      var ok = p.indexOf('^') === 0 && hits.length === 2;
+      if (ok) { setResult('c5Result', true, '匹配 ' + hits.length + ' 处行首 ERROR'); completeMilestone(3); }
+      else setResult('c5Result', false, '用 ^ERROR 并勾选 m，应匹配 2 处');
+    });
+
+    /* M4 分组：(\w+)=(\w+) value 在第 1 组 → 检查 value 为组1 */
+    $('c6Check').addEventListener('click', function () {
+      var p = $('c6Pattern').value;
+      var text = $('c6Text').value;
+      try {
+        var re = new RegExp(p, 'g');
+        var m = re.exec(text);
+        var ok = m && m.length >= 2 && m[1] === 'alice';
+        if (ok) { setResult('c6Result', true, '组1 = ' + m[1] + '（value 正确捕获）'); completeMilestone(4); }
+        else setResult('c6Result', false, '确保 value 是第 1 个捕获组（如 (\w+)=(\w+)）');
+      } catch (e) { setResult('c6Result', false, '非法正则'); }
+    });
+
+    /* M5 标志位 i：5 处 hello */
+    $('c8Check').addEventListener('click', function () {
+      var n = matchesCount('hello', $('c8Gi').checked ? 'ig' : 'g', $('c8Text').value);
+      if (n === 5) { setResult('c8Result', true, '5 处 hello 全部匹配'); completeMilestone(5); }
+      else setResult('c8Result', false, '勾选 i 后应匹配 4 处');
+    });
+
+    /* M6 实战：邮箱 2 个合法 */
+    $('c9Check').addEventListener('click', function () {
+      var n = matchesCount($('c9Pattern').value, 'g', $('c9Text').value);
+      var invalid = matchesCount($('c9Pattern').value, 'g', '@nouser.com user@ user@nodomain user@.com');
+      if (n === 2 && invalid === 0) { setResult('c9Result', true, '恰好匹配 2 个合法邮箱'); completeMilestone(6); }
+      else setResult('c9Result', false, '应匹配 2 个合法邮箱且不误匹配非法样例');
+    });
+
+    /* M7 实战：URL 域名捕获 */
+    $('c10Check').addEventListener('click', function () {
+      var text = $('c10Text').value;
+      try {
+        var re = new RegExp($('c10Pattern').value, 'g');
+        var domains = [], m;
+        while ((m = re.exec(text)) !== null) { if (m[1]) domains.push(m[1]); if (m[0] === '') re.lastIndex++; }
+        var ok = domains.length === 3 && domains[0] === 'api.example.com';
+        if (ok) { setResult('c10Result', true, '捕获 3 个域名：' + domains.join(', ')); completeMilestone(7); }
+        else setResult('c10Result', false, '需要捕获组 1 捕获域名，应得 3 个');
+      } catch (e) { setResult('c10Result', false, '非法正则'); }
+    });
+
+    /* ── 测验（M8：≥6/8） ── */
+    var ANSWERS = [0, 1, 0, 1, 1, 1, 1, 1];
+    var quizSubmitted = false;
+    var quizSel = {};
+    document.querySelectorAll('.quiz-q .opts').forEach(function (box) {
+      box.querySelectorAll('.opt').forEach(function (opt) {
+        opt.addEventListener('click', function () {
+          if (quizSubmitted) return;
+          box.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('sel'); });
+          opt.classList.add('sel');
+          quizSel[box.dataset.q] = parseInt(opt.dataset.opt, 10);
+        });
+      });
+    });
+    $('quizSubmit').addEventListener('click', function () {
+      if (quizSubmitted) return;
+      var score = 0;
+      for (var q = 0; q < ANSWERS.length; q++) {
+        var box = document.querySelectorAll('.quiz-q .opts')[q];
+        var sel = quizSel[q];
+        box.querySelectorAll('.opt').forEach(function (o) {
+          var oi = parseInt(o.dataset.opt, 10);
+          if (oi === ANSWERS[q]) o.classList.add('correct');
+          else if (oi === sel) o.classList.add('wrong');
+        });
+        if (sel === ANSWERS[q]) score++;
+      }
+      quizSubmitted = true;
+      var el = $('quizScore');
+      if (score >= 6) {
+        el.innerHTML = '得分 ' + score + ' / 8 —— 通过！✓';
+        el.style.color = 'var(--ok)';
+        completeMilestone(8);
+      } else {
+        el.innerHTML = '得分 ' + score + ' / 8 —— 未达 6 分，复习后重试（刷新页面）';
+        el.style.color = 'var(--err)';
+      }
+    });
+
+    loadProgress();
+    refreshProgress();
+    showNav();
+  })();
+
+</script></body>
+</html>

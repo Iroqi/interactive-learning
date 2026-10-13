@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JavaScript 异步与事件循环 交互式学习 · 输出预测器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --async: #38bdf8;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(56,189,248,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--async); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--async), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--async); font-size: 17px;
+    border: 1px solid rgba(56,189,248,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #bfe9ff;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #bfe9ff; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+  pre .fn { color: #38bdf8; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--async); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--async); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .predict {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .predict-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .predict-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .predict-head .dot:nth-child(1) { background: #ef476f; }
+  .predict-head .dot:nth-child(2) { background: #f0a04b; }
+  .predict-head .dot:nth-child(3) { background: #34d399; }
+  .predict-head span.txt { margin-left: 6px; }
+  .predict-body { padding: 12px 14px; }
+  .predict-body input {
+    width: 100%; background: var(--raise); border: 1px solid var(--border); border-radius: 10px;
+    color: #bfe9ff; font-family: var(--mono); font-size: 12.5px; padding: 10px 12px; outline: none;
+  }
+  .predict-body input:focus { border-color: rgba(56,189,248,0.5); }
+  .predict-ctrl { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .predict-ctrl button {
+    background: var(--async); border: 1px solid var(--async); border-radius: 8px;
+    color: #06233a; font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s;
+  }
+  .predict-ctrl button:hover { opacity: 0.88; }
+  .predict-ctrl .p-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .predict-out {
+    border-top: 1px solid var(--border); padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    color: #b8c2dd;
+  }
+  .predict-out .p-ok { color: #34d399; }
+  .predict-out .p-err { color: #ef476f; }
+  .predict-out .p-info { color: #5aa2ff; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--async);
+    border: 1px solid rgba(56,189,248,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--async); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--async); color: var(--async); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">JavaScript</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>异步与事件循环 <em>交互式学习</em></h1>
+    <p class="subtitle">输出预测器 · 预测执行顺序并即时核对 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 调用栈 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>单线程与调用栈</h2>
+    <p class="lead">JavaScript 是<strong>单线程</strong>语言：同一时刻只执行一段代码，按"调用栈"（Call Stack）LIFO 依次执行。同步代码从上到下立即执行完，<strong>不会被打断</strong>。</p>
+    <pre><span class="fn">console.log</span>('A');   <span class="cmt">// 进栈 → 打印 → 出栈</span>
+<span class="fn">console.log</span>('B');</pre>
+    <h3>练习：同步执行</h3>
+    <div class="opts" id="stackOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="stack">上面的代码输出顺序是 B、A</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="stack">上面的代码输出顺序是 A、B，且执行过程中不会插入其他代码</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="stack">console.log 是异步的，输出顺序不确定</label>
+    </div>
+    <div class="result" id="stackResult"></div>
+  </section>
+
+  <!-- ═══ 2 事件循环 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>事件循环：异步从哪来</h2>
+    <p class="lead">浏览器/Node 提供异步 API（定时器、网络、IO）。回调完成后进入<strong>任务队列</strong>；事件循环在主线程空闲时，从队列取出任务执行。<code>setTimeout(fn, 0)</code> 不是"立即执行"，而是"至少等当前同步代码跑完"。</p>
+    <pre><span class="fn">console.log</span>('start');
+setTimeout(<span class="fn">() => console.log</span>('timeout'), 0);
+<span class="fn">console.log</span>('end');
+<span class="cmt">// 实际输出：start → end → timeout</span></pre>
+    <h3>练习：事件循环</h3>
+    <div class="opts" id="loopOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="loop">setTimeout(fn, 0) 会打断当前代码立即执行 fn</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="loop">setTimeout 的回调进入任务队列，主线程同步代码跑完才会执行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="loop">事件循环每毫秒执行一次队列里的所有任务</label>
+    </div>
+    <div class="result" id="loopResult"></div>
+  </section>
+
+  <!-- ═══ 3 预测题 1 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>输出预测器：同步 + 定时器</h2>
+    <p class="lead">预测下面代码的输出顺序，用<strong>空格分隔</strong>写入输入框（如 <code>start end t</code>），点「核对」。预测正确解锁里程碑。</p>
+    <div class="predict">
+      <div class="predict-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">预测题 1 · 同步 + setTimeout</span></div>
+      <div class="predict-body">
+        <pre style="margin:0">console.log('start');
+setTimeout(() => console.log('timeout'), 0);
+console.log('middle');
+setTimeout(() => console.log('timeout2'), 0);
+console.log('end');</pre>
+        <input type="text" id="pred1Input" placeholder="例如：start middle end timeout timeout2">
+      </div>
+      <div class="predict-ctrl">
+        <button type="button" id="pred1Btn">核对</button>
+        <span class="p-hint">用空格分隔，按实际打印顺序</span>
+      </div>
+      <div class="predict-out" id="pred1Out">— 写出你的预测 —</div>
+    </div>
+    <div class="result" id="pred1Result"></div>
+  </section>
+
+  <!-- ═══ 4 微任务 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>微任务 vs 宏任务</h2>
+    <p class="lead"><code>Promise.then / queueMicrotask</code> 的回调是<strong>微任务</strong>，<code>setTimeout / IO</code> 是<strong>宏任务</strong>。每个宏任务结束后，事件循环会<strong>先把队列里所有微任务清空</strong>，再取下一个宏任务——所以微任务永远先于下一个宏任务。</p>
+    <pre>Promise.resolve().then(<span class="fn">() => console.log</span>('micro'));
+setTimeout(<span class="fn">() => console.log</span>('macro'), 0);
+<span class="cmt">// 输出：micro → macro</span></pre>
+    <h3>练习：优先级</h3>
+    <div class="opts" id="mqOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="mq">宏任务优先于微任务，先执行 setTimeout 再执行 then</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="mq">微任务在宏任务之前执行：Promise.then 先于 setTimeout</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="mq">两者按注册顺序执行，没有优先级</label>
+    </div>
+    <div class="result" id="mqResult"></div>
+  </section>
+
+  <!-- ═══ 5 预测题 2 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>输出预测器：Promise 对决定时器</h2>
+    <p class="lead">综合题：同步代码 + Promise + setTimeout 混排。记得：微任务在当前宏任务结束、下一个宏任务开始前全部执行。</p>
+    <div class="predict">
+      <div class="predict-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">预测题 2 · Promise + setTimeout</span></div>
+      <div class="predict-body">
+        <pre style="margin:0">console.log('a');
+Promise.resolve().then(() => console.log('b'));
+setTimeout(() => console.log('c'), 0);
+Promise.resolve().then(() => console.log('d'));
+console.log('e');</pre>
+        <input type="text" id="pred2Input" placeholder="例如：a e b d c">
+      </div>
+      <div class="predict-ctrl">
+        <button type="button" id="pred2Btn">核对</button>
+        <span class="p-hint">用空格分隔，按实际打印顺序</span>
+      </div>
+      <div class="predict-out" id="pred2Out">— 写出你的预测 —</div>
+    </div>
+    <div class="result" id="pred2Result"></div>
+  </section>
+
+  <!-- ═══ 6 async/await ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>async/await：暂停与恢复</h2>
+    <p class="lead"><code>await</code> 会<strong>暂停</strong>当前 async 函数的执行并让出主线程，等 Promise 落定后<strong>作为微任务</strong>恢复。它不会阻塞主线程上的其他代码。</p>
+    <pre><span class="fn">async function</span> main() {
+  console.log('1');
+  <span class="fn">await</span> Promise.resolve();
+  console.log('3');
+}
+main();
+console.log('2');
+<span class="cmt">// 输出：1 → 2 → 3（await 让出，2 先执行）</span></pre>
+    <h3>练习：await 让出</h3>
+    <div class="opts" id="awaitOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="await">await 会阻塞主线程直到 Promise 完成，所以 2 在 3 之后</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="await">await 让出主线程，外面的同步代码先执行；恢复以微任务形式发生</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="await">await 与同步代码等价，无任何让出</label>
+    </div>
+    <div class="result" id="awaitResult"></div>
+  </section>
+
+  <!-- ═══ 7 预测题 3 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>输出预测器：async/await 组合</h2>
+    <p class="lead">最难一题：把 async/await 和微任务、宏任务放一起。写代码前先在心里走一遍"调用栈 → 微任务队列 → 宏任务队列"。</p>
+    <div class="predict">
+      <div class="predict-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">预测题 3 · async/await 终极组合</span></div>
+      <div class="predict-body">
+        <pre style="margin:0">async function main() {
+  console.log('1');
+  await Promise.resolve();
+  console.log('2');
+}
+main();
+Promise.resolve().then(() => console.log('3'));
+setTimeout(() => console.log('4'), 0);
+console.log('5');</pre>
+        <input type="text" id="pred3Input" placeholder="例如：1 5 2 3 4">
+      </div>
+      <div class="predict-ctrl">
+        <button type="button" id="pred3Btn">核对</button>
+        <span class="p-hint">用空格分隔，按实际打印顺序</span>
+      </div>
+      <div class="predict-out" id="pred3Out">— 写出你的预测 —</div>
+    </div>
+    <div class="result" id="pred3Result"></div>
+  </section>
+
+  <!-- ═══ 8 并发 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>并发与串行：Promise.all vs 顺序 await</h2>
+    <p class="lead"><code>Promise.all</code> 让多个请求<strong>并发</strong>发出（总耗时 ≈ 最慢的一个）；顺序 <code>await</code> 是<strong>串行</strong>（总耗时 = 各项之和）。互不依赖的任务用并发，有依赖关系的任务才串行。</p>
+    <pre><span class="cmt">// 并发：三个请求同时发出</span>
+<span class="fn">await</span> Promise.all([fetch('/a'), fetch('/b'), fetch('/c')]);
+
+<span class="cmt">// 串行：必须等上一个完成</span>
+<span class="fn">await</span> fetch('/token');   <span class="cmt">// 先拿 token</span>
+<span class="fn">await</span> fetch('/data');    <span class="cmt">// 再请求数据</span></pre>
+    <h3>练习：并发 vs 串行</h3>
+    <div class="opts" id="concOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="conc">Promise.all 总耗时等于各请求之和（串行）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="conc">Promise.all 并发发出，总耗时 ≈ 最慢的那个；有依赖时必须串行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="conc">顺序 await 也是并发的</label>
+    </div>
+    <div class="result" id="concResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：调用栈 → 事件循环 → 同步/定时器 → 微任务/宏任务 → Promise → async/await → 组合预测 → 并发串行 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用浏览器 DevTools 的 Performance / 任务队列面板观察真实的事件循环；<br>
+      ② 把项目里的"先 token 后请求"链路改用依赖感知的串行 await；<br>
+      ③ 互不依赖的批量请求改用 Promise.all（或限流并发）；<br>
+      ④ 面试前用本页的三道预测题自测——它们覆盖了 90% 的异步顺序题。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">JavaScript 异步与事件循环 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'async';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 调用栈正确
+     1 事件循环正确
+     2 预测题 1 正确
+     3 微任务/宏任务正确
+     4 预测题 2 正确
+     5 await 正确
+     6 预测题 3 正确
+     7 并发/串行正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('stackOpts', 'b', 'stackResult',
+    '正确！同步代码按调用栈 LIFO 依次执行，期间不会插入其他代码。',
+    '不对。同步代码严格从上到下执行；异步代码只能等主线程空闲才插进来。', 0);
+  bindOpts('loopOpts', 'b', 'loopResult',
+    '正确！setTimeout 回调进任务队列，主线程同步代码跑完才取队列。setTimeout(fn, 0) ≠ 立即执行。',
+    '不对。setTimeout 是最短延迟不是即时打断；事件循环在主线程空闲时取队列任务。', 1);
+  bindOpts('mqOpts', 'b', 'mqResult',
+    '正确！微任务（Promise.then）优先于宏任务（setTimeout）：每个宏任务结束后先清空微任务队列。',
+    '不对。微任务队列在取下一个宏任务前被清空，所以 then 先于 setTimeout。', 3);
+  bindOpts('awaitOpts', 'b', 'awaitResult',
+    '正确！await 让出主线程，外部同步代码先执行；Promise 落定后以微任务恢复。',
+    '不对。await 不阻塞主线程，它让出；恢复是微任务。', 5);
+  bindOpts('concOpts', 'b', 'concResult',
+    '正确！Promise.all 并发发出，总耗时 ≈ 最慢请求；有依赖关系的任务必须串行 await。',
+    '不对。Promise.all 是并发，顺序 await 才是串行。', 7);
+
+  /* ═══════════════ 输出预测引擎 ═══════════════ */
+  function normalize(s) {
+    return String(s || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }
+  function bindPredict(inputId, btnId, outId, resultId, answer, expl, milestoneIdx) {
+    $(btnId).addEventListener('click', function () {
+      var got = normalize($(inputId).value);
+      var want = normalize(answer);
+      var out = $(outId);
+      if (got.length === 0) {
+        out.innerHTML = '<div class="p-err">请先写出你的预测（用空格分隔）。</div>';
+        return;
+      }
+      var ok = got.length === want.length && got.every(function (v, i) { return v === want[i]; });
+      if (ok) {
+        out.innerHTML = '<div class="p-ok">✓ 完全正确！输出顺序：' + esc(want.join(' → ')) + '</div>' +
+          '<div class="p-info">' + esc(expl) + '</div>';
+        $(resultId).className = 'result show ok';
+        $(resultId).innerHTML = '预测正确，里程碑已解锁。';
+        if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+      } else {
+        out.innerHTML = '<div class="p-err">✗ 你的答案：' + esc(got.join(' → ')) + '</div>' +
+          '<div class="p-info">正确顺序：' + esc(want.join(' → ')) + '</div>' +
+          '<div class="p-info">' + esc(expl) + '</div>';
+        $(resultId).className = 'result show err';
+        $(resultId).innerHTML = '再想想：回到上一节复习微任务/宏任务优先级。';
+      }
+    });
+  }
+
+  bindPredict('pred1Input', 'pred1Btn', 'pred1Out', 'pred1Result',
+    'start middle end timeout timeout2',
+    '同步代码 start → middle → end 立即执行；两个 setTimeout 回调按注册顺序进入宏任务队列，随后依次执行。', 2);
+  bindPredict('pred2Input', 'pred2Btn', 'pred2Out', 'pred2Result',
+    'a e b d c',
+    'a、e 是同步代码先打印；两个 Promise.then 微任务在宏任务前清空（b → d）；最后执行 setTimeout 宏任务 c。', 4);
+  bindPredict('pred3Input', 'pred3Btn', 'pred3Out', 'pred3Result',
+    '1 5 2 3 4',
+    '1、5 同步打印；await 让出后 main 的恢复（2）与外部 then（3）都是微任务、按注册顺序执行；宏任务 4 最后。', 6);
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: 'JavaScript 执行模型是？', opts: ['多线程并发', '单线程 + 事件循环', '双线程轮流', '无固定模型'], right: 1, expl: '单线程跑同步代码，事件循环处理异步队列。' },
+    { q: 'setTimeout(fn, 0) 的语义是？', opts: ['立即打断当前代码执行 fn', '至少等同步代码跑完再执行', '0 毫秒后一定精确执行', '跳过本次循环'], right: 1, expl: '是最短延迟，不是即时打断。' },
+    { q: 'Promise.then 与 setTimeout 谁先执行？', opts: ['setTimeout 先', 'Promise.then 先（微任务）', '按注册顺序', '随机'], right: 1, expl: '微任务队列在宏任务前清空。' },
+    { q: 'await 对主线程的影响是？', opts: ['阻塞主线程', '让出主线程，恢复以微任务发生', '与同步等价', '会死锁'], right: 1, expl: 'await 让出，不阻塞。' },
+    { q: '两个互不依赖的网络请求，最佳写法是？', opts: ['顺序 await 两个', 'Promise.all 并发', 'setTimeout 轮询', '同步 XMLHttpRequest'], right: 1, expl: '并发减少总耗时；有依赖才串行。' },
+    { q: '先拿 token 再请求数据的正确做法是？', opts: ['Promise.all 两个一起发', '先 await fetch(token) 再 await fetch(data)', '同时发两个', 'setTimeout 等待'], right: 1, expl: '数据请求依赖 token，必须串行。' },
+    { q: '微任务队列会在什么时候被清空？', opts: ['每个宏任务结束后、取下一个宏任务前', '每 1 秒一次', '程序结束时', '只在页面加载时'], right: 0, expl: '宏任务间隙清空微任务队列。' },
+    { q: 'queueMicrotask 属于？', opts: ['宏任务', '微任务', '同步任务', '网络任务'], right: 1, expl: 'queueMicrotask 与 Promise.then 同级，都是微任务。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握事件循环的核心机制。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

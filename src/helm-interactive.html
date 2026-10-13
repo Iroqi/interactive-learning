@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helm chart 模板 交互式学习 · 迷你渲染器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --helm: #f472b6; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #21262d; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #0d1117; background: var(--helm); border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--helm); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--helm), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--helm); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--helm); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--helm); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(244, 114, 182, 0.07); border: 1px solid rgba(244, 114, 182, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--helm); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--helm); }
+  .opt-row input { margin-top: 5px; accent-color: var(--helm); }
+  .opt-row.correct { border-color: var(--helm); background: rgba(244, 114, 182, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(244, 114, 182, 0.08); border: 1px solid rgba(244, 114, 182, 0.3); color: #fce7f3; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #f472b6; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 76px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: var(--helm); }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: var(--helm); color: #0d1117; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--helm); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--helm); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--helm); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: var(--helm); color: var(--helm); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #161b22; border: 1px solid var(--helm); color: #fce7f3; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+
+/* FFC challenge 双栏布局 */
+.challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
+.ch-lead { min-width: 0; }
+.ch-task { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 12px; padding: 18px 20px; }
+.task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #198eee; margin-bottom: 10px; }
+.task-list { margin: 0 0 14px; padding-left: 20px; color: #c5c6c7; font-size: 13px; }
+.task-list li { margin-bottom: 6px; }
+.task-list li::marker { color: #198eee; }
+@media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Helm <em>chart 模板</em></h1>
+    <p class="subtitle">迷你渲染器 · 模板表达式 · values 覆盖 · release 生命周期 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 chart 结构 ═══ -->
+  <section class="step"><h2><span class="num">1</span>chart：应用打包</h2><div class="challenge"><div class="ch-lead"><p class="lead">Helm chart 是一个目录，把 K8s 清单参数化：<code>Chart.yaml</code>（元数据）、<code>values.yaml</code>（默认参数）、<code>templates/</code>（清单模板）、<code>charts/</code>（依赖子 chart）。<code>helm install myapp ./mychart</code> 渲染模板并部署。</p>
+<pre>mychart/
+├── Chart.yaml          <span class="cmt"># name / version / apiVersion</span>
+├── values.yaml         <span class="cmt"># 默认值：replicaCount、image、service…</span>
+├── templates/
+│   ├── deployment.yaml <span class="cmt"># {{ .Values.replicaCount }} 等模板</span>
+│   └── service.yaml
+└── charts/             <span class="cmt"># 依赖的子 chart</span></pre>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>认识 chart 三要素：Chart.yaml（元数据）、values.yaml（默认值）、templates/（模板）</li></ul><h3>练习：chart 结构</h3>
+    <div class="opts" id="chartOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="chart">Chart.yaml 存元数据、values.yaml 存默认参数、templates/ 存清单模板——三者职责分离</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="chart">values.yaml 里的值写死在 Chart.yaml 里也可以</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="chart">templates/ 下只能放 Deployment</label>
+    </div>
+    <div class="result" id="chartResult"></div>
+  </section>
+
+  <!-- ═══ 2 模板表达式 ═══ --></div></div></section><section class="step"><h2><span class="num">2</span>模板表达式：{{ .Values }}</h2><div class="challenge"><div class="ch-lead"><p class="lead">模板用 <code>{{ }}</code> 包裹表达式。<code>{{ .Values.image.repo }}</code> 取 values 里的值；<code>.{{ .Chart.Name }}</code> 取 chart 元数据。<strong>渲染发生在安装时</strong>：模板 + values → 最终 YAML。</p>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>理解 {{ .Values.image.repo }} 从 values 取值，渲染发生在安装时</li></ul><div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">模板渲染器</span></div>
+      <div class="clab-body">
+        <textarea id="tmplInput" spellcheck="false" placeholder="image: {{ .Values.image.repo }}:{{ .Values.image.tag }}">image: {{ .Values.image.repo }}:{{ .Values.image.tag }}</textarea>
+        <textarea id="valsInput" spellcheck="false" placeholder='{"image": {"repo": "nginx", "tag": "1.27"}}' style="min-height:44px;">{"image": {"repo": "nginx", "tag": "1.27"}}</textarea>
+        <button type="button" class="clab-btn" id="tmplBtn">渲染</button>
+        <div class="clab-out" id="tmplOut">— 输入模板与 values —</div>
+      </div>
+    </div>
+    <h3>练习：表达式语义</h3>
+    <div class="opts" id="exprOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="expr">{{ .Values.image.repo }} 是"取 values.yaml 中 image.repo 的值"，渲染成最终 YAML</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="expr">模板表达式在浏览器里运行时执行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="expr">{{ .Release.Name }} 与 values 无关，永远输出空串</label>
+    </div>
+    <div class="result" id="exprResult"></div>
+  </section>
+
+  <!-- ═══ 3 模板函数 ═══ --></div></div></section><section class="step"><h2><span class="num">3</span>模板函数：default / quote</h2><div class="challenge"><div class="ch-lead"><p class="lead"><code>default "latest" .Values.image.tag</code>：值缺失时给默认值；<code>quote</code> 给输出加引号；<code>upper</code>/<code>lower</code> 大小写；<code>printf</code> 格式化；<code>nindent</code> 缩进多行。</p>
+<pre>image: {{ .Values.image.repo }}:{{ default "latest" .Values.image.tag }}
+replicas: {{ .Values.replicaCount | default 1 }}</pre>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>用 default 给缺失值兜底，quote 给输出加引号</li></ul><h3>练习：函数行为</h3>
+    <div class="opts" id="fnOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fn">default "latest" .Values.image.tag：tag 未定义时输出 latest，已定义时输出原值</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fn">default 会把空字符串也替换成默认值以外的内容</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fn">quote 会去掉字符串两端的引号</label>
+    </div>
+    <div class="result" id="fnResult"></div>
+  </section>
+
+  <!-- ═══ 4 values 覆盖 ═══ --></div></div></section><section class="step"><h2><span class="num">4</span>values 覆盖层级</h2><div class="challenge"><div class="ch-lead"><p class="lead">优先级从低到高：chart 内 <code>values.yaml</code> → 父 chart 的 values → <code>-f override.yaml</code> → 命令行 <code>--set key=val</code>。<strong>--set 最高</strong>，适合 CI 注入。</p>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>掌握 values 覆盖优先级：values.yaml < -f 文件 < --set</li></ul><div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">覆盖判读器</span></div>
+      <div class="clab-body">
+        <input type="text" id="ovrInput" spellcheck="false" placeholder="输入 --set 参数，如 replicaCount=5,image.tag=v2">
+        <button type="button" class="clab-btn" id="ovrBtn">判读</button>
+        <div class="clab-out" id="ovrOut">— 输入 --set 键值 —</div>
+      </div>
+    </div>
+    <h3>练习：覆盖优先级</h3>
+    <div class="opts" id="ovrOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ovr">--set replicaCount=5 会覆盖 values.yaml 与 -f 文件里的 replicaCount（--set 优先级最高）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ovr">values.yaml 的默认值优先级高于 --set</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ovr">-f 文件只能提供 chart 里不存在的键</label>
+    </div>
+    <div class="result" id="ovrResult"></div>
+  </section>
+
+  <!-- ═══ 5 渲染预测 ═══ --></div></div></section><section class="step"><h2><span class="num">5</span>渲染预测：给定 values 求输出</h2><div class="challenge"><div class="ch-lead"><p class="lead">结合模板函数与覆盖，预测最终渲染结果：先取 --set / -f 覆盖，再用 default 兜底，最后套用函数。</p>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>给定模板与 values，预测最终渲染结果</li></ul><div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">预测判读器</span></div>
+      <div class="clab-body">
+        <textarea id="predInput" spellcheck="false" placeholder='{"image": {"repo": "nginx", "tag": "1.27"}, "replicaCount": 2}'>{"image": {"repo": "nginx", "tag": "1.27"}, "replicaCount": 2}</textarea>
+        <button type="button" class="clab-btn" id="predBtn">预测</button>
+        <div class="clab-out" id="predOut">— 输入 values，预测渲染 —</div>
+      </div>
+    </div>
+    <h3>练习：渲染结果</h3>
+    <div class="opts" id="predOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="pred">模板 image: {{ .Values.image.repo }}:{{ .Values.image.tag }} 配 values repo=nginx tag=1.27 → 渲染为 image: nginx:1.27</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="pred">模板中的 {{ }} 会原样保留在最终 YAML 里</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="pred">渲染结果与 values 完全无关</label>
+    </div>
+    <div class="result" id="predResult"></div>
+  </section>
+
+  <!-- ═══ 6 release 生命周期 ═══ --></div></div></section><section class="step"><h2><span class="num">6</span>release：一次安装的实例</h2><div class="challenge"><div class="ch-lead"><p class="lead"><code>helm install myapp ./chart</code> 创建 release（部署实例）；<code>helm upgrade myapp ./chart --set tag=v2</code> 升级（渲染新模板并滚动更新）；<code>helm rollback myapp 1</code> 回滚到上一个版本；<code>helm status</code> 查状态；<code>helm uninstall</code> 删除。</p>
+<pre>$ helm install myapp ./mychart
+NAME: myapp   NAMESPACE: default   STATUS: deployed
+$ helm upgrade myapp ./mychart --set image.tag=v2
+$ helm rollback myapp 1   <span class="cmt"># 回到版本 1</span></pre>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>区分 install / upgrade / rollback / status 的语义</li></ul><h3>练习：release 操作</h3>
+    <div class="opts" id="relOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="rel">upgrade 更新同一 release 的版本，rollback 回滚历史版本——每次部署都有版本记录</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="rel">install 与 upgrade 都会创建全新的 release 名字</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="rel">rollback 之后历史版本记录就清空了</label>
+    </div>
+    <div class="result" id="relResult"></div>
+  </section>
+
+  <!-- ═══ 7 依赖 ═══ --></div></div></section><section class="step"><h2><span class="num">7</span>依赖 chart 与子 chart</h2><div class="challenge"><div class="ch-lead"><p class="lead">父 chart 的 <code>Chart.yaml</code> 里 <code>dependencies:</code> 声明依赖；<code>helm dependency build</code> 拉取到 <code>charts/</code>。子 chart 用 <code>.Values.childname.key</code> 访问，或通过父 chart 的 values 传递。</p>
+<pre># Chart.yaml
+dependencies:
+  - name: redis
+    version: "17.x"
+    repository: "https://charts.bitnami.com/bitnami"</pre>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>用 helm dependency build 拉取依赖子 chart</li></ul><h3>练习：依赖管理</h3>
+    <div class="opts" id="depOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="dep">helm dependency build 把声明的依赖拉取到 charts/ 目录，父 chart 安装时一起渲染部署</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="dep">依赖 chart 需要在每个环境中手动复制到模板里</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="dep">子 chart 的 values 无法被父 chart 覆盖</label>
+    </div>
+    <div class="result" id="depResult"></div>
+  </section>
+
+  <!-- ═══ 8 hooks ═══ --></div></div></section><section class="step"><h2><span class="num">8</span>hooks：生命周期钩子</h2><div class="challenge"><div class="ch-lead"><p class="lead">hooks 在 release 关键节点执行一次性任务：<code>pre-install</code>（安装前，如建数据库）、<code>post-install</code>（安装后）、<code>pre-upgrade</code>/<code>post-upgrade</code>、<code>pre-delete</code>。典型用于初始化 Job。</p>
+<pre># templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    "helm.sh/hook": post-install   <span class="cmt"># 安装完成后执行</span></pre>
+</div><div class="ch-task"><div class="task-head">本节任务</div><ul class="task-list"><li>识别 hooks 的触发时机：post-install 等一次性任务</li></ul><h3>练习：hook 语义</h3>
+    <div class="opts" id="hookOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="hook">post-install hook 在安装完成后运行，适合初始化数据/迁移等一次性任务</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="hook">hook Job 随应用一直常驻运行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="hook">hook 只能用于删除资源</label>
+    </div>
+    <div class="result" id="hookResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ --></div></div></section><section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：chart 结构 → 模板表达式 → 模板函数 → values 覆盖 → 渲染预测 → release → 依赖 → hooks → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 helm create 生成骨架，先跑 helm template 本地预览渲染结果；<br>
+      ② 所有可变值进 values.yaml，CI 用 --set 注入环境差异；<br>
+      ③ 生产升级前 helm diff 对比变更，升级后 helm history 留痕；<br>
+      ④ 复杂应用拆成依赖子 chart，用 hooks 管初始化任务。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--helm)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Helm chart 模板 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'helm';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 chart 结构
+     1 模板表达式
+     2 模板函数
+     3 values 覆盖
+     4 渲染预测
+     5 release 生命周期
+     6 依赖
+     7 hooks
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('chartOpts', 'a', 'chartResult',
+    '正确！chart 三要素职责分离：元数据 / 默认值 / 模板。',
+    '不对。values 必须独立在 values.yaml；templates/ 可放任意 K8s 清单模板。', 0);
+  bindOpts('exprOpts', 'a', 'exprResult',
+    '正确！{{ }} 在安装时渲染成实际值，values.yaml 是数据源。',
+    '不对。模板在 helm 渲染期（非浏览器）执行；{{ .Release.Name }} 输出 release 名，不是空串。', 1);
+  bindOpts('fnOpts', 'a', 'fnResult',
+    '正确！default 是"未定义时兜底"；quote 是加引号不是去引号。',
+    '不对。default 对空字符串也生效（视为缺失）；quote 是给输出加引号。', 2);
+  bindOpts('ovrOpts', 'a', 'ovrResult',
+    '正确！--set 优先级最高，依次覆盖 -f 文件与 values.yaml。',
+    '不对。--set 优先级最高；-f 文件可以覆盖 chart 已有的键。', 3);
+  bindOpts('predOpts', 'a', 'predResult',
+    '正确！模板 + values → image: nginx:1.27，{{ }} 全部被替换。',
+    '不对。{{ }} 是模板占位，渲染后消失；渲染结果完全由模板+values 决定。', 4);
+  bindOpts('relOpts', 'a', 'relResult',
+    '正确！upgrade 更新同一 release，rollback 回滚历史版本，部署历史可查。',
+    '不对。upgrade 复用同一 release 名不新建；rollback 后历史版本仍然保留。', 5);
+  bindOpts('depOpts', 'a', 'depResult',
+    '正确！dependency build 拉依赖到 charts/，父 chart 安装时一起部署。',
+    '不对。依赖由 Helm 声明式管理；子 chart 的 values 可以在父 chart values 中通过子键覆盖。', 6);
+  bindOpts('hookOpts', 'a', 'hookResult',
+    '正确！post-install 是一次性钩子任务（Job），安装后运行。',
+    '不对。hook Job 运行完就结束，不常驻；hook 可挂在 install/upgrade/delete 各阶段。', 7);
+
+  /* ═════════════ 模板渲染器 ═════════════ */
+  function renderTemplate(tmpl, vals) {
+    return tmpl.replace(/\{\{\s*\.Values\.([\w.]+)\s*\}\}/g, function (_, p) {
+      var cur = vals;
+      var parts = p.split('.');
+      for (var i = 0; i < parts.length; i++) {
+        if (cur == null) return '<missing>';
+        cur = cur[parts[i]];
+      }
+      return cur == null ? '<missing>' : String(cur);
+    });
+  }
+  $('tmplBtn').addEventListener('click', function () {
+    var tmpl = $('tmplInput').value;
+    var raw = $('valsInput').value.trim();
+    var out = $('tmplOut');
+    var vals;
+    try { vals = JSON.parse(raw); }
+    catch (e) { out.innerHTML = '<span class="c-err">values 不是合法 JSON</span>'; return; }
+    var rendered = renderTemplate(tmpl, vals);
+    out.innerHTML = '<span class="c-cmd">模板</span>\n' + esc(tmpl) + '\n<span class="c-cmd">渲染结果</span>\n<span class="c-ok">' + esc(rendered) + '</span>';
+  });
+
+  /* ═════════════ 覆盖判读器 ═════════════ */
+  $('ovrBtn').addEventListener('click', function () {
+    var raw = $('ovrInput').value.trim();
+    var out = $('ovrOut');
+    if (!raw) { out.innerHTML = '<span class="c-err">请输入 --set 参数</span>'; return; }
+    var pairs = raw.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    var rows = pairs.map(function (p) {
+      var kv = p.split('=');
+      return '<span class="c-cmd">--set ' + esc(p) + '</span> → 覆盖 <span class="c-ok">' + esc(kv[0] || '') + '</span> = <span class="c-ok">' + esc(kv[1] || '') + '</span>（优先级最高）';
+    });
+    out.innerHTML = rows.join('\n') + '\n<span class="c-warn">注意：--set 会覆盖 values.yaml 与 -f 文件中的同名键，适合 CI 注入。</span>';
+  });
+
+  /* ═════════════ 渲染预测器 ═════════════ */
+  $('predBtn').addEventListener('click', function () {
+    var raw = $('predInput').value.trim();
+    var out = $('predOut');
+    var vals;
+    try { vals = JSON.parse(raw); }
+    catch (e) { out.innerHTML = '<span class="c-err">values 不是合法 JSON</span>'; return; }
+    var repo = (vals.image && vals.image.repo) || '<missing>';
+    var tag = (vals.image && vals.image.tag) || '<missing>';
+    var rep = vals.replicaCount == null ? 1 : vals.replicaCount;
+    out.innerHTML = '<span class="c-cmd">deployment.yaml（模板）</span>\nimage: {{ .Values.image.repo }}:{{ .Values.image.tag }}\nreplicas: {{ .Values.replicaCount | default 1 }}\n<span class="c-cmd">渲染结果</span>\nimage: <span class="c-ok">' + esc(repo) + ':' + esc(tag) + '</span>\nreplicas: <span class="c-ok">' + rep + '</span>';
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'chart 中默认参数放在？', opts: ['Chart.yaml', 'values.yaml', 'templates/', 'charts/'], right: 1, expl: 'values.yaml 存默认参数。' },
+    { q: '{{ .Values.image.repo }} 的作用？', opts: ['注释', '取 image.repo 的值', '定义变量', '导入文件'], right: 1, expl: '模板表达式取 values 值。' },
+    { q: 'tag 未定义时输出 "latest"，用？', opts: ['default "latest" .Values.image.tag', 'quote', 'upper', 'printf'], right: 0, expl: 'default 提供兜底值。' },
+    { q: 'values 覆盖优先级最高的是？', opts: ['values.yaml', '-f 文件', '--set', '父 chart'], right: 2, expl: '--set 优先级最高。' },
+    { q: '模板 image: {{ .Values.repo }}:{{ .Values.tag }}，repo=nginx tag=v1 → 渲染为？', opts: ['原样保留 {{ }}', 'image: nginx:v1', 'image: :', '渲染报错'], right: 1, expl: '占位符全部替换成实际值。' },
+    { q: '回滚 release 到上一版本用？', opts: ['helm uninstall', 'helm rollback', 'helm dependency', 'helm hooks'], right: 1, expl: 'rollback 回滚历史版本。' },
+    { q: '拉取依赖 chart 用？', opts: ['helm install', 'helm dependency build', 'helm status', 'helm diff'], right: 1, expl: 'dependency build 下载依赖。' },
+    { q: 'post-install hook 用于？', opts: ['安装后一次性任务（如初始化数据）', '常驻监控', '删除 release', '回滚'], right: 0, expl: 'hook Job 在安装后执行一次性任务。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Helm 模板与 release 管理。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

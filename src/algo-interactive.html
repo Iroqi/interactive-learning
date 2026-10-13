@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>算法与数据结构基础 交互式学习 · 复杂度评估器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --algo: #e879f9;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(232,121,249,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--algo); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--algo), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--algo); font-size: 17px;
+    border: 1px solid rgba(232,121,249,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #f5d0fe;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #f5d0fe; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(232,121,249,0.06); border: 1px solid rgba(232,121,249,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--algo); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--algo); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--algo);
+    border: 1px solid rgba(232,121,249,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(232,121,249,0.06); border: 1px solid rgba(232,121,249,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--algo); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--algo); color: var(--algo); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS 核心</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>算法与数据结构 <em>基础</em></h1>
+    <p class="subtitle">迷你复杂度评估器 · 估 O()、辨结构 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 复杂度基础 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>时间复杂度：代码会多快？</h2>
+    <p class="lead">大 O 描述<strong>随输入规模 n 增长</strong>的操作次数量级，忽略常数：<code>O(1)</code> 常数时间（一次操作）、<code>O(n)</code> 线性（遍历一遍）、<code>O(log n)</code> 对数（每步砍一半）、<code>O(n²)</code> 平方（双重循环）。</p>
+    <table>
+      <tr><th>复杂度</th><th>含义</th><th>典型</th></tr>
+      <tr><td><code>O(1)</code></td><td>与 n 无关</td><td>数组按下标取值、哈希查找</td></tr>
+      <tr><td><code>O(log n)</code></td><td>每步减半</td><td>二分查找、平衡树</td></tr>
+      <tr><td><code>O(n)</code></td><td>线性扫描</td><td>单层循环、顺序查找</td></tr>
+      <tr><td><code>O(n log n)</code></td><td>分治合并</td><td>快速排序/归并排序</td></tr>
+      <tr><td><code>O(n²)</code></td><td>双重循环</td><td>冒泡/选择排序</td></tr>
+    </table>
+    <h3>练习：复杂度基础</h3>
+    <div class="opts" id="bigoOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="bigo">O(n²) 表示操作次数随 n 平方增长，双重循环常见</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="bigo">O(1) 表示运行时间永远为 1 秒</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="bigo">O(log n) 比 O(n) 慢</label>
+    </div>
+    <div class="result" id="bigoResult"></div>
+  </section>
+
+  <!-- ═══ 2 评估器 1 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>复杂度评估器：线性 vs 二分</h2>
+    <p class="lead">两段代码，分别估出时间复杂度。<strong>两题全对解锁本里程碑。</strong></p>
+    <h3>题 A：数组求和</h3>
+    <pre><span class="key">let</span> sum = 0;
+<span class="key">for</span> (<span class="key">let</span> i = 0; i &lt; n; i++) sum += arr[i];</pre>
+    <div class="opts" id="evAOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="eva">O(1)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="eva">O(n)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="eva">O(n²)</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="eva">O(log n)</label>
+    </div>
+    <div class="result" id="evAResult"></div>
+    <h3>题 B：二分查找（有序数组）</h3>
+    <pre><span class="key">let</span> lo = 0, hi = n - 1;
+<span class="key">while</span> (lo &lt;= hi) {
+  <span class="key">let</span> mid = (lo + hi) &gt;&gt; 1;
+  <span class="key">if</span> (arr[mid] === x) <span class="key">return</span> mid;
+  <span class="key">if</span> (arr[mid] &lt; x) lo = mid + 1; <span class="key">else</span> hi = mid - 1;
+}</pre>
+    <div class="opts" id="evBOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="evb">O(n)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="evb">O(n²)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="evb">O(log n)</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="evb">O(1)</label>
+    </div>
+    <div class="result" id="evBResult"></div>
+  </section>
+
+  <!-- ═══ 3 评估器 2 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>复杂度评估器：嵌套与递归</h2>
+    <p class="lead">嵌套循环乘起来；朴素递归经常是指数。<strong>两题全对解锁本里程碑。</strong></p>
+    <h3>题 A：冒泡排序</h3>
+    <pre><span class="key">for</span> (<span class="key">let</span> i = 0; i &lt; n; i++)
+  <span class="key">for</span> (<span class="key">let</span> j = 0; j &lt; n - 1; j++)
+    <span class="key">if</span> (arr[j] &gt; arr[j + 1]) swap(arr, j, j + 1);</pre>
+    <div class="opts" id="evCOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="evc">O(n log n)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="evc">O(n²)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="evc">O(n)</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="evc">O(log n)</label>
+    </div>
+    <div class="result" id="evCResult"></div>
+    <h3>题 B：朴素斐波那契递归</h3>
+    <pre><span class="key">function</span> fib(n) {
+  <span class="key">return</span> n &lt; 2 ? n : fib(n - 1) + fib(n - 2);
+}</pre>
+    <div class="opts" id="evDOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="evd">O(n)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="evd">O(n²)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="evd">O(2ⁿ) 指数级</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="evd">O(1)</label>
+    </div>
+    <div class="result" id="evDResult"></div>
+  </section>
+
+  <!-- ═══ 4 栈与队列 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>栈与队列：顺序与反转</h2>
+    <p class="lead"><strong>栈</strong> = LIFO（后进先出）：只能从顶进顶出。应用：函数调用栈、浏览器后退、撤销。<strong>队列</strong> = FIFO（先进先出）：队尾入、队头出。应用：任务调度、消息队列、打印机。</p>
+    <pre>stack.push(a); stack.push(b); stack.pop();  <span class="cmt">// 弹出 b（LIFO）</span>
+queue.enq(a); queue.enq(b); queue.deq();     <span class="cmt">// 取出 a（FIFO）</span></pre>
+    <h3>练习：栈与队列</h3>
+    <div class="opts" id="sqOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sq">栈后进先出（LIFO），队列先进先出（FIFO）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sq">栈先进先出</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sq">两者没有区别</label>
+    </div>
+    <div class="result" id="sqResult"></div>
+  </section>
+
+  <!-- ═══ 5 结构辨识 1 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>结构辨识：场景 → 结构</h2>
+    <p class="lead">根据使用场景选对数据结构。<strong>三题全对解锁本里程碑。</strong></p>
+    <h3>场景 A：浏览器"后退"按钮（回到上一个页面）</h3>
+    <div class="opts" id="id1AOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id1a">栈（LIFO：后访问的页先弹出）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id1a">队列（FIFO）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id1a">哈希表</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id1a">二叉树</label>
+    </div>
+    <div class="result" id="id1AResult"></div>
+    <h3>场景 B：打印任务"先提交先打印"</h3>
+    <div class="opts" id="id1BOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id1b">栈</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id1b">队列（FIFO）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id1b">链表</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id1b">图</label>
+    </div>
+    <div class="result" id="id1BResult"></div>
+    <h3>场景 C：统计一篇文章里每个单词出现的次数</h3>
+    <div class="opts" id="id1COpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id1c">栈</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id1c">队列</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id1c">哈希表（键=单词，值=次数）</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id1c">堆</label>
+    </div>
+    <div class="result" id="id1CResult"></div>
+  </section>
+
+  <!-- ═══ 6 哈希与链表 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>哈希表与链表</h2>
+    <p class="lead"><strong>哈希表</strong>：键→值映射，查找/插入<strong>平均 O(1)</strong>（靠哈希函数定位桶）。<strong>链表</strong>：节点串联，在已知位置插入/删除 O(1)，但按下标访问 O(n)。LRU 缓存 = 哈希表 + 双向链表的经典组合。</p>
+    <pre><span class="cmt">// 哈希：O(1) 平均</span>
+cache.get(key); cache.set(key, val);
+
+<span class="cmt">// 链表：已知节点处插入 O(1)，按下标访问 O(n)</span>
+node.next = new Node(x);</pre>
+    <h3>练习：哈希与链表</h3>
+    <div class="opts" id="hlOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="hl">哈希查找平均 O(1)；链表在已知位置插入 O(1)、按下标访问 O(n)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="hl">链表按下标访问也是 O(1)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="hl">哈希表无法按键取值</label>
+    </div>
+    <div class="result" id="hlResult"></div>
+  </section>
+
+  <!-- ═══ 7 结构辨识 2 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>结构辨识：进阶场景</h2>
+    <p class="lead">更难的三题。<strong>全对解锁本里程碑。</strong></p>
+    <h3>场景 A：LRU 缓存（最近最少使用，淘汰时 O(1)）</h3>
+    <div class="opts" id="id2AOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id2a">哈希表 + 双向链表</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id2a">只有数组</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id2a">只有队列</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id2a">二叉树</label>
+    </div>
+    <div class="result" id="id2AResult"></div>
+    <h3>场景 B：游戏排行榜实时取最高分</h3>
+    <div class="opts" id="id2BOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id2b">哈希表</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id2b">栈</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id2b">堆（最大堆：取最大 O(1)）</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id2b">队列</label>
+    </div>
+    <div class="result" id="id2BResult"></div>
+    <h3>场景 C：城市间航线与最短路径</h3>
+    <div class="opts" id="id2COpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="id2c">栈</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="id2c">图（顶点=城市，边=航线）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="id2c">链表</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="id2c">哈希表</label>
+    </div>
+    <div class="result" id="id2CResult"></div>
+  </section>
+
+  <!-- ═══ 8 树与图 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>树与图：层级与关系</h2>
+    <p class="lead"><strong>二叉树</strong>：每个节点最多两个孩子；遍历有前序/中序/后序。<strong>二叉搜索树</strong>：左小右大，查找 O(log n)（平衡时）。<strong>图</strong>：顶点+边，表示任意关系；<strong>BFS</strong> 逐层扩散（最短路径）、<strong>DFS</strong> 一路深入。树 = 无环连通图。</p>
+    <pre>       5
+      / \
+     3   8      <span class="cmt">// 二叉搜索树：左 < 根 < 右</span>
+    / \   \
+   1   4   9</pre>
+    <h3>练习：树与图</h3>
+    <div class="opts" id="tgOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="tg">平衡二叉搜索树查找 O(log n)；BFS 适合最短路径，树是无环图</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="tg">树的查找永远 O(n)</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="tg">图里不能有环</label>
+    </div>
+    <div class="result" id="tgResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：复杂度 → 线性/二分 → 嵌套/递归 → 栈队列 → 场景辨识 → 哈希链表 → 进阶辨识 → 树图 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 刷题前先写"预估复杂度"再写代码，养成 O() 直觉；<br>
+      ② 遇到"取最大/最小频繁"想堆、"键值查找"想哈希、"回溯"想栈；<br>
+      ③ 用 BFS 解最短步数、DFS 解可达性，感受两种遍历；<br>
+      ④ 把 LeetCode 简单题按数据结构归类，各挑 5 题吃透。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">算法与数据结构 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'algo';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 复杂度基础正确
+     1 评估器 1（A+B 全对）
+     2 评估器 2（C+D 全对）
+     3 栈/队列正确
+     4 辨识 1（三题全对）
+     5 哈希/链表正确
+     6 辨识 2（三题全对）
+     7 树/图正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx, onRight) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (onRight) onRight();
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('bigoOpts', 'a', 'bigoResult',
+    '正确！O(n²) = 平方增长（双重循环）；O(log n) 比 O(n) 快得多。',
+    '不对。O(1) 是常数级操作数；O(log n) 每步减半，远快于 O(n)。', 0);
+
+  /* 评估器 1：两题全对 → 里程碑 1 */
+  var ev1 = 0;
+  bindOpts('evAOpts', 'b', 'evAResult', '✓ O(n)：循环 n 次，操作数线性增长。', '✗ 单层循环遍历 n 个元素 = O(n)。', -1, function () { ev1++; });
+  bindOpts('evBOpts', 'c', 'evBResult', '✓ O(log n)：每步把搜索区间砍半。', '✗ 二分每轮区间减半，是 O(log n)。', -1, function () {
+    ev1++;
+    if (ev1 === 2) completeMilestone(1);
+  });
+
+  /* 评估器 2：两题全对 → 里程碑 2 */
+  var ev2 = 0;
+  bindOpts('evCOpts', 'b', 'evCResult', '✓ O(n²)：内外两层都遍历 n。', '✗ 双重循环 n×n = O(n²)。', -1, function () { ev2++; });
+  bindOpts('evDOpts', 'c', 'evDResult', '✓ O(2ⁿ)：每个调用分裂成两个，指数爆炸。', '✗ 朴素递归 fib 每层翻倍分支，是 O(2ⁿ)。', -1, function () {
+    ev2++;
+    if (ev2 === 2) completeMilestone(2);
+  });
+
+  bindOpts('sqOpts', 'a', 'sqResult',
+    '正确！栈 LIFO（后退/撤销），队列 FIFO（任务/打印）。',
+    '不对。栈是后进先出，队列是先进先出。', 3);
+  bindOpts('hlOpts', 'a', 'hlResult',
+    '正确！哈希查找平均 O(1)；链表插入删除 O(1)（已知位置）、按下标访问 O(n)。',
+    '不对。链表按索引访问要逐节点走，是 O(n)。', 5);
+  bindOpts('tgOpts', 'a', 'tgResult',
+    '正确！平衡 BST 查找 O(log n)；BFS 逐层扩散适合最短路径；树是无环连通图。',
+    '不对。平衡 BST 是 O(log n)；图允许有环（有环图）。', 7);
+
+  /* 结构辨识 1：三题全对 → 里程碑 4 */
+  var id1 = 0;
+  [['id1AOpts', 'a', 'id1AResult', '✓ 后退 = 栈：后访问的页先弹出。'],
+   ['id1BOpts', 'b', 'id1BResult', '✓ 打印任务 = 队列：先到先出。'],
+   ['id1COpts', 'c', 'id1CResult', '✓ 词频统计 = 哈希表：键值映射。']].forEach(function (cfg) {
+    bindOpts(cfg[0], cfg[1], cfg[2], cfg[3], '✗ 再想想这个场景的"进出顺序/查找需求"。', -1, function () {
+      id1++;
+      if (id1 === 3) completeMilestone(4);
+    });
+  });
+
+  /* 结构辨识 2：三题全对 → 里程碑 6 */
+  var id2 = 0;
+  [['id2AOpts', 'a', 'id2AResult', '✓ LRU = 哈希表（O(1) 查找）+ 双向链表（O(1) 移动淘汰）。'],
+   ['id2BOpts', 'c', 'id2BResult', '✓ 排行榜 = 堆：取最大/最小 O(1)，插入 O(log n)。'],
+   ['id2COpts', 'b', 'id2CResult', '✓ 航线 = 图：顶点 + 边，最短路径用 BFS/Dijkstra。']].forEach(function (cfg) {
+    bindOpts(cfg[0], cfg[1], cfg[2], cfg[3], '✗ 再想想哪个结构能同时满足"查找快 + 顺序/层级需求"。', -1, function () {
+      id2++;
+      if (id2 === 3) completeMilestone(6);
+    });
+  });
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '单层循环遍历数组，复杂度是？', opts: ['O(1)', 'O(n)', 'O(n²)', 'O(log n)'], right: 1, expl: '遍历 n 个元素 = O(n)。' },
+    { q: '二分查找的复杂度是？', opts: ['O(n)', 'O(log n)', 'O(n²)', 'O(1)'], right: 1, expl: '每步砍半 = O(log n)。' },
+    { q: '双重循环的复杂度是？', opts: ['O(n)', 'O(n log n)', 'O(n²)', 'O(2ⁿ)'], right: 2, expl: 'n×n = O(n²)。' },
+    { q: '浏览器"后退"按钮用哪种结构？', opts: ['队列', '栈', '哈希表', '堆'], right: 1, expl: '后进先出 = 栈。' },
+    { q: '打印任务先到先出，用哪种结构？', opts: ['栈', '队列', '二叉树', '图'], right: 1, expl: '先进先出 = 队列。' },
+    { q: '统计单词出现次数，最适合？', opts: ['数组', '链表', '哈希表', '堆'], right: 2, expl: '键值映射 = 哈希表。' },
+    { q: '哈希表查找的平均复杂度是？', opts: ['O(n)', 'O(log n)', 'O(1)', 'O(n²)'], right: 2, expl: '哈希函数直接定位桶，平均 O(1)。' },
+    { q: 'LRU 缓存的经典实现组合是？', opts: ['数组+栈', '哈希表+双向链表', '队列+树', '堆+图'], right: 1, expl: '哈希查 O(1) + 链表移 O(1)。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握算法与数据结构的核心概念。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git 版本控制 · 互动学习</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --git: #f05133;
+    --branch: #9f7bf0;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(240,81,51,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(159,123,240,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Masthead ── */
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--git); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--git), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted); font-family: var(--mono);
+  }
+  .done-badge { color: var(--ok); font-weight: 700; }
+  .hidden { display: none !important; }
+
+  /* ── Page ── */
+  .page { position: relative; z-index: 1; max-width: 940px; margin: 0 auto; padding: 18px 24px 90px; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 26px 28px; margin-bottom: 22px;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  h2 {
+    font-size: 1.35em; margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  h2 .num {
+    background: var(--git); color: #fff; width: 30px; height: 30px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.8em; font-weight: 700; flex-shrink: 0;
+  }
+  h3 { font-size: 1.08em; margin: 18px 0 10px; color: var(--info); }
+  .lead { color: var(--dim); margin-bottom: 14px; font-size: 0.95em; }
+
+  .insight {
+    background: rgba(212,168,83,0.08); border-left: 4px solid var(--accent);
+    padding: 13px 17px; margin: 14px 0; border-radius: 4px; font-size: 0.92em;
+  }
+  .insight strong { color: var(--accent); }
+  .warn {
+    background: rgba(239,71,111,0.08); border-left: 4px solid var(--bad);
+    padding: 12px 16px; margin: 12px 0; border-radius: 4px; font-size: 0.9em;
+  }
+  .warn strong { color: var(--bad); }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--raise); border: 1px solid var(--border);
+    border-radius: 5px; padding: 1px 6px; color: #ffd9c9;
+  }
+  pre.code {
+    font-family: var(--mono); font-size: 0.84em; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #d8dee9; margin: 12px 0;
+  }
+  pre.code .c { color: #5c6578; }
+  pre.code .k { color: #f05133; }
+  pre.code .s { color: #a5e075; }
+  pre.code .v { color: #e6e9ef; }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .pill-tag {
+    font-family: var(--mono); font-size: 0.78em; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 999px; color: var(--dim); background: var(--raise);
+  }
+  .pill-tag b { color: var(--accent); }
+
+  /* ── Buttons ── */
+  .btn {
+    font-family: var(--body); font-size: 0.85em; font-weight: 600;
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--raise); color: var(--text); cursor: pointer;
+    transition: all 0.2s; margin: 4px 6px 4px 0;
+  }
+  .btn:hover { border-color: var(--line); background: #222b3d; }
+  .btn.primary { background: var(--git); border-color: var(--git); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .btn-sm { padding: 4px 10px; font-size: 0.78em; margin: 2px 4px 2px 0; }
+
+  /* ── Staging sim ── */
+  .sim {
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin: 14px 0;
+  }
+  .sim-title { font-size: 0.8em; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 720px) { .three-col { grid-template-columns: 1fr; } }
+  .col {
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+  }
+  .col h4 { font-size: 0.78em; color: var(--dim); margin-bottom: 10px; text-align: center; letter-spacing: 1px; }
+  .file-chip {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 0.75em;
+    background: #0e131c; border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 9px; margin-bottom: 7px;
+  }
+  .file-chip .st-name { color: #cdd5e1; }
+  .file-chip .st-v { color: var(--muted); }
+  .st-badge { font-size: 0.68em; padding: 2px 6px; border-radius: 4px; font-family: var(--mono); }
+  .st-clean  { background: rgba(52,211,153,0.12); color: var(--ok); }
+  .st-mod    { background: rgba(240,81,51,0.14); color: #ff9d84; }
+  .st-staged { background: rgba(90,162,255,0.14); color: var(--info); }
+  .st-empty  { background: transparent; color: var(--muted); border: 1px dashed var(--border); justify-content: center; font-family: var(--body); font-size: 0.72em; padding: 10px; }
+
+  .sim-log {
+    font-family: var(--mono); font-size: 0.76em; color: var(--dim);
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; margin-top: 12px; min-height: 64px; max-height: 140px; overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .sim-log .ok { color: var(--ok); }
+  .sim-log .err { color: var(--bad); }
+
+  /* ── Graph sim ── */
+  .graph-wrap { background: #0b0e14; border: 1px solid var(--border); border-radius: 10px; padding: 10px; overflow-x: auto; }
+  .graph-wrap svg { display: block; min-width: 560px; }
+  .graph-ctl { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; margin: 10px 0; }
+  .graph-ctl .ctl-group { display: flex; align-items: center; gap: 6px; margin-right: 14px; flex-wrap: wrap; }
+  .ctl-label { font-size: 0.72em; color: var(--muted); }
+  input[type=text], input[type=search] {
+    font-family: var(--mono); font-size: 0.8em; color: var(--text);
+    background: var(--raise); border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; outline: none; width: 170px;
+  }
+  input:focus { border-color: rgba(240,81,51,0.5); }
+  select {
+    font-family: var(--mono); font-size: 0.8em; color: var(--text);
+    background: var(--raise); border: 1px solid var(--border); border-radius: 6px; padding: 7px 8px; outline: none;
+  }
+
+  /* ── Exercises ── */
+  .exercise {
+    border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 14px 0;
+    background: rgba(27,34,48,0.5);
+  }
+  .ex-title { font-weight: 700; font-size: 0.92em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .ex-title .tag { font-size: 0.68em; color: var(--accent); border: 1px solid rgba(212,168,83,0.4); padding: 2px 7px; border-radius: 999px; font-weight: 600; }
+
+  .order-list { list-style: none; margin: 10px 0; }
+  .order-list li {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 0.82em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; margin-bottom: 8px;
+  }
+  .order-list .idx { color: var(--muted); width: 20px; text-align: center; }
+  .order-list .arrows { margin-left: auto; display: flex; gap: 4px; }
+
+  .opt-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; margin: 6px 0; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--raise); font-size: 0.88em; transition: border-color 0.2s; }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--git); }
+  .opt-row.correct { border-color: var(--ok); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: var(--bad); background: rgba(239,71,111,0.07); }
+  .opt-row.disabled { pointer-events: none; }
+
+  .result {
+    margin-top: 12px; padding: 11px 14px; border-radius: 8px; font-size: 0.88em; display: none;
+  }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.1); border-left: 4px solid var(--ok); color: var(--ok); }
+  .result.err { background: rgba(239,71,111,0.1); border-left: 4px solid var(--bad); color: #ffb4c8; }
+  .result.info { background: rgba(90,162,255,0.1); border-left: 4px solid var(--info); color: #bfdcff; }
+
+  .hint-box { display: none; margin-top: 10px; font-size: 0.84em; color: var(--dim); background: var(--raise); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; }
+  .hint-box.open { display: block; }
+
+  /* ── Object model svg ── */
+  .obj-svg { width: 100%; max-width: 760px; margin: 12px auto; display: block; }
+
+  /* ── Remote diagram ── */
+  .remote-diagram {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 10px; margin: 14px 0;
+  }
+  .remote-node {
+    flex: 1; text-align: center; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 10px;
+  }
+  .remote-node b { display: block; font-size: 0.95em; margin-bottom: 4px; }
+  .remote-node span { font-size: 0.72em; color: var(--muted); }
+  .remote-link { font-family: var(--mono); font-size: 0.7em; color: var(--accent); text-align: center; line-height: 1.9; flex-shrink: 0; }
+
+  /* ── Cheat sheet ── */
+  .cheat-search { margin-bottom: 12px; }
+  .cheat-table { width: 100%; border-collapse: collapse; font-size: 0.84em; }
+  .cheat-table th {
+    text-align: left; font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line);
+  }
+  .cheat-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .cheat-table tr.hidden-row { display: none; }
+  .cheat-table code { background: transparent; border: none; padding: 0; color: #ffd9c9; }
+
+  /* ── Quiz ── */
+  .quiz-box { margin-top: 12px; }
+  .quiz-q { margin-bottom: 22px; }
+  .quiz-q .q-title { font-weight: 700; font-size: 0.95em; margin-bottom: 10px; }
+  .quiz-q .q-title .q-num { color: var(--accent); font-family: var(--mono); margin-right: 8px; }
+  .quiz-score {
+    text-align: center; padding: 22px; background: var(--raise); border: 1px solid var(--line);
+    border-radius: 12px; margin-top: 14px;
+  }
+  .quiz-score .score-num { font-size: 2.2em; font-weight: 800; font-family: var(--mono); color: var(--git); }
+  .quiz-score p { font-size: 0.9em; color: var(--dim); margin-top: 6px; }
+
+  /* ── Bottom nav ── */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: rgba(14,17,23,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 940px; margin: 0 auto; padding: 10px 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--raise); border: 1px solid var(--border); color: var(--text);
+    font-size: 0.82em; font-weight: 600; padding: 9px 18px; border-radius: 8px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--line); background: #222b3d; }
+  .nav-btn svg { width: 13px; height: 13px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 0.72em; color: var(--muted); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    background: var(--raise); border: 1px solid var(--line); color: var(--text);
+    font-size: 0.84em; padding: 10px 20px; border-radius: 999px; z-index: 30;
+    opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none; box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  .footer { text-align: center; padding: 14px 20px 78px; font-size: 10px; color: var(--muted); letter-spacing: 1.5px; }
+
+  ::-webkit-scrollbar { width: 7px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  ::selection { background: rgba(240,81,51,0.3); }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-top">
+    <span class="badge">VERSION CONTROL</span>
+    <span class="mast-count" id="stepLabel">1 / 13</span>
+  </div>
+  <h1>Git <em>版本控制</em></h1>
+  <p class="subtitle">从对象模型到团队协作 —— 交互式学习</p>
+  <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+  <div class="progress-meta">
+    <span id="progressLabel">0 / 9 里程碑</span>
+    <span id="doneBadge" class="done-badge hidden">全部完成 ✓</span>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ═══ 01 为什么需要版本控制 ═══ -->
+  <section class="step">
+    <h2><span class="num">01</span>为什么需要版本控制</h2>
+    <p class="lead">版本控制是"给代码拍快照 + 记录快照之间的关系"。没有它，你会陷入 <code>final_v2_really_backup(3).py</code> 的泥潭。</p>
+    <div class="insight"><strong>核心心智模型：</strong>Git 保存的是<strong>完整快照（snapshot）</strong>，而不是"文件差异"。每次提交都是一次完整的项目快照，只是 Git 用智能的存储方式让它们共享未变化的文件。</div>
+    <div class="pill-row">
+      <span class="pill-tag">随时<strong>回退</strong>到任意历史版本</span>
+      <span class="pill-tag"><b>并行</b>开发而不互相踩踏</span>
+      <span class="pill-tag">记录<b>谁在何时</b>改了什么</span>
+      <span class="pill-tag">异地<b>协作</b>与备份</span>
+    </div>
+    <pre class="code"><span class="c"># 没有版本控制的日常</span>
+proposal_final.docx
+proposal_final_v2.docx
+proposal_final_v2_really.docx
+proposal_final_v3_FINAL.docx
+proposal_FINAL_USE_THIS.docx
+
+<span class="c"># 有 Git 之后，一个文件就够了</span>
+<span class="k">git</span> commit -m <span class="s">"proposal: 补充预算说明"</span>
+<span class="k">git</span> log --oneline   <span class="c"># 历史一目了然</span></pre>
+  </section>
+
+  <!-- ═══ 02 对象模型 ═══ -->
+  <section class="step">
+    <h2><span class="num">02</span>Git 的对象模型</h2>
+    <p class="lead">理解 Git 的关键：一切都是<strong>内容寻址</strong>的对象 —— 对象的唯一标识就是其内容的哈希值（SHA-1，显示为 40 位十六进制，通常缩写为 7 位）。</p>
+
+    <svg class="obj-svg" viewBox="0 0 760 210" role="img" aria-label="blob tree commit 对象关系图">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0 L8,3.5 L0,7 Z" fill="#5c6578"/>
+        </marker>
+      </defs>
+      <!-- blob -->
+      <rect x="20" y="30" width="170" height="72" rx="10" fill="#1b2230" stroke="#2f394d"/>
+      <text x="105" y="54" text-anchor="middle" fill="#e6e9ef" font-size="13" font-weight="700">blob（文件内容）</text>
+      <text x="105" y="76" text-anchor="middle" fill="#99a3b5" font-size="10" font-family="monospace">app.js 第 3 版内容</text>
+      <text x="105" y="92" text-anchor="middle" fill="#f05133" font-size="10" font-family="monospace">hash: 3a5c8e...</text>
+      <!-- tree -->
+      <rect x="295" y="30" width="170" height="72" rx="10" fill="#1b2230" stroke="#2f394d"/>
+      <text x="380" y="54" text-anchor="middle" fill="#e6e9ef" font-size="13" font-weight="700">tree（目录结构）</text>
+      <text x="380" y="76" text-anchor="middle" fill="#99a3b5" font-size="10" font-family="monospace">app.js → 3a5c8e...</text>
+      <text x="380" y="92" text-anchor="middle" fill="#99a3b5" font-size="10" font-family="monospace">readme.md → b2f1d0...</text>
+      <!-- commit -->
+      <rect x="570" y="30" width="170" height="72" rx="10" fill="#1b2230" stroke="#f05133"/>
+      <text x="655" y="54" text-anchor="middle" fill="#e6e9ef" font-size="13" font-weight="700">commit（快照）</text>
+      <text x="655" y="76" text-anchor="middle" fill="#99a3b5" font-size="10" font-family="monospace">tree + 作者 + 时间 + 消息</text>
+      <text x="655" y="92" text-anchor="middle" fill="#d4a853" font-size="10" font-family="monospace">commit hash: 9f2ab1</text>
+      <!-- arrows -->
+      <line x1="195" y1="66" x2="288" y2="66" stroke="#5c6578" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="470" y1="66" x2="563" y2="66" stroke="#5c6578" stroke-width="1.5" marker-end="url(#arr)"/>
+      <!-- chain -->
+      <rect x="570" y="150" width="170" height="40" rx="8" fill="#1b2230" stroke="#2f394d"/>
+      <text x="655" y="175" text-anchor="middle" fill="#99a3b5" font-size="10" font-family="monospace">parent: 7c4de9（上一个提交）</text>
+      <line x1="655" y1="108" x2="655" y2="143" stroke="#5c6578" stroke-width="1.5" marker-end="url(#arr)"/>
+    </svg>
+
+    <div class="insight"><strong>为什么"内容寻址"很酷：</strong>内容一变，哈希就变 → 对象不可变 → 任何提交的历史都<strong>不可能被篡改</strong>。分支其实只是一个<strong>指向提交的指针</strong>，创建分支几乎零成本。</div>
+    <div class="warn"><strong>常见误解：</strong>Git 不是"只保存差异"（那样历史会纠缠不清），而是保存快照并复用未变化的 blob/tree —— 所以仓库再大，只改一个文件也几乎不增加体积。</div>
+  </section>
+
+  <!-- ═══ 03 三区模型 ═══ -->
+  <section class="step">
+    <h2><span class="num">03</span>工作区 · 暂存区 · 仓库</h2>
+    <p class="lead">Git 有三个区域，文件在它们之间流动：<code>工作区</code>（你看到的文件）→ <code>暂存区</code>（git add 放入）→ <code>仓库</code>（git commit 固化快照）。下面动手演练。</p>
+
+    <div class="sim">
+      <div class="sim-title">三区演练 · 把修改提交成一次快照</div>
+      <div class="three-col" id="stageCols"></div>
+      <div style="margin-top:12px">
+        <button class="btn btn-sm" onclick="stageModify('app.js')">修改 app.js</button>
+        <button class="btn btn-sm" onclick="stageModify('README.md')">修改 README.md</button>
+        <button class="btn btn-sm" onclick="stageModify('config.json')">修改 config.json</button>
+        <button class="btn btn-sm primary" onclick="stageAdd('app.js')">git add app.js</button>
+        <button class="btn btn-sm primary" onclick="stageAdd('README.md')">git add README.md</button>
+        <button class="btn btn-sm primary" onclick="stageAdd('config.json')">git add config.json</button>
+        <button class="btn btn-sm" onclick="stageRevert('app.js')">撤销修改 app.js</button>
+        <button class="btn btn-sm primary" onclick="stageCommit()">git commit -m "..."</button>
+        <button class="btn btn-sm ghost" onclick="toggleStageHint()">需要提示？</button>
+      </div>
+      <div class="hint-box" id="stageHint">把 3 个文件都修改 → 都 git add → git commit，让三个区域回到"干净"状态，即可解锁本步里程碑。</div>
+      <div class="sim-log" id="stageLog"></div>
+    </div>
+
+    <pre class="code"><span class="k">git</span> add index.html   <span class="c"># 把文件快照放入暂存区</span>
+<span class="k">git</span> status          <span class="c"># 查看三区状态（练习里会频繁用到）</span>
+<span class="k">git</span> commit -m <span class="s">"message"</span>  <span class="c"># 把暂存区固化为一次提交</span></pre>
+  </section>
+
+  <!-- ═══ 04 第一次提交 ═══ -->
+  <section class="step">
+    <h2><span class="num">04</span>第一次提交：命令顺序</h2>
+    <p class="lead">新手最容易犯的错误：<code>git init</code> 之后直接 <code>git commit</code> —— 会报错 "nothing to commit"。正确顺序是：初始化 → 查看状态 → 暂存 → 提交。</p>
+
+    <div class="exercise">
+      <div class="ex-title"><span class="tag">练习</span>把下面 4 条命令排成正确的执行顺序</div>
+      <ul class="order-list" id="orderList"></ul>
+      <button class="btn primary" onclick="checkOrder()">检查顺序</button>
+      <button class="btn ghost" onclick="toggleHint('orderHint')">提示</button>
+      <div class="hint-box" id="orderHint">想一想：哪条命令创建仓库？哪条命令确认状态？哪条命令把文件放入暂存区？最后才提交。</div>
+      <div class="result" id="orderResult"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 05 提交历史 ═══ -->
+  <section class="step">
+    <h2><span class="num">05</span>提交历史与 log</h2>
+    <p class="lead">每次提交都挂在父提交后面，形成一条<strong>单向链表</strong>。用 <code>git log --oneline</code> 从最新往旧看。</p>
+
+    <div class="sim">
+      <div class="sim-title">提交图模拟器 · 先初始化并做几次提交</div>
+      <div class="graph-ctl">
+        <div class="ctl-group">
+          <span class="ctl-label">提交信息</span>
+          <input type="text" id="cmtMsg" value="feat: 添加用户登录" />
+          <button class="btn btn-sm primary" onclick="doCommit()">提交 (git commit)</button>
+        </div>
+        <div class="ctl-group">
+          <button class="btn btn-sm" onclick="initRepo()">初始化仓库</button>
+          <button class="btn btn-sm ghost" onclick="resetGraph()">重置模拟</button>
+        </div>
+      </div>
+      <div class="graph-wrap" id="graphWrap"></div>
+      <div class="sim-log" id="graphLog"></div>
+    </div>
+
+    <div class="insight"><strong>记住：</strong>提交数量 ≥ 3 次即可解锁本步里程碑。之后你会看到 HEAD 如何沿着 main 前进。</div>
+  </section>
+
+  <!-- ═══ 06 分支 ═══ -->
+  <section class="step">
+    <h2><span class="num">06</span>分支：并行世界</h2>
+    <p class="lead">分支 = <strong>指向提交的可移动指针</strong>。切换分支只是把 HEAD 移到另一条指针上，工作区内容随之改变。</p>
+
+    <div class="sim">
+      <div class="sim-title">分支模拟 · 创建 feature 分支并在其上提交</div>
+      <div class="graph-ctl">
+        <div class="ctl-group">
+          <span class="ctl-label">新分支名</span>
+          <input type="text" id="brName" value="feature" />
+          <button class="btn btn-sm primary" onclick="doBranch()">创建分支</button>
+        </div>
+        <div class="ctl-group">
+          <span class="ctl-label">切换到</span>
+          <select id="brSwitch" onchange="doSwitch()"></select>
+          <button class="btn btn-sm" onclick="doCommit()">在选中分支上提交</button>
+        </div>
+        <div class="ctl-group">
+          <button class="btn btn-sm primary" onclick="doMerge()">合并另一分支</button>
+        </div>
+      </div>
+      <div class="graph-wrap" id="graphWrap2"></div>
+      <div class="sim-log" id="graphLog2"></div>
+    </div>
+
+    <div class="warn"><strong>注意：</strong>创建分支后记得用下拉框<strong>切换到 feature</strong>，再提交几次 —— 这样 main 和 feature 才会分道扬镳，随后合并才有意义。</div>
+    <div class="insight"><strong>里程碑条件：</strong>创建分支 + 在 feature 上提交 + 最后把分支合并回 main，即可依次解锁 06、07 两步。</div>
+  </section>
+
+  <!-- ═══ 07 合并与冲突 ═══ -->
+  <section class="step">
+    <h2><span class="num">07</span>合并与冲突</h2>
+    <p class="lead">合并 = 把两个分支的历史接起来。两种情况：<strong>快进合并</strong>（main 没有新提交，直接平移指针）和<strong>三方合并</strong>（需要创建合并提交）。当两个分支修改了<strong>同一文件的同一行</strong>，就会冲突。</p>
+
+    <pre class="code"><span class="k">git</span> merge feature
+<span class="c"># 冲突时文件里出现标记：</span>
+<span class="v">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</span>
+<span class="s">print("版本1")</span>
+<span class="v">=======</span>
+<span class="s">print("版本2")</span>
+<span class="v">&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature</span></pre>
+
+    <div class="exercise">
+      <div class="ex-title"><span class="tag">练习</span>遇到上面的冲突，正确做法是？</div>
+      <div id="conflictOpts"></div>
+      <div class="result" id="conflictResult"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 08 撤销与回退 ═══ -->
+  <section class="step">
+    <h2><span class="num">08</span>撤销与回退</h2>
+    <p class="lead">Git 的"撤销"分三层：<strong>工作区</strong>（未暂存）、<strong>暂存区</strong>、<strong>已提交的历史</strong>。选对命令取决于你想退到哪一层、以及历史能否重写。</p>
+
+    <div class="pill-row">
+      <span class="pill-tag">丢弃工作区修改 → <b>git checkout -- &lt;file&gt;</b></span>
+      <span class="pill-tag">撤出暂存区 → <b>git restore --staged &lt;file&gt;</b></span>
+      <span class="pill-tag">回退已提交历史 → <b>git reset</b> / <b>git revert</b></span>
+    </div>
+
+    <div class="exercise">
+      <div class="ex-title"><span class="tag">练习</span>场景：你在 main 上提交了 bug 版本 <code>abc1234</code>，它已推送到远程，同事可能已基于它开发。你想"撤销这次提交但保留历史"，用哪条命令？</div>
+      <div id="undoOpts"></div>
+      <div class="result" id="undoResult"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 09 远程协作 ═══ -->
+  <section class="step">
+    <h2><span class="num">09</span>远程与协作</h2>
+    <p class="lead">远程仓库是大家共享的"官方副本"。你的提交先到<strong>本地仓库</strong>，再 push 到远程；别人的更新用 pull 拿回来。</p>
+
+    <div class="remote-diagram">
+      <div class="remote-node">
+        <b>工作区</b><span>你正在编辑的文件</span>
+      </div>
+      <div class="remote-link">git add / commit<br/>→ 提交到本地</div>
+      <div class="remote-node">
+        <b>本地仓库</b><span>你的提交历史</span>
+      </div>
+      <div class="remote-link">git push ⇄ git pull<br/>(pull = fetch + merge)</div>
+      <div class="remote-node">
+        <b>远程仓库</b><span>GitHub / 团队共享</span>
+      </div>
+    </div>
+
+    <div class="exercise">
+      <div class="ex-title"><span class="tag">练习</span>`git pull` 实际等价于哪两条命令的组合？</div>
+      <div id="pullOpts"></div>
+      <div class="result" id="pullResult"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 10 .gitignore ═══ -->
+  <section class="step">
+    <h2><span class="num">10</span>.gitignore：忽略不该入库的文件</h2>
+    <p class="lead">依赖目录、构建产物、本地密钥、日志都不该提交。用 <code>.gitignore</code> 声明忽略规则，<code>git status</code> 立刻清爽。</p>
+
+    <pre class="code"><span class="c"># .gitignore 示例</span>
+<span class="v">node_modules/</span>    <span class="c"># 依赖，可随时重装</span>
+<span class="v">dist/</span>             <span class="c"># 构建产物</span>
+<span class="v">*.log</span>             <span class="c"># 日志</span>
+<span class="v">.env</span>              <span class="c"># 密钥，绝不入库</span></pre>
+
+    <div class="exercise">
+      <div class="ex-title"><span class="tag">练习</span>一个 Node.js 项目里，哪些内容应该写进 .gitignore？（多选）</div>
+      <div id="giOpts"></div>
+      <button class="btn primary" onclick="checkGitignore()">检查</button>
+      <div class="result" id="giResult"></div>
+    </div>
+  </section>
+
+  <!-- ═══ 11 命令速查 ═══ -->
+  <section class="step">
+    <h2><span class="num">11</span>命令速查表</h2>
+    <p class="lead">输入关键词过滤，随用随查。</p>
+    <div class="cheat-search">
+      <input type="search" id="cheatInput" placeholder="搜索命令，如 merge / 撤销 / 远程..." style="width:100%">
+    </div>
+    <table class="cheat-table" id="cheatTable">
+      <thead><tr><th style="width:34%">命令</th><th>作用 / 示例</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- ═══ 12 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">12</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 13 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">13</span>下一步</h2>
+    <p class="lead">你已经走完：对象模型 → 三区流动 → 提交 → 分支 → 合并 → 撤销 → 协作 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 <code>git init</code> 给一个小项目建档，认真写提交信息；<br>
+      ② 用 <code>git branch</code> 建一个 feature 分支，做完功能再 <code>git merge</code>；<br>
+      ③ 把项目推到 GitHub，用 <code>git pull</code> 体验一次协作闭环；<br>
+      ④ 遇到问题先 <code>git status</code> + <code>git log --oneline</code> —— 它们能回答 80% 的疑问。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 13</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">GIT 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  /* ═══════════════ helpers ═══════════════ */
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'git';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 三区演练完成
+     1 命令排序正确
+     2 提交图 ≥3 次提交
+     3 分支创建并在 feature 上提交
+     4 完成合并
+     5 冲突练习正确
+     6 撤销练习正确
+     7 .gitignore 练习正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ staging sim ═══════════════ */
+  var files = {
+    'app.js':     { wt: 1, st: null, head: 1 },
+    'README.md':  { wt: 1, st: null, head: 1 },
+    'config.json':{ wt: 1, st: null, head: 1 }
+  };
+  var stageHistory = [];
+
+  function stageStatus(f) {
+    if (f.st !== null && f.wt === f.st) return 'staged';
+    if (f.wt !== f.head) return 'mod';
+    return 'clean';
+  }
+
+  function renderStage() {
+    var cols = $('stageCols');
+    var names = Object.keys(files);
+    var html = '';
+    ['工作区', '暂存区', '仓库 HEAD'].forEach(function (title, ci) {
+      html += '<div class="col"><h4>' + title + '</h4>';
+      names.forEach(function (n) {
+        var f = files[n];
+        if (ci === 0) {
+          var st = stageStatus(f);
+          var badge = st === 'staged' ? '<span class="st-badge st-staged">已暂存</span>'
+                    : st === 'mod'    ? '<span class="st-badge st-mod">已修改</span>'
+                    : '<span class="st-badge st-clean">无变化</span>';
+          html += '<div class="file-chip"><span class="st-name">' + esc(n) + '</span><span class="st-v">v' + f.wt + '</span>' + badge + '</div>';
+        } else if (ci === 1) {
+          if (f.st !== null) html += '<div class="file-chip"><span class="st-name">' + esc(n) + '</span><span class="st-v">v' + f.st + '</span><span class="st-badge st-staged">快照</span></div>';
+          else html += '<div class="st-empty">— 空 —</div>';
+        } else {
+          html += '<div class="file-chip"><span class="st-name">' + esc(n) + '</span><span class="st-v">v' + f.head + '</span></div>';
+        }
+      });
+      html += '</div>';
+    });
+    cols.innerHTML = html;
+
+    var log = $('stageLog');
+    log.innerHTML = stageHistory.map(function (l) { return l; }).join('\n') || '$ 还没有操作';
+    checkStageMilestone();
+  }
+
+  function pushLog(line, cls) {
+    stageHistory.push('<span class="' + cls + '">' + esc(line) + '</span>');
+    if (stageHistory.length > 40) stageHistory.shift();
+    var log = $('stageLog');
+    log.innerHTML = stageHistory.join('\n');
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function checkStageMilestone() {
+    var allClean = Object.keys(files).every(function (n) {
+      var f = files[n];
+      return f.st === null && f.wt === f.head && f.head >= 2;
+    });
+    if (allClean) completeMilestone(0);
+  }
+
+  window.stageModify = function (n) {
+    var f = files[n];
+    if (f.st !== null) { toast('已暂存的内容要先提交或撤销，再修改'); return; }
+    f.wt++;
+    pushLog('$ 编辑 ' + n + '  (工作区 v' + f.wt + ')', 'ok');
+    renderStage();
+  };
+  window.stageAdd = function (n) {
+    var f = files[n];
+    if (f.st !== null && f.st === f.wt) { toast(n + ' 已经在暂存区'); return; }
+    f.st = f.wt;
+    pushLog('$ git add ' + n + '  (暂存区 v' + f.st + ')', 'ok');
+    renderStage();
+  };
+  window.stageRevert = function (n) {
+    var f = files[n];
+    var base = (f.st !== null ? f.st : f.head);
+    if (f.wt === base) { toast(n + ' 没有未保存的修改'); return; }
+    f.wt = base;
+    pushLog('$ git checkout -- ' + n + '  (工作区已还原)', 'err');
+    renderStage();
+  };
+  window.stageCommit = function () {
+    var any = Object.keys(files).some(function (n) { return files[n].st !== null; });
+    if (!any) { toast('暂存区是空的，先 git add 吧'); return; }
+    Object.keys(files).forEach(function (n) {
+      var f = files[n];
+      if (f.st !== null) { f.head = f.st; f.st = null; }
+    });
+    pushLog('$ git commit -m "feat: 固化一次快照"  (HEAD 前进)', 'ok');
+    renderStage();
+  };
+  window.toggleStageHint = function () { $('stageHint').classList.toggle('open'); };
+
+  /* ═══════════════ order exercise ═══════════════ */
+  var orderItems = ['git init', 'git status', 'git add index.html', 'git commit -m "first commit"'];
+  var orderExpected = [0, 1, 2, 3];
+
+  function renderOrder() {
+    var ul = $('orderList');
+    ul.innerHTML = orderItems.map(function (cmd, i) {
+      return '<li><span class="idx">' + (i + 1) + '</span><span style="flex:1">' + esc(cmd) + '</span>' +
+        '<span class="arrows">' +
+        '<button class="btn btn-sm" onclick="orderMove(' + i + ',-1)" aria-label="上移">↑</button>' +
+        '<button class="btn btn-sm" onclick="orderMove(' + i + ',1)" aria-label="下移">↓</button>' +
+        '</span></li>';
+    }).join('');
+  }
+  window.orderMove = function (i, dir) {
+    var j = i + dir;
+    if (j < 0 || j >= orderItems.length) return;
+    var t = orderItems[i]; orderItems[i] = orderItems[j]; orderItems[j] = t;
+    renderOrder();
+    $('orderResult').className = 'result'; $('orderResult').innerHTML = '';
+  };
+  window.checkOrder = function () {
+    var r = $('orderResult');
+    /* 期望顺序即初始顺序：init → status → add → commit */
+    var ok = orderItems[0] === 'git init' && orderItems[1] === 'git status' &&
+             orderItems[2] === 'git add index.html' && orderItems[3] === 'git commit -m "first commit"';
+    if (ok) {
+      r.className = 'result show ok';
+      r.innerHTML = '正确！git init 创建仓库 → git status 查看状态 → git add 暂存 → git commit 固化。';
+      completeMilestone(1);
+    } else {
+      r.className = 'result show err';
+      r.innerHTML = '顺序不对。提示：先创建仓库，再确认状态，然后暂存文件，最后才提交。';
+    }
+  };
+
+  /* ═══════════════ graph sim ═══════════════ */
+  var sim = {
+    commits: [],          // {id, msg, lane, parents:[idx], branch}
+    branches: {},         // name -> commit idx
+    head: 'main',         // current branch name
+    nid: 0,
+    branchMade: false,
+    featureCommitted: false,
+    merged: false
+  };
+  var laneColors = { main: '#f05133', feature: '#9f7bf0', hotfix: '#5aa2ff' };
+  var shortIds = ['9f2ab1', '7c4de9', '3a5c8e', 'b2f1d0', 'e8d4c7', '1a2b3c', '4d5e6f', 'aabbcc', 'ddeeff', '102938', '564738', 'abcdef'];
+
+  function curCommit() { return sim.branches[sim.head]; }
+
+  function initRepo() {
+    if (sim.commits.length) { toast('仓库已初始化'); return; }
+    sim.commits.push({ id: shortIds[0], msg: 'initial commit', lane: 'main', parents: [-1], branch: 'main' });
+    sim.branches = { main: 0 };
+    sim.head = 'main';
+    sim.nid = 1;
+    pushGraphLog('$ git init && git commit -m "initial commit"  →  main@' + shortIds[0], 'ok');
+    renderGraphs();
+    checkGraphMilestones();
+  }
+
+  window.initRepo = initRepo;
+
+  function newCommitId() {
+    if (sim.nid < shortIds.length) return shortIds[sim.nid++];
+    return 'c' + (sim.nid++);
+  }
+
+  window.doCommit = function () {
+    if (!sim.commits.length) { toast('先点击「初始化仓库」'); return; }
+    var msg = $('cmtMsg').value.trim() || 'wip: 自动提交';
+    var parent = curCommit();
+    var lane = sim.head;
+    sim.commits.push({ id: newCommitId(), msg: msg, lane: lane, parents: [parent], branch: sim.head });
+    sim.branches[sim.head] = sim.commits.length - 1;
+    if (sim.head !== 'main') sim.featureCommitted = true;
+    pushGraphLog('$ git commit -m "' + msg + '"  →  ' + sim.head + '@' + sim.commits[sim.commits.length - 1].id, 'ok');
+    renderGraphs();
+    checkGraphMilestones();
+  };
+
+  window.doBranch = function () {
+    if (!sim.commits.length) { toast('先初始化仓库'); return; }
+    var name = $('brName').value.trim();
+    if (!name) { toast('请输入分支名'); return; }
+    if (sim.branches[name] !== undefined) { toast('分支 ' + name + ' 已存在'); return; }
+    sim.branches[name] = curCommit();
+    sim.branchMade = true;
+    pushGraphLog('$ git branch ' + name + '  →  ' + name + '@' + sim.commits[sim.branches[name]].id, 'ok');
+    renderGraphs();
+    checkGraphMilestones();
+  };
+
+  window.doSwitch = function () {
+    var name = $('brSwitch').value;
+    if (!name || sim.branches[name] === undefined) return;
+    sim.head = name;
+    pushGraphLog('$ git checkout ' + name + '  →  HEAD 指向 ' + name, 'ok');
+    renderGraphs();
+  };
+
+  function isAncestor(a, b) {
+    if (a === b) return true;
+    var seen = {}, stack = [b];
+    while (stack.length) {
+      var c = stack.pop();
+      if (seen[c]) continue;
+      seen[c] = true;
+      if (c === a) return true;
+      sim.commits[c].parents.forEach(function (p) { if (p >= 0) stack.push(p); });
+    }
+    return false;
+  }
+
+  window.doMerge = function () {
+    if (!sim.commits.length) { toast('先初始化仓库'); return; }
+    var headName = sim.head;
+    var other = Object.keys(sim.branches).filter(function (b) { return b !== headName; });
+    if (!other.length) { toast('没有其他分支可合并，先创建一个'); return; }
+    var otherName = other[0];
+    var headC = sim.branches[headName], otherC = sim.branches[otherName];
+
+    if (isAncestor(otherC, headC)) { toast(headName + ' 已包含 ' + otherName + ' 的全部提交'); return; }
+
+    if (isAncestor(headC, otherC)) {
+      sim.branches[headName] = otherC;
+      sim.merged = true;
+      pushGraphLog('$ git merge ' + otherName + '  →  Fast-forward: ' + headName + '@' + sim.commits[otherC].id, 'ok');
+      toast('快进合并完成（Fast-forward）');
+    } else {
+      var parents = [headC, otherC];
+      sim.commits.push({ id: newCommitId(), msg: "Merge branch '" + otherName + "'", lane: headName, parents: parents, branch: headName });
+      sim.branches[headName] = sim.commits.length - 1;
+      sim.merged = true;
+      pushGraphLog('$ git merge ' + otherName + '  →  三方合并，生成合并提交 ' + sim.commits[sim.commits.length - 1].id, 'ok');
+      toast('三方合并完成（创建了合并提交）');
+    }
+    renderGraphs();
+    checkGraphMilestones();
+  };
+
+  window.resetGraph = function () {
+    sim.commits = []; sim.branches = {}; sim.head = 'main'; sim.nid = 0;
+    sim.branchMade = false; sim.featureCommitted = false; sim.merged = false;
+    $('graphLog').innerHTML = '$ 模拟已重置';
+    $('graphLog2').innerHTML = '$ 模拟已重置';
+    renderGraphs();
+    checkGraphMilestones();
+  };
+
+  function pushGraphLog(line, cls) {
+    var now = new Date();
+    var t = ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) + ':' + ('0' + now.getSeconds()).slice(-2);
+    $('graphLog').innerHTML = (line ? '<span class="' + cls + '">' + esc(line) + '</span>' : '');
+    $('graphLog2').innerHTML = '<span style="color:var(--muted)">' + t + '</span> ' + (line ? '<span class="' + cls + '">' + esc(line) + '</span>' : '');
+  }
+
+  function branchY(name) {
+    var idx = Object.keys(sim.branches).indexOf(name);
+    return 70 + Math.max(0, idx) * 80;
+  }
+
+  function renderGraphSVG(containerId) {
+    var wrap = $(containerId);
+    if (!sim.commits.length) {
+      wrap.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:0.85em;padding:26px 0">先点击「初始化仓库」开始</div>';
+      return;
+    }
+    var W = 60 + sim.commits.length * 110 + 140;
+    var H = 240;
+    var parts = [];
+    parts.push('<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">');
+
+    /* edges */
+    sim.commits.forEach(function (c, i) {
+      var x = 60 + i * 110, y = branchY(c.lane);
+      c.parents.forEach(function (p) {
+        if (p < 0) return;
+        var px = 60 + p * 110, py = branchY(sim.commits[p].lane);
+        var stroke = (c.parents.length > 1 && p === c.parents[1]) ? '#9f7bf0' : '#2f394d';
+        parts.push('<line x1="' + (px + 16) + '" y1="' + py + '" x2="' + (x - 16) + '" y2="' + y + '" stroke="' + stroke + '" stroke-width="2"/>');
+      });
+    });
+
+    /* nodes */
+    sim.commits.forEach(function (c, i) {
+      var x = 60 + i * 110, y = branchY(c.lane);
+      var fill = laneColors[c.lane] || '#5aa2ff';
+      parts.push('<circle cx="' + x + '" cy="' + y + '" r="15" fill="#0e1117" stroke="' + fill + '" stroke-width="3"/>');
+      parts.push('<text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" fill="' + fill + '" font-size="9" font-family="monospace" font-weight="600">' + c.id + '</text>');
+      var label = c.msg.length > 14 ? c.msg.slice(0, 13) + '…' : c.msg;
+      parts.push('<text x="' + x + '" y="' + (y + 34) + '" text-anchor="middle" fill="#99a3b5" font-size="9.5">' + esc(label) + '</text>');
+    });
+
+    /* branch labels + HEAD */
+    var bx = 60 + sim.commits.length * 110 + 12;
+    Object.keys(sim.branches).forEach(function (b) {
+      var ci = sim.branches[b];
+      var x = 60 + ci * 110, y = branchY(b);
+      parts.push('<g>');
+      parts.push('<rect x="' + (bx - 6) + '" y="' + (y - 10) + '" width="' + (b.length * 7 + 16) + '" height="20" rx="10" fill="' + (laneColors[b] || '#5aa2ff') + '"/>');
+      parts.push('<text x="' + (bx + 2) + '" y="' + (y + 4) + '" fill="#0e1117" font-size="10" font-family="monospace" font-weight="700">' + esc(b) + '</text>');
+      parts.push('<line x1="' + (x + 15) + '" y1="' + y + '" x2="' + (bx - 4) + '" y2="' + y + '" stroke="' + (laneColors[b] || '#5aa2ff') + '" stroke-width="1.5" stroke-dasharray="3 3"/>');
+      if (b === sim.head) {
+        parts.push('<text x="' + (bx + 2) + '" y="' + (y - 18) + '" fill="#d4a853" font-size="9" font-family="monospace" font-weight="700">▲ HEAD</text>');
+      }
+      parts.push('</g>');
+    });
+
+    parts.push('</svg>');
+    wrap.innerHTML = parts.join('');
+  }
+
+  function renderBranchSelect() {
+    var sel = $('brSwitch');
+    sel.innerHTML = Object.keys(sim.branches).map(function (b) {
+      return '<option value="' + esc(b) + '"' + (b === sim.head ? ' selected' : '') + '>' + esc(b) + '</option>';
+    }).join('');
+  }
+
+  function renderGraphs() {
+    renderBranchSelect();
+    renderGraphSVG('graphWrap');
+    renderGraphSVG('graphWrap2');
+  }
+
+  function checkGraphMilestones() {
+    if (sim.commits.length >= 3) completeMilestone(2);
+    if (sim.branchMade && sim.featureCommitted) completeMilestone(3);
+    if (sim.merged) completeMilestone(4);
+  }
+
+  /* ═══════════════ conflict exercise ═══════════════ */
+  var conflictOpts = [
+    { id: 'a', text: '保留 HEAD 一侧内容，删掉其他行和标记' },
+    { id: 'b', text: '保留 feature 一侧内容，删掉其他行和标记' },
+    { id: 'c', text: '手动编辑文件：删除 <<<<<<< / ======= / >>>>>>> 标记行，按需求保留或合并内容，然后 git add 并提交' },
+    { id: 'd', text: '什么都不用做，git 会自动选择正确的版本' }
+  ];
+  var conflictRight = 'c';
+
+  var undoOpts = [
+    { id: 'a', text: 'git reset --hard HEAD~1' },
+    { id: 'b', text: 'git revert abc1234' },
+    { id: 'c', text: 'git checkout abc1234' },
+    { id: 'd', text: 'git rm --cached abc1234' }
+  ];
+  var undoRight = 'b';
+
+  function renderOpts(elId, data) {
+    $(elId).innerHTML = data.map(function (o) {
+      return '<label class="opt-row" data-id="' + o.id + '"><input type="radio" name="' + elId + '"><span>' + o.text + '</span></label>';
+    }).join('');
+  }
+
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  /* ═══════════════ pull exercise ═══════════════ */
+  var pullOpts = [
+    { id: 'a', text: 'git fetch + git merge' },
+    { id: 'b', text: 'git clone + git add' },
+    { id: 'c', text: 'git add + git commit' },
+    { id: 'd', text: 'git reset + git rebase' }
+  ];
+  var pullRight = 'a';
+
+  /* ═══════════════ undo exercise ═══════════════ */
+
+  /* ═══════════════ gitignore exercise ═══════════════ */
+  var giOpts = [
+    { id: 'n', text: 'node_modules/' },
+    { id: 'd', text: 'dist/' },
+    { id: 'l', text: '*.log' },
+    { id: 'e', text: '.env' },
+    { id: 'p', text: 'package.json' }
+  ];
+  var giRight = ['n', 'd', 'l', 'e'];
+
+  function renderGi() {
+    $('giOpts').innerHTML = giOpts.map(function (o) {
+      return '<label class="opt-row" data-id="' + o.id + '"><input type="checkbox"><span>' + esc(o.text) + '</span></label>';
+    }).join('');
+  }
+  window.checkGitignore = function () {
+    var rows = $('giOpts').querySelectorAll('.opt-row');
+    var selected = [];
+    rows.forEach(function (r) {
+      var cb = r.querySelector('input');
+      if (cb.checked) selected.push(r.dataset.id);
+    });
+    var ok = giRight.length === selected.length && giRight.every(function (v) { return selected.indexOf(v) !== -1; });
+    var r = $('giResult');
+    if (ok) {
+      r.className = 'result show ok';
+      r.innerHTML = '正确！依赖、构建产物、日志和密钥都不该入库；package.json 恰恰是应该提交的。';
+      completeMilestone(7);
+    } else {
+      r.className = 'result show err';
+      r.innerHTML = '再想想：哪些是"重装即可获得 / 本机生成 / 含密钥"的内容？package.json 是项目清单，应该入库。';
+    }
+  };
+
+  /* ═══════════════ quiz ═══════════════ */
+  var quizData = [
+    { q: 'Git 的提交（commit）保存的是什么？', opts: ['文件之间的差异(diff)', '文件的完整快照 + 元数据', '只记录改动的文件名', '整个仓库的压缩包'], right: 1, expl: 'Git 保存完整快照并复用未变化的对象，而不是依赖差异。' },
+    { q: '暂存区（staging area）的作用是？', opts: ['保存所有历史版本', '存放即将进入下一次提交的文件快照', '存放远程仓库的副本', '临时备份被删除的文件'], right: 1, expl: 'git add 把文件快照放入暂存区，commit 时统一固化。' },
+    { q: 'git log --oneline 显示的是？', opts: ['当前目录的文件列表', '提交历史（从新到旧）', '所有分支的列表', '暂存区的内容'], right: 1, expl: 'log 展示提交历史；分支列表用 git branch。' },
+    { q: '分支（branch）的本质是什么？', opts: ['文件的独立副本', '指向某个提交的可移动指针', '远程仓库的别名', '提交的备份'], right: 1, expl: '分支只是指针，所以创建分支几乎零成本。' },
+    { q: '合并时产生冲突的根本原因是？', opts: ['网络或磁盘故障', '两个分支修改了同一文件的同一区域', '文件太大', '分支名重复'], right: 1, expl: 'Git 无法自动决定保留哪一版，需要人工解决。' },
+    { q: '想放弃工作区中未暂存的修改，用哪条命令？', opts: ['git checkout -- <file>', 'git commit --amend', 'git push', 'git stash pop'], right: 0, expl: 'checkout -- 用 HEAD（或暂存区）版本覆盖工作区。' },
+    { q: 'git pull 等价于哪两条命令的组合？', opts: ['git clone + git add', 'git fetch + git merge', 'git add + git commit', 'git reset + git rebase'], right: 1, expl: '先取回远程提交，再合并到当前分支。' },
+    { q: 'HEAD 通常指向什么？', opts: ['远程仓库的最新提交', '当前分支的最新提交', '暂存区', '上一次提交'], right: 1, expl: 'HEAD 是"你当前所在位置"，通常是当前分支最新提交。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) {
+          finishQuiz();
+        }
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已掌握 Git 的核心概念。' : '答对 ' + quizScore + ' 题，回看相关小节后再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* ignore */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ cheat sheet ═══════════════ */
+  var cheats = [
+    { cmd: 'git init', desc: '在当前目录初始化新仓库' },
+    { cmd: 'git clone &lt;url&gt;', desc: '克隆远程仓库到本地' },
+    { cmd: 'git status', desc: '查看工作区/暂存区状态' },
+    { cmd: 'git add &lt;file&gt;', desc: '把文件放入暂存区（. 表示全部）' },
+    { cmd: 'git commit -m "msg"', desc: '把暂存区固化为一次提交' },
+    { cmd: 'git log --oneline', desc: '查看提交历史（一行一条）' },
+    { cmd: 'git branch', desc: '列出分支（* 标记当前分支）' },
+    { cmd: 'git branch &lt;name&gt;', desc: '创建分支（仅创建指针）' },
+    { cmd: 'git checkout &lt;branch&gt;', desc: '切换分支 / 切换到某提交（detached HEAD）' },
+    { cmd: 'git switch &lt;branch&gt;', desc: '切换分支（更明确，Git 2.23+）' },
+    { cmd: 'git merge &lt;branch&gt;', desc: '把另一分支合并到当前分支' },
+    { cmd: 'git checkout -- &lt;file&gt;', desc: '放弃工作区对该文件的修改' },
+    { cmd: 'git restore --staged &lt;file&gt;', desc: '把文件从暂存区撤出' },
+    { cmd: 'git reset --hard &lt;commit&gt;', desc: '回退到某提交（会丢弃之后的历史，慎用）' },
+    { cmd: 'git reset --soft &lt;commit&gt;', desc: '回退指针但保留修改在暂存区' },
+    { cmd: 'git revert &lt;commit&gt;', desc: '生成一个"反向提交"来撤销，保留历史' },
+    { cmd: 'git stash', desc: '暂存未提交的修改，切走做别的事' },
+    { cmd: 'git stash pop', desc: '恢复之前 stash 的修改' },
+    { cmd: 'git remote -v', desc: '查看远程仓库地址' },
+    { cmd: 'git push', desc: '把本地提交推送到远程' },
+    { cmd: 'git pull', desc: '拉取远程更新并合并（fetch + merge）' },
+    { cmd: 'git fetch', desc: '只取回远程提交，不合并' },
+    { cmd: 'git diff', desc: '查看工作区与暂存区的差异' },
+    { cmd: 'git diff --staged', desc: '查看暂存区与 HEAD 的差异' },
+    { cmd: 'git show &lt;commit&gt;', desc: '查看某次提交的详细内容' },
+    { cmd: 'git tag &lt;name&gt;', desc: '给某提交打标签（如版本号 v1.0）' },
+    { cmd: 'git rebase &lt;branch&gt;', desc: '把当前分支的提交"重放"到另一分支顶端' }
+  ];
+
+  function renderCheats() {
+    $('cheatTable').querySelector('tbody').innerHTML = cheats.map(function (c) {
+      return '<tr data-k="' + esc((c.cmd + ' ' + c.desc).toLowerCase()) + '"><td><code>' + esc(c.cmd) + '</code></td><td>' + esc(c.desc) + '</td></tr>';
+    }).join('');
+  }
+  $('cheatInput').addEventListener('input', function () {
+    var k = this.value.trim().toLowerCase();
+    $('cheatTable').querySelectorAll('tbody tr').forEach(function (tr) {
+      tr.classList.toggle('hidden-row', k !== '' && tr.dataset.k.indexOf(k) === -1);
+    });
+  });
+
+  /* ═══════════════ hint toggles ═══════════════ */
+  window.toggleHint = function (id) { $(id).classList.toggle('open'); };
+
+  /* ═══════════════ init ═══════════════ */
+  renderStage();
+  renderOrder();
+  renderOpts('conflictOpts', conflictOpts);
+  renderOpts('pullOpts', pullOpts);
+  renderOpts('undoOpts', undoOpts);
+  renderGi();
+  renderCheats();
+  renderQuiz();
+  renderGraphs();
+  loadProgress();
+  showNav();
+
+  bindOpts('conflictOpts', conflictRight, 'conflictResult',
+    '正确！冲突必须人工解决：编辑文件、去掉标记行、git add 后重新提交。',
+    '不对。Git 不会自动选择，任何一侧的标记行都必须由人来决定。', 5);
+
+  bindOpts('undoOpts', undoRight, 'undoResult',
+    '正确！git revert 会生成一个反向提交来抵消 abc1234，历史记录原样保留，适合已推送的提交。',
+    '不对。reset --hard 会改写历史（已推送时很危险）；checkout 只是查看；rm --cached 是移除跟踪。对已推送的提交应使用 revert。', 6);
+
+  bindOpts('pullOpts', pullRight, 'pullResult',
+    '正确！pull = fetch（取回）+ merge（合并）。',
+    '不对。pull 只涉及"取回 + 合并"，不涉及 clone/add/commit。', -1);
+})();
+</script></body>
+</html>

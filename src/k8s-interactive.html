@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kubernetes 交互式学习 · 迷你 kubectl 模拟器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --k8s: #5aa2ff;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(90,162,255,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--k8s); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--k8s), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--k8s); font-size: 17px;
+    border: 1px solid rgba(90,162,255,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #c9d6f2;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #c9d6f2; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(90,162,255,0.07); border: 1px solid rgba(90,162,255,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--k8s); }
+
+  .arch {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 16px 0;
+  }
+  .arch .node {
+    background: var(--raise); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  }
+  .arch .node h4 { font-size: 13px; color: var(--k8s); margin-bottom: 6px; }
+  .arch .node ul { list-style: none; }
+  .arch .node li { font-size: 12px; color: var(--dim); padding: 2px 0; }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--k8s); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .term {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .term-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .term-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .term-head .dot:nth-child(1) { background: #ef476f; }
+  .term-head .dot:nth-child(2) { background: #f0a04b; }
+  .term-head .dot:nth-child(3) { background: #34d399; }
+  .term-head span.txt { margin-left: 6px; }
+  .term-body {
+    height: 300px; overflow-y: auto; padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.65;
+  }
+  .term-body .t-line { white-space: pre-wrap; word-break: break-all; }
+  .term-body .t-out { color: #a8b3cf; }
+  .term-body .t-ok { color: #34d399; }
+  .term-body .t-err { color: #ef476f; }
+  .term-body .t-cmd { color: #e6e9ef; }
+  .term-input-wrap { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); background: #0b0e14; }
+  .term-prompt { font-family: var(--mono); font-size: 13px; color: #34d399; }
+  .term-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: var(--mono); font-size: 12.5px; color: var(--text);
+  }
+  .term-input::placeholder { color: #3a4256; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--k8s);
+    border: 1px solid rgba(90,162,255,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(90,162,255,0.08); border: 1px solid rgba(90,162,255,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num { font-family: var(--display); font-size: 40px; color: var(--k8s); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--k8s); color: var(--k8s); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Kubernetes</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Kubernetes <em>交互式学习</em></h1>
+    <p class="subtitle">迷你 kubectl 模拟器 · 9 个里程碑 · 进度自动保存在本浏览器</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 集群架构 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>集群架构：控制平面 × 工作节点</h2>
+    <p class="lead">Kubernetes（K8s）是一个容器编排平台。集群由<strong>控制平面</strong>（大脑）与<strong>工作节点</strong>（肌肉）组成：控制平面做决策，工作节点跑容器。</p>
+    <div class="arch">
+      <div class="node">
+        <h4>控制平面（Control Plane）</h4>
+        <ul>
+          <li>kube-apiserver — 所有操作的唯一入口</li>
+          <li>etcd — 集群状态存储</li>
+          <li>kube-scheduler — 决定 Pod 跑在哪个节点</li>
+          <li>kube-controller-manager — 维持期望状态</li>
+        </ul>
+      </div>
+      <div class="node">
+        <h4>工作节点（Worker Node）</h4>
+        <ul>
+          <li>kubelet — 节点上的"眼睛和手"</li>
+          <li>kube-proxy — 维护网络规则</li>
+          <li>容器运行时 — 真正拉起容器（containerd 等）</li>
+        </ul>
+      </div>
+    </div>
+    <h3>练习：把组件职责配对</h3>
+    <div class="opts" id="archOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="arch">"集群里所有请求都走它，比如 kubectl 的每条命令" → kube-scheduler</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="arch">"集群里所有请求都走它，比如 kubectl 的每条命令" → kube-apiserver</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="arch">"一个刚创建的 Pod 由它决定放到哪个节点" → kubelet</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="arch">"一个刚创建的 Pod 由它决定放到哪个节点" → kube-scheduler</label>
+    </div>
+    <div class="result" id="archResult"></div>
+  </section>
+
+  <!-- ═══ 2 kubectl 与迷你模拟器 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>kubectl：集群的遥控器</h2>
+    <p class="lead">kubectl 是与集群交互的命令行工具。最常用的三个命令：<code>kubectl get</code>（查）、<code>kubectl describe</code>（详查）、<code>kubectl create/run</code>（建）。</p>
+    <table>
+      <thead><tr><th style="width:34%">命令</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>kubectl get pods</code></td><td>列出所有 Pod</td></tr>
+        <tr><td><code>kubectl describe pod &lt;name&gt;</code></td><td>查看 Pod 详情与事件</td></tr>
+        <tr><td><code>kubectl create deployment &lt;name&gt; --image=&lt;img&gt;</code></td><td>创建 Deployment</td></tr>
+        <tr><td><code>kubectl get nodes</code></td><td>查看集群节点</td></tr>
+      </tbody>
+    </table>
+    <div class="insight"><strong>任务：</strong>在下方的迷你模拟器里，依次执行 <code>kubectl get pods</code>、<code>kubectl get nodes</code>、<code>kubectl describe pod web-6d8c7b5f4f-zm2kq</code>（或任何 3 条有效命令），即可解锁本里程碑。输入 <code>help</code> 可查看支持的全部命令。</div>
+    <div class="term">
+      <div class="term-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">kubectl · 迷你模拟器</span></div>
+      <div class="term-body" id="kout"></div>
+      <div class="term-input-wrap">
+        <span class="term-prompt">$</span>
+        <input type="text" class="term-input" id="kcmd" placeholder="输入 kubectl 命令，如 kubectl get pods（help 查看支持命令）" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="result" id="kubectlResult"></div>
+  </section>
+
+  <!-- ═══ 3 Pod 与标签 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>Pod 与标签选择器</h2>
+    <p class="lead">Pod 是 K8s 的最小调度单元（一个或多个容器）。标签（label）是键值对，<strong>选择器（selector）</strong>用标签筛选资源——这是 K8s 一切关联（Service→Pod、Deployment→Pod）的基石。</p>
+    <pre>kubectl label pod web-6d8c7b5f4f-zm2kq <span class="key">app=web</span> tier=frontend
+kubectl get pods <span class="key">-l</span> <span class="val">app=web</span>
+NAME                          READY   STATUS    RESTARTS   AGE
+web-6d8c7b5f4f-zm2kq         1/1     Running   0          16m
+web-6d8c7b5f4f-vh3nw         1/1     Running   0          16m</pre>
+    <h3>练习：选择器语义</h3>
+    <div class="opts" id="labelOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="label">"app=web" 会选择到标签为 app=web 或 name=web 的 Pod</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="label">"app=web" 只选择标签中 app 键的值恰好为 web 的 Pod</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="label">"-l app=web" 会修改 Pod 的标签</label>
+    </div>
+    <div class="result" id="labelResult"></div>
+    <div class="insight">记忆：<code>kubectl label</code> 是<strong>打</strong>标签，<code>kubectl get -l</code> 是<strong>筛</strong>标签，两者不同向。</div>
+  </section>
+
+  <!-- ═══ 4 Deployment 与滚动更新 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>Deployment：声明式部署与滚动更新</h2>
+    <p class="lead">Deployment 声明"我要 3 个副本的 nginx"，控制器负责实现。更新镜像时默认<strong>滚动更新</strong>：新副本先起、就绪后再替换旧副本，全程不中断服务。</p>
+    <pre>kubectl create deployment web --image=nginx:1.25 --replicas=3
+kubectl set image deployment/web web=nginx:1.26   <span class="cmt"># 触发滚动更新</span>
+kubectl rollout status deployment/web             <span class="cmt"># 查看进度</span></pre>
+    <div class="insight"><strong>任务：</strong>在模拟器中执行 <code>kubectl set image deployment/web web=nginx:1.26</code>，再执行 <code>kubectl rollout status deployment/web</code> 完成滚动更新，解锁里程碑。</div>
+    <div class="term">
+      <div class="term-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">kubectl · 迷你模拟器</span></div>
+      <div class="term-body" id="kout2"></div>
+      <div class="term-input-wrap">
+        <span class="term-prompt">$</span>
+        <input type="text" class="term-input" id="kcmd2" placeholder="kubectl set image deployment/web web=nginx:1.26" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="result" id="rolloutResult"></div>
+  </section>
+
+  <!-- ═══ 5 Service ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>Service：让 Pod 可以被访问</h2>
+    <p class="lead">Pod 会随时重建、IP 会变。Service 提供一个稳定的虚拟 IP 与 DNS 名，通过 selector 把流量转发到一组 Pod。三种常用类型：</p>
+    <table>
+      <thead><tr><th>类型</th><th>访问范围</th><th>场景</th></tr></thead>
+      <tbody>
+        <tr><td>ClusterIP</td><td>集群内部</td><td>微服务互相调用</td></tr>
+        <tr><td>NodePort</td><td>集群外部（节点端口）</td><td>快速对外暴露测试</td></tr>
+        <tr><td>LoadBalancer</td><td>集群外部（云负载均衡）</td><td>生产对外服务</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：选择正确的 Service 类型</h3>
+    <div class="opts" id="svcOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="svc">订单服务只需被集群内的支付服务调用 → NodePort</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="svc">订单服务只需被集群内的支付服务调用 → ClusterIP</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="svc">官网需要面向公网用户，部署在云上 → ClusterIP</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="svc">官网需要面向公网用户，部署在云上 → LoadBalancer</label>
+    </div>
+    <div class="result" id="svcResult"></div>
+  </section>
+
+  <!-- ═══ 6 自愈与探针 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>自愈：探针与重启策略</h2>
+    <p class="lead">K8s 会自动"修复"：容器崩溃会重启（restart）、节点宕机会把 Pod 重建到别处。探针（probe）用于判断容器是否健康：</p>
+    <table>
+      <thead><tr><th>探针</th><th>问什么</th><th>失败后果</th></tr></thead>
+      <tbody>
+        <tr><td>livenessProbe</td><td>进程还活着吗？</td><td>杀掉并重启容器</td></tr>
+        <tr><td>readinessProbe</td><td>能开始接收流量吗？</td><td>从 Service 端点摘除，不重启</td></tr>
+        <tr><td>startupProbe</td><td>启动完成了吗？</td><td>保护慢启动应用</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：选探针</h3>
+    <div class="opts" id="probeOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="probe">应用因内存泄漏僵死，需要自动重启 → readinessProbe</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="probe">应用因内存泄漏僵死，需要自动重启 → livenessProbe</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="probe">新版本启动需 30 秒，期间不想被打扰 → startupProbe</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="probe">新版本启动需 30 秒，期间不想被打扰 → livenessProbe</label>
+    </div>
+    <div class="result" id="probeResult"></div>
+  </section>
+
+  <!-- ═══ 7 配置注入 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>ConfigMap 与 Secret：配置与密文</h2>
+    <p class="lead">配置不该写死在镜像里。ConfigMap 存普通配置，Secret 存敏感信息（密码、令牌，存储时 base64 编码）。两者都可以通过<strong>环境变量</strong>或<strong>挂载文件</strong>注入 Pod。</p>
+    <pre>kubectl create configmap app-config --from-literal=APP_ENV=production
+kubectl create secret generic db-pass --from-literal=PASSWORD=s3cret
+# Pod 中引用：
+env:
+- name: APP_ENV
+  valueFrom:
+    configMapKeyRef: { name: app-config, key: APP_ENV }</pre>
+    <h3>练习：选择正确说法</h3>
+    <div class="opts" id="cfgOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cfg">Secret 里的密码明文保存在 etcd 中，任何人都能读</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cfg">Secret 内容 base64 编码存储，不是加密；应配合 RBAC 限制访问</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cfg">ConfigMap 不能用于环境变量注入</label>
+    </div>
+    <div class="result" id="cfgResult"></div>
+  </section>
+
+  <!-- ═══ 8 存储 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>存储：PV / PVC 与持久化</h2>
+    <p class="lead">容器内文件在 Pod 重建后消失（临时卷）。持久化方案：<strong>PV</strong>（PersistentVolume，管理员准备的存储）、<strong>PVC</strong>（PersistentVolumeClaim，用户申请），PVC 绑定 PV 后挂载进 Pod。常用卷类型：<code>emptyDir</code>（临时）、<code>hostPath</code>（单节点）、云盘（跨节点共享）。</p>
+    <pre>apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: data-pvc }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 5Gi } }</pre>
+    <h3>练习：选卷</h3>
+    <div class="opts" id="storeOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="store">日志目录，Pod 删除后可以丢弃 → PVC</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="store">日志目录，Pod 删除后可以丢弃 → emptyDir</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="store">数据库数据，Pod 重建后必须保留 → emptyDir</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="store">数据库数据，Pod 重建后必须保留 → PVC</label>
+    </div>
+    <div class="result" id="storeResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：集群架构 → kubectl → Pod/标签 → Deployment → Service → 探针 → 配置 → 存储 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 <code>minikube</code> 或云厂商托管集群建一个真实环境；<br>
+      ② 从 <code>kubectl create deployment</code> 开始，走一遍 构建→部署→暴露→更新→回滚 的闭环；<br>
+      ③ 给应用加上 liveness/readiness 探针，看 <code>kubectl get events</code> 里发生了什么；<br>
+      ④ 把配置抽到 ConfigMap，再试试用 Helm 管理整个应用。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">KUBERNETES 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'k8s';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 架构配对正确
+     1 模拟器运行 ≥3 条有效命令
+     2 标签选择器正确
+     3 滚动更新完成
+     4 Service 类型正确
+     5 探针选择正确
+     6 配置选择正确
+     7 存储选择正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('archOpts', 'b', 'archResult',
+    '正确！kube-apiserver 是集群的唯一入口，kubectl 的每条命令都打到它；kube-scheduler 负责把新 Pod 调度到合适节点。',
+    '不对。承担"所有请求入口"的是 kube-apiserver；决定 Pod 放哪里的才是 kube-scheduler。', 0);
+  bindOpts('labelOpts', 'b', 'labelResult',
+    '正确！选择器按"键=值"精确匹配：app 键的值必须是 web，多一个 name=web 标签不会被选中。',
+    '不对。selector 是精确的键值匹配，只有 app 键值为 web 的 Pod 才会被选中；"-l" 只是筛选，不会改标签。', 2);
+  bindOpts('svcOpts', 'b', 'svcResult',
+    '正确！集群内部互调首选 ClusterIP（默认类型）；对外公网服务才用 LoadBalancer（云上）或 NodePort（测试）。',
+    '不对。集群内互调用 ClusterIP 即可；面向公网且部署在云上时，生产常用 LoadBalancer。', 4);
+  bindOpts('probeOpts', 'b', 'probeResult',
+    '正确！livenessProbe 失败会杀容器重启，readinessProbe 失败只是摘除流量。两问全对：第二问 startupProbe 保护慢启动。',
+    '不对。僵死需要重启用 livenessProbe；慢启动应用用 startupProbe 防止被 liveness 误杀。', 5);
+  bindOpts('cfgOpts', 'b', 'cfgResult',
+    '正确！Secret 只是 base64 编码（不是加密），必须配合 RBAC 限制访问；ConfigMap/Secret 都支持环境变量与挂载注入。',
+    '不对。Secret 是 base64 编码存储而非加密，需用 RBAC 保护；它和 ConfigMap 都能通过环境变量注入 Pod。', 6);
+  bindOpts('storeOpts', 'b', 'storeResult',
+    '正确！emptyDir 随 Pod 生命周期走，适合日志等可丢弃数据；数据库等必须保留的数据用 PVC 绑定持久化存储。',
+    '不对。可丢弃的临时数据用 emptyDir；数据库数据必须用 PVC（PersistentVolumeClaim）持久化。', 7);
+
+  /* ═══════════════ 迷你 kubectl 模拟器 ═══════════════ */
+  var cluster = {
+    nodes: [
+      { name: 'node-a', status: 'Ready', role: 'control-plane', version: 'v1.29.0' },
+      { name: 'node-b', status: 'Ready', role: 'worker', version: 'v1.29.0' },
+      { name: 'node-c', status: 'Ready', role: 'worker', version: 'v1.29.0' }
+    ],
+    pods: [
+      { name: 'web-6d8c7b5f4f-zm2kq', node: 'node-b', status: 'Running', restarts: 0, age: '18m', image: 'nginx:1.25', labels: { app: 'web', tier: 'frontend' } },
+      { name: 'web-6d8c7b5f4f-vh3nw', node: 'node-c', status: 'Running', restarts: 0, age: '18m', image: 'nginx:1.25', labels: { app: 'web', tier: 'frontend' } },
+      { name: 'redis-7f9d2c6a1b-9k2md', node: 'node-b', status: 'Running', restarts: 0, age: '9m', image: 'redis:7.2', labels: { app: 'redis' } },
+      { name: 'db-5c4f8a2e9d-3j7pq', node: 'node-c', status: 'Running', restarts: 0, age: '9m', image: 'postgres:16', labels: { app: 'db' } }
+    ],
+    deployments: [
+      { name: 'web', ready: '2/2', image: 'nginx:1.25', replicas: 2, age: '18m', strategy: 'RollingUpdate' },
+      { name: 'redis', ready: '1/1', image: 'redis:7.2', replicas: 1, age: '9m', strategy: 'RollingUpdate' },
+      { name: 'db', ready: '1/1', image: 'postgres:16', replicas: 1, age: '9m', strategy: 'RollingUpdate' }
+    ],
+    services: [
+      { name: 'web-svc', type: 'ClusterIP', clusterIP: '10.96.0.24', ports: '80→8080', selector: 'app=web' },
+      { name: 'db-svc', type: 'ClusterIP', clusterIP: '10.96.0.31', ports: '5432', selector: 'app=db' }
+    ],
+    configmaps: [ { name: 'app-config', data: 'APP_ENV=production · LOG_LEVEL=info' } ],
+    secrets: [ { name: 'db-pass', type: 'Opaque' } ],
+    rolloutPending: false
+  };
+  var podSeq = 1;
+  var cmdSeq = 1;
+  var validRun = {};
+  var cmdCount = 0;
+
+  function fmtAge() { return podSeq + 'm'; }
+
+  function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+
+  function tableOut(headers, rows) {
+    var widths = headers.map(function (_, ci) {
+      var w = headers[ci].length;
+      rows.forEach(function (r) { if (r[ci] && r[ci].length > w) w = r[ci].length; });
+      return w;
+    });
+    var line = '';
+    var sep = '';
+    headers.forEach(function (h, ci) {
+      line += pad(h, widths[ci] + 1);
+      sep += new Array(widths[ci] + 2).join('-');
+    });
+    var out = line + '\n' + sep + '\n';
+    rows.forEach(function (r) {
+      var rl = '';
+      r.forEach(function (v, ci) { rl += pad(v === undefined ? '' : v, widths[ci] + 1); });
+      out += rl + '\n';
+    });
+    return out;
+  }
+
+  function findPod(name) {
+    for (var i = 0; i < cluster.pods.length; i++) if (cluster.pods[i].name === name) return cluster.pods[i];
+    return null;
+  }
+  function findDeploy(name) {
+    for (var i = 0; i < cluster.deployments.length; i++) if (cluster.deployments[i].name === name) return cluster.deployments[i];
+    return null;
+  }
+
+  function runKubectl(rawCmd) {
+    var cmd = rawCmd.trim();
+    if (!cmd) return '';
+    if (!/^kubectl\b/.test(cmd)) {
+      return "error: 命令必须以 kubectl 开头。输入 help 查看支持的命令。";
+    }
+    var parts = cmd.split(/\s+/).slice(1);
+    if (parts.length === 0 || parts[0] === 'help') {
+      return [
+        '支持的迷你命令：',
+        '  kubectl get pods [-l app=web] [-o wide]',
+        '  kubectl get deployments / services / nodes / configmaps',
+        '  kubectl describe pod <name>',
+        '  kubectl create deployment <name> --image=<img> [--replicas=N]',
+        '  kubectl run <name> --image=<img>',
+        '  kubectl scale deployment <name> --replicas=N',
+        '  kubectl set image deployment/<name> <container>=<img>',
+        '  kubectl rollout status deployment/<name>',
+        '  kubectl expose deployment <name> --type=<t> --port=<p> [--target-port=<tp>]',
+        '  kubectl label pod <name> <k>=<v>',
+        '  kubectl create configmap <name> --from-literal=<k>=<v>',
+        '  kubectl delete pod <name>'
+      ].join('\n');
+    }
+    var verb = parts[0];
+    var ok = true;
+    var out = '';
+
+    if (verb === 'get') {
+      var kind = parts[1];
+      var sel = null, wide = false;
+      for (var i = 2; i < parts.length; i++) {
+        if (parts[i] === '-l' && parts[i + 1]) sel = parts[i + 1];
+        if (parts[i] === '-o' && parts[i + 1] === 'wide') wide = true;
+      }
+      if (kind === 'pods' || kind === 'po') {
+        var rows = [];
+        cluster.pods.forEach(function (p) {
+          if (sel) {
+            var kv = sel.split('=');
+            if (p.labels[kv[0]] !== kv[1]) return;
+          }
+          var row = [p.name, '1/1', p.status, String(p.restarts), p.age];
+          if (wide) row.push(p.node, p.image);
+          rows.push(row);
+        });
+        out = tableOut(wide ? ['NAME', 'READY', 'STATUS', 'RESTARTS', 'AGE', 'NODE', 'IMAGE'] : ['NAME', 'READY', 'STATUS', 'RESTARTS', 'AGE'], rows);
+      } else if (kind === 'deployments' || kind === 'deploy') {
+        var drows = [];
+        cluster.deployments.forEach(function (d) { drows.push([d.name, d.ready, d.image, d.replicas + '/', d.age, d.strategy]); });
+        out = tableOut(['NAME', 'READY', 'IMAGE', 'REPLICAS', 'AGE', 'STRATEGY'], drows);
+      } else if (kind === 'services' || kind === 'svc') {
+        var srows = [];
+        cluster.services.forEach(function (s) { srows.push([s.name, s.type, s.clusterIP, s.ports, s.selector]); });
+        out = tableOut(['NAME', 'TYPE', 'CLUSTER-IP', 'PORTS', 'SELECTOR'], srows);
+      } else if (kind === 'nodes') {
+        var nrows = [];
+        cluster.nodes.forEach(function (n) { nrows.push([n.name, n.status, n.role, n.version]); });
+        out = tableOut(['NAME', 'STATUS', 'ROLE', 'VERSION'], nrows);
+      } else if (kind === 'configmaps' || kind === 'cm') {
+        var crows = [];
+        cluster.configmaps.forEach(function (c) { crows.push([c.name, c.data]); });
+        out = tableOut(['NAME', 'DATA'], crows);
+      } else {
+        ok = false;
+        out = 'error: 未知资源类型 "' + kind + '"（支持 pods / deployments / services / nodes / configmaps）';
+      }
+    } else if (verb === 'describe') {
+      var dKind = parts[1], dName = parts[2];
+      if (dKind === 'pod' && dName) {
+        var p = findPod(dName);
+        if (!p) { ok = false; out = 'error: pods "' + dName + '" not found'; }
+        else {
+          var labels = [];
+          Object.keys(p.labels).forEach(function (k) { labels.push(k + '=' + p.labels[k]); });
+          out = [
+            'Name:         ' + p.name,
+            'Namespace:    default',
+            'Node:         ' + p.node,
+            'Status:       ' + p.status,
+            'IP:           10.244.' + (cluster.nodes.indexOf(cluster.nodes.filter(function(n){return n.name===p.node;})[0]) + 2) + '.' + (podSeq + 5),
+            'Containers:',
+            '  ' + p.image.split(':')[0] + ':',
+            '    Container ID:   containerd://sim' + (podSeq * 17),
+            '    Image:          ' + p.image,
+            '    State:          Running',
+            '    Ready:          True',
+            'Labels:       ' + labels.join(','),
+            'Events:       <none>'
+          ].join('\n');
+        }
+      } else {
+        ok = false;
+        out = 'error: 用法 kubectl describe pod <name>';
+      }
+    } else if (verb === 'create') {
+      var cKind = parts[1];
+      if (cKind === 'deployment' && parts[2]) {
+        var dname = parts[2], dimg = null, drep = 1;
+        for (var ci = 3; ci < parts.length; ci++) {
+          if (parts[ci].indexOf('--image=') === 0) dimg = parts[ci].slice(8);
+          if (parts[ci].indexOf('--replicas=') === 0) drep = parseInt(parts[ci].slice(11), 10);
+        }
+        if (!dimg) { ok = false; out = 'error: 需要 --image=<img>'; }
+        else {
+          if (!findDeploy(dname)) {
+            cluster.deployments.push({ name: dname, ready: '0/' + drep, image: dimg, replicas: drep, age: fmtAge(), strategy: 'RollingUpdate' });
+          } else {
+            cluster.deployments.forEach(function (d) { if (d.name === dname) { d.image = dimg; d.replicas = drep; d.age = fmtAge(); } });
+          }
+          out = 'deployment.apps/' + dname + ' created (模拟)';
+        }
+      } else if (cKind === 'configmap' && parts[2]) {
+        var cmname = parts[2], kv = null;
+        for (var mi = 3; mi < parts.length; mi++) {
+          if (parts[mi].indexOf('--from-literal=') === 0) kv = parts[mi].slice(14);
+        }
+        if (!kv) { ok = false; out = 'error: 需要 --from-literal=<k>=<v>'; }
+        else {
+          cluster.configmaps.push({ name: cmname, data: kv.replace('=', '=') });
+          out = 'configmap/' + cmname + ' created (模拟)';
+        }
+      } else {
+        ok = false;
+        out = 'error: 用法 kubectl create deployment <name> --image=<img> [--replicas=N]';
+      }
+    } else if (verb === 'run') {
+      var rname = parts[1], rimg = null;
+      for (var ri = 2; ri < parts.length; ri++) if (parts[ri].indexOf('--image=') === 0) rimg = parts[ri].slice(8);
+      if (!rname || !rimg) { ok = false; out = 'error: 用法 kubectl run <name> --image=<img>'; }
+      else {
+        var newPod = { name: rname, node: 'node-b', status: 'Pending', restarts: 0, age: '0m', image: rimg, labels: { run: rname } };
+        cluster.pods.push(newPod);
+        setTimeout(function () { newPod.status = 'Running'; newPod.age = '1m'; }, 400);
+        out = 'pod/' + rname + ' created (模拟，即将 Running)';
+      }
+    } else if (verb === 'scale') {
+      var scDeploy = parts[1], scN = null;
+      for (var si = 2; si < parts.length; si++) if (parts[si].indexOf('--replicas=') === 0) scN = parseInt(parts[si].slice(11), 10);
+      var d = scDeploy && findDeploy(scDeploy);
+      if (!d || !scN) { ok = false; out = 'error: 用法 kubectl scale deployment <name> --replicas=N'; }
+      else {
+        d.replicas = scN; d.ready = '0/' + scN; d.age = fmtAge();
+        var later = function (cnt) {
+          if (cnt <= 0) return;
+          setTimeout(function () {
+            d.ready = (scN - cnt + 1) + '/' + scN;
+            if (cnt > 1) later(cnt - 1);
+          }, 500);
+        };
+        later(scN);
+        out = 'deployment.apps/' + scDeploy + ' scaled to ' + scN + ' (模拟，正在就绪)';
+      }
+    } else if (verb === 'set' && parts[1] === 'image') {
+      var tgt = parts[2], imgKV = null;
+      for (var ti = 3; ti < parts.length; ti++) if (parts[ti].indexOf('=') > 0) imgKV = parts[ti];
+      var dm = tgt && /^deployment\//.test(tgt) && findDeploy(tgt.slice(11));
+      if (!dm || !imgKV) { ok = false; out = 'error: 用法 kubectl set image deployment/<name> <container>=<img>'; }
+      else {
+        var img = imgKV.split('=')[1];
+        dm.image = img;
+        dm.age = fmtAge();
+        dm.ready = '0/' + dm.replicas;
+        cluster.rolloutPending = true;
+        out = 'deployment.apps/' + dm.name + ' image updated (模拟)';
+        setTimeout(function () { dm.ready = dm.replicas + '/' + dm.replicas; }, 1200);
+      }
+    } else if (verb === 'rollout' && parts[1] === 'status') {
+      var rt = parts[2];
+      var rd = rt && /^deployment\//.test(rt) && findDeploy(rt.slice(11));
+      if (!rd) { ok = false; out = 'error: 用法 kubectl rollout status deployment/<name>'; }
+      else if (!cluster.rolloutPending) {
+        out = 'deployment "' + rd.name + '" successfully rolled out (无待处理更新)';
+      } else {
+        out = [
+          'Waiting for deployment "' + rd.name + '" rollout to finish: 0 of ' + rd.replicas + ' updated...',
+          'Waiting for deployment "' + rd.name + '" rollout to finish: ' + Math.max(1, rd.replicas - 1) + ' of ' + rd.replicas + ' updated...',
+          'deployment "' + rd.name + '" successfully rolled out'
+        ].join('\n');
+        cluster.rolloutPending = false;
+      }
+    } else if (verb === 'expose') {
+      var exDeploy = parts[1], exType = 'ClusterIP', exPort = null, exTp = null;
+      for (var ei = 2; ei < parts.length; ei++) {
+        if (parts[ei].indexOf('--type=') === 0) exType = parts[ei].slice(7);
+        if (parts[ei].indexOf('--port=') === 0) exPort = parts[ei].slice(7);
+        if (parts[ei].indexOf('--target-port=') === 0) exTp = parts[ei].slice(14);
+      }
+      var ed = exDeploy && findDeploy(exDeploy);
+      if (!ed || !exPort) { ok = false; out = 'error: 用法 kubectl expose deployment <name> --type=<t> --port=<p> [--target-port=<tp>]'; }
+      else {
+        cluster.services.push({
+          name: exDeploy + '-svc', type: exType, clusterIP: '10.96.0.' + (30 + cluster.services.length),
+          ports: exPort + (exTp ? '→' + exTp : ''), selector: 'app=' + exDeploy
+        });
+        out = 'service/' + exDeploy + '-svc exposed (模拟, type=' + exType + ')';
+      }
+    } else if (verb === 'label') {
+      var lKind = parts[1], lName = parts[2], lkv = null;
+      for (var li = 3; li < parts.length; li++) if (parts[li].indexOf('=') > 0) lkv = parts[li];
+      var lp = lKind === 'pod' && lName && findPod(lName);
+      if (!lp || !lkv) { ok = false; out = 'error: 用法 kubectl label pod <name> <k>=<v>'; }
+      else {
+        var kk = lkv.split('=')[0], vv = lkv.split('=')[1];
+        lp.labels[kk] = vv;
+        out = 'pod/' + lName + ' labeled (模拟, ' + kk + '=' + vv + ')';
+      }
+    } else if (verb === 'delete') {
+      var delKind = parts[1], delName = parts[2];
+      if (delKind === 'pod' && delName) {
+        var dp = findPod(delName);
+        if (!dp) { ok = false; out = 'error: pods "' + delName + '" not found'; }
+        else {
+          dp.status = 'Terminating';
+          setTimeout(function () {
+            for (var i = cluster.pods.length - 1; i >= 0; i--) if (cluster.pods[i].name === delName) cluster.pods.splice(i, 1);
+          }, 600);
+          out = 'pod "' + delName + '" deleted (模拟)';
+        }
+      } else {
+        ok = false;
+        out = 'error: 迷你模拟器仅支持 kubectl delete pod <name>';
+      }
+    } else {
+      ok = false;
+      out = 'error: 无法识别的命令 "' + verb + '"（输入 help 查看支持的命令）';
+    }
+
+    if (ok) {
+      validRun[cmd] = true;
+      cmdCount = Object.keys(validRun).length;
+    }
+    return ok ? out : out;
+  }
+
+  function bindTerminal(inputId, outId, resultId, onValid) {
+    var input = $(inputId), out = $(outId);
+    function printLine(cls, text) {
+      var div = document.createElement('div');
+      div.className = 't-line ' + cls;
+      div.textContent = text;
+      out.appendChild(div);
+      out.scrollTop = out.scrollHeight;
+    }
+    function execute() {
+      var raw = input.value;
+      if (!raw.trim()) return;
+      printLine('t-cmd', '$ ' + raw);
+      var res = runKubectl(raw);
+      var cls = /^error:/.test(res) ? 't-err' : 't-out';
+      printLine(cls, res);
+      if (!/^error:/.test(res) && onValid) onValid(raw);
+      input.value = '';
+      input.focus();
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); execute(); }
+    });
+    return { print: printLine, execute: execute };
+  }
+
+  var term1 = bindTerminal('kcmd', 'kout', 'kubectlResult', function () {
+    if (cmdCount >= 3 && !milestones[1]) {
+      completeMilestone(1);
+      $('kubectlResult').className = 'result show ok';
+      $('kubectlResult').innerHTML = '干得漂亮！你已经用 kubectl 完成 ' + cmdCount + ' 次有效操作——这就是和真实集群交互的第一步。';
+    }
+  });
+  term1.print('t-out', 'Welcome to the mini kubectl simulator. Type "help" for available commands.');
+  term1.print('t-out', '示例：kubectl get pods · kubectl describe pod web-6d8c7b5f4f-zm2kq');
+
+  var term2 = bindTerminal('kcmd2', 'kout2', 'rolloutResult', function (raw) {
+    if (/^kubectl rollout status deployment\/web\b/.test(raw) && milestones[3] === false && cluster.rolloutPending === false) {
+      completeMilestone(3);
+      $('rolloutResult').className = 'result show ok';
+      $('rolloutResult').innerHTML = '滚动更新完成！新副本逐个就绪、旧副本逐步下线，服务全程可用——这就是 RollingUpdate 的价值。';
+    }
+  });
+  term2.print('t-out', '当前 web 运行 nginx:1.25，副本 2 个。试试更新镜像并查看 rollout 状态。');
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '集群里负责存储全部集群状态（如 Pod、Deployment 的期望与现状）的组件是？', opts: ['kube-apiserver', 'etcd', 'kube-scheduler', 'kube-proxy'], right: 1, expl: 'etcd 是集群的"数据库"，存所有资源对象；apiserver 是入口，scheduler 负责调度。' },
+    { q: 'kubectl get pods -l app=web 的作用是？', opts: ['给 Pod 打上 app=web 标签', '列出标签 app 值为 web 的所有 Pod', '删除标签为 app=web 的 Pod', '修改 Pod 的镜像'], right: 1, expl: '-l 是选择器（label selector），按标签筛选资源，不会修改任何东西。' },
+    { q: 'Deployment 默认的更新策略是什么？', opts: ['重建（Recreate）', '滚动更新（RollingUpdate）', '蓝绿部署', '金丝雀发布'], right: 1, expl: 'Deployment 默认 RollingUpdate：新副本就绪后旧副本才下线，服务不中断。' },
+    { q: '要让集群内的另一个服务能通过稳定 DNS 名访问你的应用，应使用哪种 Service？', opts: ['LoadBalancer', 'NodePort', 'ClusterIP', 'ExternalName'], right: 2, expl: 'ClusterIP 提供集群内稳定的虚拟 IP 与 DNS 名，是默认类型。' },
+    { q: '容器僵死但进程还在，想让它被自动重启，应该配置？', opts: ['readinessProbe', 'startupProbe', 'livenessProbe', '就绪门控'], right: 2, expl: 'livenessProbe 失败会杀掉容器并重启；readinessProbe 失败只是摘除流量。' },
+    { q: '关于 Secret 的正确说法是？', opts: ['内容明文存在 etcd，人人可读', '只存 base64 编码，等于加密', 'base64 编码存储，不是加密，需用 RBAC 限制访问', 'Secret 不能挂载为文件'], right: 2, expl: 'base64 只是编码，任何能读 etcd/有权限的人都能还原；真正安全要靠 RBAC + 加密存储。' },
+    { q: 'Pod 重建后数据必须保留（如数据库），应使用？', opts: ['emptyDir', 'hostPath', 'PVC + PV', '临时卷'], right: 2, expl: 'emptyDir/hostPath 都不跨节点可靠持久化；生产数据库用 PVC 绑定 PV。' },
+    { q: 'kubectl rollout status deployment/web 显示 "successfully rolled out" 表示？', opts: ['所有副本被删除', '新版本已全部就绪，更新完成', '更新失败，需要回滚', '集群已重启'], right: 1, expl: 'rollout 完成 = 新副本全部就绪、旧副本已下线，声明式更新闭环结束。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Kubernetes 的核心概念。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

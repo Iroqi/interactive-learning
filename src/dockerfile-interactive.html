@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dockerfile 构建 交互式学习 · 迷你判读器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --df: #198eee; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a23; color: #f5f6f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #2e2e48; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; background: #198eee; border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c5c6c7; }
+  h1 { font-size: 34px; color: #f5f6f7; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: #198eee; font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #c5c6c7; }
+  .progress-track { height: 6px; background: #232342; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: #198eee; border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #c5c6c7; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: #198eee; font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f5f6f7; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #198eee; border: 1px solid #198eee; border-radius: 6px; padding: 1px 7px; }
+  .challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
+  .ch-lead { min-width: 0; }
+  .ch-task { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 12px; padding: 18px 20px; }
+  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #198eee; margin-bottom: 10px; }
+  .task-list { margin: 0 0 14px; padding-left: 20px; color: #c5c6c7; font-size: 13px; }
+  .task-list li { margin-bottom: 6px; }
+  .task-list li::marker { color: #198eee; }
+  @media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
+  .lead { color: #dfe0e2; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #1b1b32; border: 1px solid #2e2e48; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #4a9fe8; }
+  pre { background: #0a0a23; border: 1px solid #2e2e48; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #dfe0e2; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8a8aa0; }
+  .insight { background: rgba(25, 142, 238, 0.08); border: 1px solid rgba(25, 142, 238, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: #198eee; }
+  h3 { font-size: 15px; color: #e6edf3; margin: 0 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 6px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #1b1b32; border: 1px solid #2e2e48; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: #198eee; }
+  .opt-row input { margin-top: 5px; accent-color: #198eee; }
+  .opt-row.correct { border-color: #198eee; background: rgba(25, 142, 238, 0.14); }
+  .opt-row.wrong { border-color: #d24d4d; background: rgba(210, 77, 77, 0.12); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(25, 142, 238, 0.1); border: 1px solid rgba(25, 142, 238, 0.4); color: #ddeefc; }
+  .result.err { background: rgba(210, 77, 77, 0.1); border: 1px solid rgba(210, 77, 77, 0.4); color: #f8d7d7; }
+  .clab { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #16162b; border-bottom: 1px solid #2e2e48; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #2e2e48; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #198eee; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #a7a8ab; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #0a0a23; border: 1px solid #2e2e48; color: #f5f6f7; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 70px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: #198eee; }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: #198eee; color: #fff; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { background: #0a81f5; }
+  .clab-hint { font-size: 11px; color: #a7a8ab; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0a0a23; border: 1px solid #2e2e48; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #dfe0e2; min-height: 40px; }
+  .c-cmd { color: #8a8aa0; }
+  .c-ok { color: #4a9fe8; }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: #198eee; margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0a0a23; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: #198eee; font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #c5c6c7; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 35, 0.94); backdrop-filter: blur(8px); border-top: 1px solid #2e2e48; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #1b1b32; color: #c5c6c7; border: 1px solid #2e2e48; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: #198eee; color: #198eee; }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a7a8ab; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1b1b32; border: 1px solid #198eee; color: #ddeefc; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #5a5a6e; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Dockerfile <em>构建</em></h1>
+    <p class="subtitle">迷你判读器 · 指令语义 · 多阶段构建 · 层缓存 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 镜像与层 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>镜像与层</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">镜像由<strong>只读层</strong>堆叠而成，每条指令产生一层；容器在镜像上加可写层。<code>docker build</code> 按 Dockerfile 从上到下逐条执行，生成不可变镜像。</p>
+        <pre>FROM node:20            <span class="cmt"># 基础层</span>
+RUN npm install         <span class="cmt"># 层 2</span>
+COPY app.js /app/       <span class="cmt"># 层 3</span>
+CMD ["node", "app.js"]  <span class="cmt"># 层 4（元数据）</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解镜像 = 只读层堆叠 + 顶层可写容器层</li>
+          <li>识别一条指令对应一层的对应关系</li>
+        </ul>
+        <h3>练习：层模型</h3>
+        <div class="opts" id="layOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="lay">每条 Dockerfile 指令生成一层，容器运行时在镜像上叠加一个可写层</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="lay">整个 Dockerfile 只生成一层</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="lay">镜像层在容器运行时会自动合并</label>
+        </div>
+        <div class="result" id="layResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 2 基础指令 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>基础指令</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>FROM</code> 基础镜像；<code>RUN</code> 构建时执行命令；<code>COPY</code> 从上下文拷文件；<code>ADD</code> 类似 COPY 但支持解压/URL；<code>ENV</code>/<code>WORKDIR</code> 设置环境与工作目录；<code>EXPOSE</code> 声明端口（仅文档）。</p>
+        <pre>FROM python:3.12
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8000
+CMD ["uvicorn", "main:app"]</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握 FROM/RUN/COPY/ENV/WORKDIR 各自职责</li>
+          <li>注意 COPY 与 ADD 的差异</li>
+        </ul>
+        <h3>练习：指令语义</h3>
+        <div class="opts" id="cmdOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="cmd">RUN 在构建时执行命令并写入层；COPY 从构建上下文拷入文件</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="cmd">COPY 会从宿主机任意路径拷贝</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="cmd">EXPOSE 会真正打开容器端口</label>
+        </div>
+        <div class="result" id="cmdResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3 ENTRYPOINT vs CMD ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>ENTRYPOINT 与 CMD</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>CMD</code> 提供默认命令（可被 <code>docker run</code> 参数覆盖）；<code>ENTRYPOINT</code> 固定入口（<code>docker run</code> 参数追加为它后面）。exec 形式 <code>["a","b"]</code> 不经过 shell；shell 形式 <code>a b</code> 会先起 shell。</p>
+        <pre>ENTRYPOINT ["python", "app.py"]   <span class="cmt"># 固定入口</span>
+CMD ["--port", "8000"]             <span class="cmt"># 默认参数，可被覆盖</span>
+<span class="cmt"># docker run img --port 9000 → python app.py --port 9000</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>区分 CMD（可覆盖）与 ENTRYPOINT（固定）</li>
+          <li>掌握 exec 与 shell 两种形式</li>
+        </ul>
+        <h3>练习：入口语义</h3>
+        <div class="opts" id="epOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="ep">CMD 可被 docker run 参数覆盖；ENTRYPOINT 固定，参数追加在其后</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="ep">ENTRYPOINT 可被覆盖，CMD 不可</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="ep">exec 形式会先启动 /bin/sh 再执行</label>
+        </div>
+        <div class="result" id="epResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 4 多阶段构建 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>多阶段构建</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">多个 <code>FROM</code> 构成多阶段：builder 阶段装全量依赖并编译，runner 阶段 <code>COPY --from=builder</code> 只拷产物，最终镜像小且安全。阶段可用 <code>AS name</code> 命名。</p>
+        <pre>FROM golang:1.22 AS builder
+WORKDIR /src
+COPY . .
+RUN go build -o /app/server
+
+FROM alpine:3.20
+COPY --from=builder /app/server /usr/local/bin/server
+ENTRYPOINT ["server"]</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解多阶段：构建产物跨阶段传递</li>
+          <li>最终镜像只含运行所需，体积更小</li>
+        </ul>
+        <h3>练习：阶段理解</h3>
+        <div class="opts" id="msOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="ms">COPY --from=builder 从构建阶段拷贝产物，最终镜像只保留运行文件</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="ms">多阶段构建会生成两个完整镜像一起运行</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="ms">FROM 只能出现一次</label>
+        </div>
+        <div class="result" id="msResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5 层缓存 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>层缓存与失效</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">构建时命中的层会复用缓存。<strong>COPY 的源文件变化会导致该层及其后所有层失效</strong>——所以把少变化的依赖安装放前面、易变的代码放后面（先 COPY requirements 再 RUN install）。</p>
+        <pre><span class="cmt"># 坏：先 COPY . 会因每次代码改动使 npm install 全部重跑</span>
+COPY . .
+RUN npm install
+
+<span class="cmt"># 好：依赖层被缓存，代码改动只重建最后几步</span>
+COPY package.json .
+RUN npm install
+COPY . .</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握缓存命中与失效规则</li>
+          <li>理解"依赖前置、代码后置"的优化顺序</li>
+        </ul>
+        <h3>练习：缓存判断</h3>
+        <div class="opts" id="cacheOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="cache">COPY 源变化使该层及后续层失效；把依赖安装放前面可最大化缓存</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="cache">缓存永不失效</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="cache">RUN 命令永远不参与缓存</label>
+        </div>
+        <div class="result" id="cacheResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6 上下文与 .dockerignore ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>构建上下文与 .dockerignore</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>docker build .</code> 把当前目录打包为<strong>构建上下文</strong>（默认发送给守护进程）；<code>.dockerignore</code> 排除 node_modules、.git 等，避免缓存失效与上下文膨胀。</p>
+        <pre><span class="cmt"># .dockerignore</span>
+node_modules
+.git
+*.log
+.env</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解构建上下文的作用范围</li>
+          <li>用 .dockerignore 排除敏感与体积大的文件</li>
+        </ul>
+        <h3>练习：上下文</h3>
+        <div class="opts" id="ctxOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="ctx">.dockerignore 排除的文件不进上下文，也不被 COPY 使用，还能避免 .env 泄露</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="ctx">.dockerignore 只影响 RUN 指令</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="ctx">构建上下文包含宿主机整个文件系统</label>
+        </div>
+        <div class="result" id="ctxResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7 HEALTHCHECK 等 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>HEALTHCHECK / USER / 元数据</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>HEALTHCHECK</code> 定义健康探针（容器编排据此重启/摘流）；<code>USER</code> 切换运行用户（安全最佳实践，避免 root）；<code>EXPOSE</code> 只声明不开放；<code>LABEL</code> 存元数据。</p>
+        <pre>HEALTHCHECK --interval=30s CMD curl -f http://localhost:8000/ || exit 1
+USER nobody
+LABEL version="1.0" maintainer="ops"</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 HEALTHCHECK 探针机制</li>
+          <li>遵循非 root 用户运行的安全实践</li>
+        </ul>
+        <h3>练习：健康与安全</h3>
+        <div class="opts" id="hcOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="hc">HEALTHCHECK 让编排器知道容器是否健康；USER 切换非 root 降低提权风险</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="hc">EXPOSE 会直接开放宿主机端口</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="hc">USER root 是 Dockerfile 最佳实践</label>
+        </div>
+        <div class="result" id="hcResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 8 构建步骤预测 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>构建步骤预测</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">给定 Dockerfile，预测构建层数与缓存失效点：每一行指令 = 一层（不含注释/空行）；<code>COPY</code> 的源变化时，该层与后续层重建。下面判读器帮你数层、找失效点。</p>
+        <div class="insight"><strong>练习：</strong>在右侧输入 Dockerfile，观察层数与失效点判定。</div>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>数出 Dockerfile 生成的层数</li>
+          <li>判断文件变化后的重建范围</li>
+        </ul>
+        <div class="clab">
+          <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">构建预测器</span></div>
+          <div class="clab-body">
+            <textarea id="dfInput" spellcheck="false" placeholder="FROM node:20&#10;WORKDIR /app&#10;COPY package.json .&#10;RUN npm install&#10;COPY . .&#10;CMD [&quot;node&quot;,&quot;app.js&quot;]">FROM node:20
+WORKDIR /app
+COPY package.json .
+RUN npm install
+COPY . .
+CMD ["node","app.js"]</textarea>
+            <div class="clab-ctrl">
+              <button type="button" class="clab-btn" id="dfBtn">判读</button>
+              <span class="clab-hint">模拟修改了末尾 COPY 的源文件</span>
+            </div>
+            <div class="clab-out" id="dfOut">— 输入 Dockerfile —</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：镜像与层 → 基础指令 → 入口语义 → 多阶段 → 缓存 → 上下文 → 健康检查 → 构建预测 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 先用官方语言镜像搭最小 Dockerfile，docker build 看层日志；<br>
+      ② 依赖安装前置 + 多阶段构建控制镜像体积；<br>
+      ③ .dockerignore 排除敏感文件，USER 非 root 运行；<br>
+      ④ HEALTHCHECK + 标签让镜像可直接进编排。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:#198eee">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Dockerfile 构建 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'dockerfile';
+  var TOTAL_MILESTONES = 9;
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('layOpts', 'a', 'layResult',
+    '正确！一条指令一层，容器加可写层。',
+    '不对。每条指令产生独立层；镜像层不可变，运行时不合并。', 0);
+  bindOpts('cmdOpts', 'a', 'cmdResult',
+    '正确！RUN 构建期执行；COPY 从构建上下文拷入。',
+    '不对。COPY 只能访问构建上下文内文件；EXPOSE 只声明不开放。', 1);
+  bindOpts('epOpts', 'a', 'epResult',
+    '正确！CMD 可覆盖、ENTRYPOINT 固定。',
+    '不对。CMD 可覆盖、ENTRYPOINT 固定；exec 形式不经过 shell。', 2);
+  bindOpts('msOpts', 'a', 'msResult',
+    '正确！--from=builder 只拷产物，最终镜像精简。',
+    '不对。多阶段只产出最终一个镜像；FROM 可以出现多次。', 3);
+  bindOpts('cacheOpts', 'a', 'cacheResult',
+    '正确！COPY 变化使该层及后续层失效；依赖前置最大化缓存。',
+    '不对。缓存会因指令/文件变化失效；RUN 完全参与缓存。', 4);
+  bindOpts('ctxOpts', 'a', 'ctxResult',
+    '正确！.dockerignore 排除文件不进上下文、不泄露。',
+    '不对。上下文只含构建目录内未被 ignore 的文件。', 5);
+  bindOpts('hcOpts', 'a', 'hcResult',
+    '正确！HEALTHCHECK 供编排探活；USER 非 root 更安全。',
+    '不对。EXPOSE 不开放端口；root 运行是反面实践。', 6);
+
+  /* ═════════════ 构建预测器 ═════════════ */
+  $('dfBtn').addEventListener('click', function () {
+    var lines = $('dfInput').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    var out = $('dfOut');
+    var steps = [];
+    lines.forEach(function (l) {
+      if (/^(#|--)/.test(l)) return;
+      steps.push(l);
+    });
+    if (!steps.length) { out.innerHTML = '<span class="c-err">没有可执行指令</span>'; return; }
+    var list = steps.map(function (s, i) {
+      var m = s.match(/^(\w+)\b/);
+      var kw = m ? m[1].toUpperCase() : '?';
+      return '  ' + (i + 1) + '. [' + kw + '] ' + esc(s);
+    });
+    var lastCopyIdx = -1;
+    steps.forEach(function (s, i) { if (/^COPY|^ADD/.test(s)) lastCopyIdx = i; });
+    var warn = '';
+    if (lastCopyIdx >= 0 && lastCopyIdx < steps.length - 1) {
+      warn = '\n<span class="c-warn">⚠ 模拟修改 COPY 源文件 → 步骤 ' + (lastCopyIdx + 1) + ' 起全部重建（缓存失效），共重建 ' + (steps.length - lastCopyIdx) + ' 步。</span>';
+    } else {
+      warn = '\n<span class="c-warn">⚠ 末尾 COPY 源变化 → 仅重建最后 ' + (lastCopyIdx >= 0 ? 1 : 0) + ' 步，前面层全部命中缓存。</span>';
+    }
+    out.innerHTML = '<span class="c-cmd">构建步骤（' + steps.length + ' 层）</span>\n' + list.join('\n') + warn +
+      '\n<span class="c-cmd">提示：依赖安装（RUN）放在 COPY 代码之前可最大化缓存命中。</span>';
+    completeMilestone(7);
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: '镜像层由什么产生？', opts: ['每条指令一层', '整个文件一层', '只 RUN 产生层', '运行时产生层'], right: 0, expl: '每条指令产生只读层。' },
+    { q: '构建期执行命令用？', opts: ['CMD', 'RUN', 'EXPOSE', 'LABEL'], right: 1, expl: 'RUN 在构建时执行并写层。' },
+    { q: 'docker run img --port 9000 覆盖的是？', opts: ['ENTRYPOINT', 'CMD', 'FROM', 'WORKDIR'], right: 1, expl: 'CMD 是默认参数可被覆盖。' },
+    { q: '多阶段构建最终得到？', opts: ['多个镜像', '一个精简镜像', '两个容器', '不产出镜像'], right: 1, expl: '最终镜像只含运行所需。' },
+    { q: '代码改动导致 npm install 重跑，说明？', opts: ['缓存正常', '依赖在 COPY . 之后安装', 'RUN 不缓存', 'FROM 写错'], right: 1, expl: 'COPY 变化使其后层失效。' },
+    { q: '避免 .env 进镜像用？', opts: ['.dockerignore', 'EXPOSE', 'HEALTHCHECK', 'LABEL'], right: 0, expl: '排除文件不进上下文。' },
+    { q: '让编排器知道容器健康的指令？', opts: ['USER', 'HEALTHCHECK', 'EXPOSE', 'ENV'], right: 1, expl: 'HEALTHCHECK 定义探针。' },
+    { q: '非 root 运行是？', opts: ['安全实践', '反模式', '无法实现', '只用于测试'], right: 0, expl: 'USER 切换用户降低风险。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Dockerfile 构建要点。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

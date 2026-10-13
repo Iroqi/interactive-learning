@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTTP 与 API 交互式学习 · 迷你请求引擎</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --http: #2dd4bf;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(45,212,191,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--http); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--http), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--http); font-size: 17px;
+    border: 1px solid rgba(45,212,191,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #b7e8dd;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #b7e8dd; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(45,212,191,0.07); border: 1px solid rgba(45,212,191,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--http); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--http); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .client {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .client-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .client-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .client-head .dot:nth-child(1) { background: #ef476f; }
+  .client-head .dot:nth-child(2) { background: #f0a04b; }
+  .client-head .dot:nth-child(3) { background: #34d399; }
+  .client-head span.txt { margin-left: 6px; }
+  .client-ctrl { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .client-ctrl select, .client-ctrl input {
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; outline: none;
+  }
+  .client-ctrl select { min-width: 92px; }
+  .client-ctrl input.path { flex: 1; min-width: 200px; }
+  .client-ctrl button {
+    background: var(--http); border: none; border-radius: 8px; color: #06251f;
+    font-family: var(--body); font-size: 12px; font-weight: 700; padding: 7px 16px; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .client-ctrl button:hover { opacity: 0.85; }
+  .client-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .client-side { padding: 10px 14px; }
+  .client-side h4 { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .client-side textarea {
+    width: 100%; height: 120px; resize: vertical;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--mono); font-size: 12px; padding: 10px; outline: none;
+  }
+  .client-resp {
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    background: #0b0e14; padding: 10px 14px; border-top: 1px solid var(--border);
+    max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    color: #b7e8dd;
+  }
+  @media (max-width: 640px) { .client-body { grid-template-columns: 1fr; } }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--http);
+    border: 1px solid rgba(45,212,191,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(45,212,191,0.08); border: 1px solid rgba(45,212,191,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num { font-family: var(--display); font-size: 40px; color: var(--http); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--http); color: var(--http); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">HTTP &amp; API</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>HTTP 与 API <em>交互式学习</em></h1>
+    <p class="subtitle">迷你 HTTP 请求引擎 · 9 个里程碑 · 进度自动保存在本浏览器</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 报文结构 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>HTTP 报文：请求与响应的骨架</h2>
+    <p class="lead">HTTP 报文分三部分：<strong>起始行</strong>（请求行/状态行）→ <strong>头部</strong>（键值对）→ <strong>主体</strong>（可选数据）。</p>
+    <pre><span class="key">GET /api/items HTTP/1.1</span>              <span class="cmt">← 请求行：方法 + 路径 + 版本</span>
+<span class="key">Host: api.example.com</span>               <span class="cmt">← 请求头：键: 值</span>
+Accept: application/json
+Authorization: Bearer abc123
+
+<span class="val">（可选：请求主体）</span>
+
+<span class="key">HTTP/1.1 200 OK</span>                    <span class="cmt">← 状态行：版本 + 状态码 + 短语</span>
+<span class="key">Content-Type: application/json</span>     <span class="cmt">← 响应头</span>
+
+{"items": []}                          <span class="cmt">← 响应主体</span></pre>
+    <h3>练习：报文中哪部分携带"我要做什么"？</h3>
+    <div class="opts" id="msgOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="msg">请求头（如 Content-Type）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="msg">请求行（如 GET /api/items HTTP/1.1）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="msg">请求主体</label>
+    </div>
+    <div class="result" id="msgResult"></div>
+  </section>
+
+  <!-- ═══ 2 迷你请求引擎 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>迷你 HTTP 客户端：亲手发请求</h2>
+    <p class="lead">下面是一个模拟的 REST API 客户端。服务器里有一个资源 <code>/api/items</code>（商品列表）。试试这些请求：</p>
+    <table>
+      <thead><tr><th style="width:44%">请求</th><th>预期结果</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /api/items</code></td><td>200，返回商品列表</td></tr>
+        <tr><td><code>POST /api/items</code>，主体 <code>{"name":"cup","price":19}</code></td><td>201，创建成功</td></tr>
+        <tr><td><code>GET /api/items/1</code></td><td>200，返回单个商品</td></tr>
+        <tr><td><code>GET /api/items/999</code></td><td>404，资源不存在</td></tr>
+        <tr><td><code>GET /api/secret</code></td><td>401，未授权</td></tr>
+      </tbody>
+    </table>
+    <div class="insight"><strong>任务：</strong>至少发送一次 <code>GET /api/items</code> 和一次 <code>POST /api/items</code>（主体为合法 JSON），解锁本里程碑。</div>
+    <div class="client">
+      <div class="client-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">REST Client · 迷你引擎</span></div>
+      <div class="client-ctrl">
+        <select id="cMethod">
+          <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option>
+        </select>
+        <input type="text" class="path" id="cPath" value="/api/items" placeholder="/api/items" spellcheck="false">
+        <button type="button" id="cSend">发送</button>
+      </div>
+      <div class="client-body">
+        <div class="client-side">
+          <h4>请求头（每行一个 Header: Value）</h4>
+          <textarea id="cHeaders" placeholder="Accept: application/json&#10;Authorization: Bearer demo">Accept: application/json</textarea>
+        </div>
+        <div class="client-side">
+          <h4>请求主体（JSON）</h4>
+          <textarea id="cBody" placeholder='{"name":"cup","price":19}'></textarea>
+        </div>
+      </div>
+      <div class="client-resp" id="cResp">— 发送请求后，这里会显示模拟响应 —</div>
+    </div>
+    <div class="result" id="clientResult"></div>
+  </section>
+
+  <!-- ═══ 3 方法与语义 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>HTTP 方法：每个动词的语义</h2>
+    <table>
+      <thead><tr><th>方法</th><th>语义</th><th>幂等？</th><th>典型状态码</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td>读取资源，不改变状态</td><td>是</td><td>200</td></tr>
+        <tr><td>POST</td><td>创建新资源 / 触发动作</td><td>否</td><td>201 / 200</td></tr>
+        <tr><td>PUT</td><td>整体替换资源</td><td>是</td><td>200 / 204</td></tr>
+        <tr><td>PATCH</td><td>部分更新资源</td><td>否</td><td>200</td></tr>
+        <tr><td>DELETE</td><td>删除资源</td><td>是</td><td>204</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：选方法</h3>
+    <div class="opts" id="methodOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="method">只读地查询用户资料 → POST</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="method">只读地查询用户资料 → GET</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="method">把 /users/5 的资料整体替换为请求里的内容 → PATCH</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="method">把 /users/5 的资料整体替换为请求里的内容 → PUT</label>
+      <label class="opt-row" data-id="e"><input type="radio" name="method">下单购买（会新增订单并扣款）→ GET</label>
+    </div>
+    <div class="result" id="methodResult"></div>
+  </section>
+
+  <!-- ═══ 4 状态码 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>状态码：服务器在说什么</h2>
+    <p class="lead">状态码是服务器的"脸色"：<strong>2xx</strong> 成功 · <strong>3xx</strong> 重定向 · <strong>4xx</strong> 客户端问题 · <strong>5xx</strong> 服务器问题。</p>
+    <table>
+      <thead><tr><th>码</th><th>含义</th><th>码</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td>200</td><td>OK 成功</td><td>401</td><td>未认证</td></tr>
+        <tr><td>201</td><td>已创建</td><td>403</td><td>无权限</td></tr>
+        <tr><td>204</td><td>无内容</td><td>404</td><td>未找到</td></tr>
+        <tr><td>301</td><td>永久重定向</td><td>429</td><td>请求过多</td></tr>
+        <tr><td>304</td><td>未修改（缓存命中）</td><td>500</td><td>服务器内部错误</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：判断场景</h3>
+    <div class="opts" id="statusOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="status">客户端没带登录凭证 → 403 Forbidden</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="status">客户端没带登录凭证 → 401 Unauthorized</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="status">请求的 URL 不存在 → 500 Internal Server Error</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="status">请求的 URL 不存在 → 404 Not Found</label>
+    </div>
+    <div class="result" id="statusResult"></div>
+  </section>
+
+  <!-- ═══ 5 请求头 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>请求头：内容协商与身份</h2>
+    <table>
+      <thead><tr><th>请求头</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>Content-Type</code></td><td>声明主体格式（如 application/json）</td></tr>
+        <tr><td><code>Accept</code></td><td>告诉服务器你想要的响应格式</td></tr>
+        <tr><td><code>Authorization</code></td><td>携带凭证（如 Bearer &lt;token&gt;）</td></tr>
+        <tr><td><code>User-Agent</code></td><td>客户端身份标识</td></tr>
+        <tr><td><code>Cookie</code></td><td>携带会话状态</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：选头</h3>
+    <div class="opts" id="headerOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="header">提交 JSON 数据给服务器，应在请求里带 → Accept: text/html</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="header">提交 JSON 数据给服务器，应在请求里带 → Content-Type: application/json</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="header">调用需要登录的 API，应携带 → Cache-Control</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="header">调用需要登录的 API，应携带 → Authorization: Bearer &lt;token&gt;</label>
+    </div>
+    <div class="result" id="headerResult"></div>
+  </section>
+
+  <!-- ═══ 6 无状态与会话 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>HTTP 无状态：Cookie、Session 与 Token</h2>
+    <p class="lead">HTTP 本身不记得你上一次的请求（无状态）。要"记住"用户：<strong>Cookie</strong> 由服务器下发、浏览器自动带回；<strong>Session</strong> 把状态存在服务器、只给客户端一个 session id；<strong>Token（如 JWT）</strong>把状态编码进客户端持有的一串字符里，服务器验签即可。</p>
+    <h3>练习：选正确说法</h3>
+    <div class="opts" id="sessOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sess">Cookie 由浏览器生成，服务器无法控制</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sess">Session 把用户状态存在服务器，客户端只留一个会话 ID</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sess">JWT 内容可以被用户随意篡改而服务器无法发现</label>
+    </div>
+    <div class="result" id="sessResult"></div>
+  </section>
+
+  <!-- ═══ 7 REST 设计 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>REST 设计：资源即 URL，动词即方法</h2>
+    <p class="lead">REST 把一切当作<strong>资源</strong>：URL 指资源，HTTP 方法表操作。好的设计：名词复数（<code>/users</code>）、层级嵌套（<code>/users/5/orders</code>）、用状态码表达结果、保持幂等语义。</p>
+    <h3>练习：哪个设计更好？</h3>
+    <div class="opts" id="restOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="rest">删除订单：GET /deleteOrder?id=7</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="rest">删除订单：DELETE /orders/7</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="rest">获取订单列表：GET /orders</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="rest">获取订单列表：POST /getOrders</label>
+    </div>
+    <div class="result" id="restResult"></div>
+  </section>
+
+  <!-- ═══ 8 缓存与安全 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>缓存与安全：让 Web 又快又稳</h2>
+    <p class="lead">缓存：服务器用 <code>Cache-Control</code> 声明可缓存性，<code>ETag</code> 是资源版本指纹；客户端带 <code>If-None-Match</code> 询问"没变吧？"，没变就回 <strong>304</strong>。安全：浏览器<strong>同源策略</strong>阻止跨域读，跨域需要服务器明确允许（CORS 头）；CSRF 靠 SameSite/Token 防护，XSS 靠转义输出。</p>
+    <h3>练习：选正确说法</h3>
+    <div class="opts" id="cacheOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cache">服务器返回 304 表示资源内容已改变</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cache">服务器返回 304 Not Modified 表示客户端缓存仍有效，无需重传</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cache">同源策略下，任何两个域名都可以随意互相读取数据</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="cache">跨域读取需要服务器通过 CORS 响应头明确允许</label>
+    </div>
+    <div class="result" id="cacheResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：报文结构 → 亲手发请求 → 方法 → 状态码 → 请求头 → 会话 → REST 设计 → 缓存安全 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用浏览器的开发者工具（Network 面板）观察你每天访问的网站都发了哪些请求；<br>
+      ② 用 curl 命令手动请求一个公开 API，对照本文的状态码与响应头；<br>
+      ③ 给自己正在写的后端补一个 REST 风格的路由，并用 204/304 等状态码表达结果；<br>
+      ④ 给接口加上 ETag 与 Cache-Control，观察 304 的命中。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">HTTP &amp; API 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'http';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 报文结构正确
+     1 模拟器完成 GET + POST
+     2 方法语义正确
+     3 状态码正确
+     4 请求头正确
+     5 会话正确
+     6 REST 设计正确
+     7 缓存与安全正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('msgOpts', 'b', 'msgResult',
+    '正确！请求行（方法 + 路径 + 版本）声明"要做什么"，请求头描述"怎么做/带什么"。',
+    '不对。"要做什么"由请求行承载，如 GET /api/items HTTP/1.1；头部是元信息，主体是数据。', 0);
+  bindOpts('methodOpts', 'b', 'methodResult',
+    '正确！只读查询用 GET；整体替换用 PUT；下单这种"创建+副作用"用 POST。',
+    '不对。只读查询 GET；整体替换是 PUT（PATCH 才是部分更新）；有副作用的操作用 POST。', 2);
+  bindOpts('statusOpts', 'b', 'statusResult',
+    '正确！未认证是 401（要求登录），已登录但无权限才是 403；URL 不存在是 404，服务器故障才是 500。',
+    '不对。未带凭证是 401 Unauthorized；URL 不存在是 404 Not Found。', 3);
+  bindOpts('headerOpts', 'b', 'headerResult',
+    '正确！提交 JSON 用 Content-Type: application/json 声明主体格式；受保护接口用 Authorization 携带凭证。',
+    '不对。声明主体格式的是 Content-Type；带凭证的是 Authorization 头。', 4);
+  bindOpts('sessOpts', 'b', 'sessResult',
+    '正确！Session 把状态放服务器端，客户端只保存会话 ID；JWT 由服务器签名，篡改会被验签发现。',
+    '不对。Cookie 由服务器下发（Set-Cookie）；JWT 有签名，篡改会被发现。', 5);
+  bindOpts('restOpts', 'b', 'restResult',
+    '正确！DELETE /orders/7 与 GET /orders 都是资源化、方法化的 REST 风格；"动作化 URL"（/deleteOrder）是反面教材。',
+    '不对。删除用 DELETE /orders/7；列表用 GET /orders。"动作动词进 URL"是常见反模式。', 6);
+  bindOpts('cacheOpts', 'b', 'cacheResult',
+    '正确！304 表示"缓存仍有效，不用重传"；跨域读取必须由服务器通过 CORS 头明确允许。',
+    '不对。304 = 客户端缓存仍有效；跨域读取需要服务器 CORS 响应头放行。', 7);
+
+  /* ═══════════════ 迷你 HTTP 请求引擎 ═══════════════ */
+  var apiStore = {
+    items: [
+      { id: 1, name: 'book', price: 39 },
+      { id: 2, name: 'pen', price: 5 }
+    ],
+    nextId: 3
+  };
+  var reqSeq = 0;
+  var sentGetItems = false, sentPostItems = false;
+
+  function parseHeaders(raw) {
+    var map = {};
+    String(raw || '').split(/\r?\n/).forEach(function (line) {
+      var i = line.indexOf(':');
+      if (i > 0) map[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+    });
+    return map;
+  }
+
+  function jsonOrNull(text) {
+    try { return JSON.parse(text || ''); } catch (e) { return null; }
+  }
+
+  function sendHttp(method, path, headersRaw, bodyRaw) {
+    reqSeq++;
+    var reqId = 'req-' + String(reqSeq).padStart(4, '0');
+    var h = parseHeaders(headersRaw);
+    var cleanPath = (path || '').split('?')[0];
+    var base = cleanPath.replace(/\/+$/, '');
+    var status = 200, reason = 'OK', respHeaders = ['Content-Type: application/json', 'X-Request-Id: ' + reqId], body = '';
+
+    function respond(code, why, hdrs, b) {
+      status = code; reason = why;
+      if (hdrs) respHeaders = respHeaders.concat(hdrs);
+      body = b === undefined ? '' : b;
+    }
+
+    if (base === '/api/secret') {
+      var auth = h['authorization'] || '';
+      if (auth.indexOf('Bearer ') !== 0) respond(401, 'Unauthorized', ['WWW-Authenticate: Bearer'], '{"error":"missing or invalid token"}');
+      else respond(200, 'OK', [], '{"message":"welcome, authenticated user"}');
+    } else if (base === '/api/flaky') {
+      respond(503, 'Service Unavailable', [], '{"error":"upstream timeout, please retry later"}');
+    } else if (base === '/api/items') {
+      if (method === 'GET') {
+        respond(200, 'OK', [], JSON.stringify(apiStore.items));
+        sentGetItems = true;
+      } else if (method === 'POST') {
+        var obj = jsonOrNull(bodyRaw);
+        if (!obj) { respond(400, 'Bad Request', [], '{"error":"invalid JSON body"}'); }
+        else {
+          obj.id = apiStore.nextId++;
+          apiStore.items.push(obj);
+          respond(201, 'Created', ['Location: /api/items/' + obj.id], JSON.stringify(obj));
+          sentPostItems = true;
+        }
+      } else if (method === 'PUT' || method === 'PATCH') {
+        respond(405, 'Method Not Allowed', ['Allow: GET, POST'], '{"error":"collection does not support ' + method + '"}');
+      } else if (method === 'DELETE') {
+        respond(405, 'Method Not Allowed', ['Allow: GET, POST'], '{"error":"use DELETE on a single item, e.g. /api/items/1"}');
+      } else {
+        respond(405, 'Method Not Allowed', ['Allow: GET, POST'], '{"error":"method not allowed"}');
+      }
+    } else if (/^\/api\/items\/\d+$/.test(base)) {
+      var id = parseInt(base.split('/')[3], 10);
+      var item = null;
+      apiStore.items.forEach(function (it) { if (it.id === id) item = it; });
+      if (method === 'GET') {
+        if (item) respond(200, 'OK', [], JSON.stringify(item));
+        else respond(404, 'Not Found', [], '{"error":"item ' + id + ' not found"}');
+      } else if (method === 'PUT' || method === 'PATCH') {
+        var up = jsonOrNull(bodyRaw);
+        if (!up) { respond(400, 'Bad Request', [], '{"error":"invalid JSON body"}'); }
+        else if (!item) { respond(404, 'Not Found', [], '{"error":"item ' + id + ' not found"}'); }
+        else {
+          if (method === 'PUT') item = { id: id, name: up.name, price: up.price };
+          else { if (up.name !== undefined) item.name = up.name; if (up.price !== undefined) item.price = up.price; }
+          var idx = apiStore.items.indexOf(item);
+          if (idx < 0) apiStore.items.push(item);
+          respond(200, 'OK', [], JSON.stringify(item));
+        }
+      } else if (method === 'DELETE') {
+        if (!item) respond(404, 'Not Found', [], '{"error":"item ' + id + ' not found"}');
+        else {
+          for (var i = apiStore.items.length - 1; i >= 0; i--) if (apiStore.items[i].id === id) apiStore.items.splice(i, 1);
+          respond(204, 'No Content', [], '');
+        }
+      } else {
+        respond(405, 'Method Not Allowed', ['Allow: GET, PUT, PATCH, DELETE'], '{"error":"method not allowed on item"}');
+      }
+    } else if (base === '/api/search') {
+      var q = (path.split('?')[1] || '').split('q=')[1] || '';
+      var found = apiStore.items.filter(function (it) { return it.name.indexOf(q) !== -1; });
+      respond(200, 'OK', [], JSON.stringify(found));
+    } else if (base === '' || base === '/') {
+      respond(200, 'OK', [], '{"service":"mini-rest-api","docs":["/api/items","/api/items/{id}","/api/search?q=","/api/secret","/api/flaky"]}');
+    } else {
+      respond(404, 'Not Found', [], '{"error":"route not found: ' + cleanPath + '"}');
+    }
+
+    return 'HTTP/1.1 ' + status + ' ' + reason + '\n' +
+      respHeaders.join('\n') +
+      (status === 204 || !body ? '' : '\n\n' + body);
+  }
+
+  function sendNow() {
+    var method = $('cMethod').value;
+    var path = $('cPath').value.trim() || '/';
+    var resp = sendHttp(method, path, $('cHeaders').value, $('cBody').value);
+    $('cResp').textContent = resp;
+    if (sentGetItems && sentPostItems && !milestones[1]) {
+      completeMilestone(1);
+      $('clientResult').className = 'result show ok';
+      $('clientResult').innerHTML = '太棒了！GET 读取 + POST 创建，你已经跑通了 HTTP 最核心的两个动作。继续探索其他方法与状态码。';
+    }
+  }
+  $('cSend').addEventListener('click', sendNow);
+  $('cPath').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendNow(); } });
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '请求报文里声明"我要读取 /api/items"的是哪一部分？', opts: ['请求主体', '请求行', '请求头', 'Cookie 头'], right: 1, expl: '请求行 = 方法 + 路径 + HTTP 版本，定义"要做什么"。' },
+    { q: '创建一个新资源，最合适的动词与期望状态码是？', opts: ['GET → 200', 'POST → 201', 'PUT → 404', 'DELETE → 301'], right: 1, expl: 'POST 创建资源，成功返回 201 Created 与 Location 头。' },
+    { q: '客户端没有提供登录凭证，服务器应返回？', opts: ['200 OK', '403 Forbidden', '401 Unauthorized', '500 Internal Server Error'], right: 2, expl: '401 = 未认证（缺凭证）；403 = 已认证但无权限。' },
+    { q: 'PUT /users/5 与 PATCH /users/5 的区别是？', opts: ['没有区别', 'PUT 整体替换，PATCH 部分更新', 'PATCH 会删除资源', 'PUT 只能用于 GET'], right: 1, expl: 'PUT 语义是"用请求体整体替换资源"，PATCH 是"只更新提供的字段"。' },
+    { q: '提交 JSON 请求体时应携带哪个头？', opts: ['Content-Type: application/json', 'Accept: image/png', 'User-Agent: JSON', 'Cookie: id=1'], right: 0, expl: 'Content-Type 声明主体的媒体类型；Accept 才声明想要的响应格式。' },
+    { q: 'Session 与 JWT 的主要区别是？', opts: ['Session 状态在客户端，JWT 在服务器', 'Session 状态在服务器，JWT 状态编码在客户端令牌中', '两者完全一样', 'JWT 不能跨服务验证'], right: 1, expl: 'Session 把状态存服务器、客户端只留 ID；JWT 把声明编码进令牌，服务器验签即可。' },
+    { q: '下列哪个 URL 设计更符合 REST？', opts: ['GET /getUserData?id=5', 'DELETE /users/5', 'POST /removeUser', 'GET /doLogin'], right: 1, expl: 'REST 用名词复数表示资源、HTTP 方法表示操作：DELETE /users/5。' },
+    { q: '浏览器里跨域读取 api.example.com 的数据，需要？', opts: ['什么都不用做', '服务器返回允许的 CORS 响应头', '改浏览器配置', '用 HTTP/1.0 协议'], right: 1, expl: '同源策略默认禁止跨域读；服务器需通过 Access-Control-Allow-Origin 等 CORS 头明确放行。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 HTTP 与 API 设计的核心概念。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

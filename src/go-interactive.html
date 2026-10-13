@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go 并发 交互式学习 · 迷你输出预测器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --go: #198eee; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a23; color: #f5f6f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #2e2e48; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #fff; background: #198eee; border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #c5c6c7; }
+  h1 { font-size: 34px; color: #f5f6f7; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: #198eee; font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #c5c6c7; }
+  .progress-track { height: 6px; background: #232342; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: #198eee; border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #c5c6c7; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: #198eee; font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f5f6f7; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #198eee; border: 1px solid #198eee; border-radius: 6px; padding: 1px 7px; }
+  .challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
+  .ch-lead { min-width: 0; }
+  .ch-task { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 12px; padding: 18px 20px; }
+  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #198eee; margin-bottom: 10px; }
+  .task-list { margin: 0 0 14px; padding-left: 20px; color: #c5c6c7; font-size: 13px; }
+  .task-list li { margin-bottom: 6px; }
+  .task-list li::marker { color: #198eee; }
+  @media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
+  .lead { color: #dfe0e2; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #1b1b32; border: 1px solid #2e2e48; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #4a9fe8; }
+  pre { background: #0a0a23; border: 1px solid #2e2e48; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #dfe0e2; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8a8aa0; }
+  .insight { background: rgba(25, 142, 238, 0.08); border: 1px solid rgba(25, 142, 238, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: #198eee; }
+  h3 { font-size: 15px; color: #e6edf3; margin: 0 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 6px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #1b1b32; border: 1px solid #2e2e48; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: #198eee; }
+  .opt-row input { margin-top: 5px; accent-color: #198eee; }
+  .opt-row.correct { border-color: #198eee; background: rgba(25, 142, 238, 0.14); }
+  .opt-row.wrong { border-color: #d24d4d; background: rgba(210, 77, 77, 0.12); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(25, 142, 238, 0.1); border: 1px solid rgba(25, 142, 238, 0.4); color: #ddeefc; }
+  .result.err { background: rgba(210, 77, 77, 0.1); border: 1px solid rgba(210, 77, 77, 0.4); color: #f8d7d7; }
+  .clab { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #16162b; border-bottom: 1px solid #2e2e48; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #2e2e48; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #198eee; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #a7a8ab; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #0a0a23; border: 1px solid #2e2e48; color: #f5f6f7; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 70px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: #198eee; }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: #198eee; color: #fff; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { background: #0a81f5; }
+  .clab-hint { font-size: 11px; color: #a7a8ab; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0a0a23; border: 1px solid #2e2e48; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #dfe0e2; min-height: 40px; }
+  .c-cmd { color: #8a8aa0; }
+  .c-ok { color: #4a9fe8; }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #1b1b32; border: 1px solid #2e2e48; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: #198eee; margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0a0a23; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: #198eee; font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #c5c6c7; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 35, 0.94); backdrop-filter: blur(8px); border-top: 1px solid #2e2e48; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #1b1b32; color: #c5c6c7; border: 1px solid #2e2e48; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: #198eee; color: #198eee; }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a7a8ab; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1b1b32; border: 1px solid #198eee; color: #ddeefc; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #5a5a6e; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Go <em>并发</em></h1>
+    <p class="subtitle">迷你输出预测器 · goroutine · channel · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 goroutine ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>goroutine 与程序生命周期</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>go f()</code> 启动一个 goroutine（轻量线程）。关键规则：<strong>main 函数结束，程序立即退出，其他 goroutine 不等</strong>——所以裸启动的 goroutine 常常什么都没打印。</p>
+        <pre>go fmt.Println("hi")   <span class="cmt">// 可能不打印：main 直接结束</span>
+fmt.Println("main")    <span class="cmt">// 只保证这个输出</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 main 结束即程序结束</li>
+          <li>识别 goroutine 未等待的输出风险</li>
+        </ul>
+        <h3>练习：生命周期</h3>
+        <div class="opts" id="lifeOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="life">main 返回后程序退出，未同步的 goroutine 可能来不及执行</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="life">程序会等所有 goroutine 结束才退出</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="life">goroutine 一定按启动顺序执行</label>
+        </div>
+        <div class="result" id="lifeResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 2 channel 基础 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>channel 基础</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">channel 是 goroutine 间的通信管道：<code>ch := make(chan int)</code>；<code>ch &lt;- v</code> 发送、<code>v := &lt;-ch</code> 接收。<strong>发送与接收都会阻塞</strong>，直到另一端就绪——这既是同步也是数据传递。</p>
+        <pre>ch := make(chan int)
+go func(){ ch &lt;- 42 }()   <span class="cmt">// 发送阻塞，直到有人接收</span>
+v := &lt;-ch               <span class="cmt">// 接收阻塞，直到有人发送</span>
+fmt.Println(v)          <span class="cmt">// 42</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握发送/接收的阻塞语义</li>
+          <li>理解 channel 实现 goroutine 同步</li>
+        </ul>
+        <h3>练习：阻塞语义</h3>
+        <div class="opts" id="chOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="ch">发送和接收都会阻塞直到配对，channel 兼做同步点</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="ch">发送永不阻塞</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="ch">channel 只能传字符串</label>
+        </div>
+        <div class="result" id="chResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3 无缓冲 vs 缓冲 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>无缓冲与缓冲 channel</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>make(chan int)</code> 无缓冲：发送方阻塞直到接收方取走；<code>make(chan int, 3)</code> 缓冲：容量未满时发送不阻塞，满了才阻塞。接收方取空后继续等待。</p>
+        <pre>ch := make(chan int, 3)
+ch &lt;- 1; ch &lt;- 2; ch &lt;- 3   <span class="cmt">// 不阻塞（容量 3）</span>
+ch &lt;- 4                    <span class="cmt">// 阻塞：已满</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>区分无缓冲（同步）与缓冲（队列）</li>
+          <li>判断缓冲满/空的阻塞时机</li>
+        </ul>
+        <h3>练习：缓冲判读</h3>
+        <div class="opts" id="bufOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="buf">缓冲未满发送不阻塞；无缓冲必须即时配对</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="buf">缓冲 channel 发送永远不阻塞</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="buf">无缓冲与缓冲行为完全相同</label>
+        </div>
+        <div class="result" id="bufResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 4 死锁预测 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>阻塞点与死锁预测</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">所有 goroutine 都在阻塞等待时 → <strong>fatal error: deadlock</strong>。常见死锁：只发不收、只收不发、主协程发送却无人接收。</p>
+        <div class="clab">
+          <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">并发输出预测器</span></div>
+          <div class="clab-body">
+            <textarea id="goInput" spellcheck="false" placeholder="ch := make(chan int)&#10;ch &lt;- 1&#10;fmt.Println(&lt;-ch)">ch := make(chan int)
+ch &lt;- 1
+fmt.Println(&lt;-ch)</textarea>
+            <button type="button" class="clab-btn" id="goBtn">预测</button>
+            <div class="clab-out" id="goOut">— 输入 Go 代码片段 —</div>
+          </div>
+        </div>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>识别 channel 阻塞点</li>
+          <li>判断是否形成死锁</li>
+        </ul>
+        <h3>练习：阻塞判读</h3>
+        <div class="opts" id="deadOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="dead">主协程发送但无人接收 → 永久阻塞（deadlock）</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="dead">无人接收时发送会直接丢弃</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="dead">channel 会自动缓冲所有数据</label>
+        </div>
+        <div class="result" id="deadResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5 select ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>select 多路复用</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>select</code> 同时等待多个 channel：就绪的那个被执行；多个就绪时随机选一；<code>default</code> 分支让 select 非阻塞。</p>
+        <pre>select {
+case v := &lt;-a:  fmt.Println("a", v)
+case v := &lt;-b:  fmt.Println("b", v)
+default:         fmt.Println("none ready")
+}</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 select 就绪分支与随机性</li>
+          <li>用 default 实现非阻塞检查</li>
+        </ul>
+        <h3>练习：select 语义</h3>
+        <div class="opts" id="selOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="sel">多个分支就绪时随机选一；default 使 select 非阻塞</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="sel">select 按 case 书写顺序执行</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="sel">select 只能有一个 case</label>
+        </div>
+        <div class="result" id="selResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6 WaitGroup ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>sync.WaitGroup 等待</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>wg.Add(n)</code> 计数，<code>wg.Done()</code> 减一，<code>wg.Wait()</code> 阻塞直到计数归零。经典"fan-out 等待所有 goroutine"模式。</p>
+        <pre>var wg sync.WaitGroup
+for i := 0; i &lt; 3; i++ {
+  wg.Add(1)
+  go func(i int){ defer wg.Done(); fmt.Println(i) }(i)
+}
+wg.Wait()   <span class="cmt">// 等 3 个全部完成</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握 Add/Done/Wait 配合</li>
+          <li>避免 goroutine 未等先退</li>
+        </ul>
+        <h3>练习：等待语义</h3>
+        <div class="opts" id="wgOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="wg">Wait 阻塞到计数归零；Done 每完成一个减一</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="wg">Wait 会立即返回</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="wg">Add 必须在 Wait 之后调用</label>
+        </div>
+        <div class="result" id="wgResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7 Mutex 竞态 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>Mutex 与数据竞态</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">多个 goroutine 同时写共享变量 → 数据竞态（data race）。<code>sync.Mutex</code> 的 <code>Lock/Unlock</code> 保护临界区；go build 的 <code>-race</code> 能检测竞态。</p>
+        <pre>var mu sync.Mutex
+var n int
+go func(){ mu.Lock(); n++; mu.Unlock() }()
+go func(){ mu.Lock(); n++; mu.Unlock() }()</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>识别共享写导致的竞态</li>
+          <li>用 Mutex 保护临界区</li>
+        </ul>
+        <h3>练习：竞态判断</h3>
+        <div class="opts" id="mtOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="mt">不加锁并发写共享变量是数据竞态；Lock/Unlock 保护临界区</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="mt">并发写共享变量是安全的</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="mt">Mutex 用于 channel 通信</label>
+        </div>
+        <div class="result" id="mtResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 8 defer 顺序 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>defer 执行顺序</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>defer</code> 在函数<strong>返回前</strong>执行，多个 defer 按 <strong>LIFO（后进先出）</strong>。常用于解锁/关闭资源；defer 在 panic 时也会执行。</p>
+        <pre>defer fmt.Println("1")   <span class="cmt">// 最后执行</span>
+defer fmt.Println("2")   <span class="cmt">// 先于上面的</span>
+<span class="cmt">// 输出：2 1</span></pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握 defer 的 LIFO 顺序</li>
+          <li>理解 defer 在 panic 时仍执行</li>
+        </ul>
+        <h3>练习：defer 顺序</h3>
+        <div class="opts" id="dfOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="df">多个 defer 按 LIFO 倒序执行，均在函数返回前</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="df">defer 按书写顺序执行</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="df">panic 时 defer 不会执行</label>
+        </div>
+        <div class="result" id="dfResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：goroutine → channel → 缓冲 → 死锁 → select → WaitGroup → Mutex → defer → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 先跑 go run -race 感受竞态检测；<br>
+      ② 用 channel 做 goroutine 间数据流，WaitGroup 做汇合；<br>
+      ③ 共享状态一律走 Mutex 或 channel（Do not communicate by sharing memory）；<br>
+      ④ 写小工具时先画 goroutine 与 channel 时序图再编码。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:#198eee">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Go 并发 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'go';
+  var TOTAL_MILESTONES = 9;
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('lifeOpts', 'a', 'lifeResult',
+    '正确！main 结束程序即退出，goroutine 需要同步机制等待。',
+    '不对。程序不等 goroutine；goroutine 调度无序。', 0);
+  bindOpts('chOpts', 'a', 'chResult',
+    '正确！发送与接收互相阻塞配对，channel 兼做同步。',
+    '不对。发送在无接收方时阻塞；channel 可传任意类型。', 1);
+  bindOpts('bufOpts', 'a', 'bufResult',
+    '正确！缓冲未满不阻塞；无缓冲必须即时配对。',
+    '不对。缓冲满时发送仍阻塞；两者行为不同。', 2);
+  bindOpts('deadOpts', 'a', 'deadResult',
+    '正确！主协程发送无人接收 → 永久阻塞 deadlock。',
+    '不对。数据不会丢弃，发送方一直等。', 3);
+  bindOpts('selOpts', 'a', 'selResult',
+    '正确！多就绪随机选一，default 非阻塞。',
+    '不对。就绪分支随机；select 支持任意多 case。', 4);
+  bindOpts('wgOpts', 'a', 'wgResult',
+    '正确！Wait 阻塞到计数归零，Done 逐次减一。',
+    '不对。Wait 会阻塞；Add 在启动 goroutine 前调用。', 5);
+  bindOpts('mtOpts', 'a', 'mtResult',
+    '正确！并发写共享变量是竞态，Lock/Unlock 保护临界区。',
+    '不对。并发写不安全；Mutex 用于保护共享状态。', 6);
+  bindOpts('dfOpts', 'a', 'dfResult',
+    '正确！defer 按 LIFO 倒序，函数返回前执行。',
+    '不对。defer 是后进先出；panic 时 defer 照常执行。', 7);
+
+  /* ═════════════ 并发输出预测器 ═════════════ */
+  $('goBtn').addEventListener('click', function () {
+    var code = $('goInput').value;
+    var out = $('goOut');
+    var hasGo = /\bgo\s+/.test(code);
+    var hasRecv = /<\-ch|<-ch/.test(code);
+    var hasSend = /ch\s*<-/.test(code);
+    var hasBuf = /make\(chan\s+\w+,\s*\d+\)/.test(code);
+    var lines = ['<span class="c-cmd">$ go run</span>'];
+    if (!hasGo && hasSend && !hasRecv) {
+      lines.push('ch &lt;- 1  ← <span class="c-err">主协程发送，无接收方 → fatal error: deadlock</span>');
+      lines.push('→ 无缓冲 channel 发送必须配对接收，否则永久阻塞。');
+    } else if (hasSend && !hasRecv && hasBuf) {
+      lines.push('ch &lt;- 1  ← <span class="c-ok">缓冲未满，不阻塞</span>');
+      lines.push('→ 缓冲 channel 在容量耗尽前发送不阻塞。');
+    } else if (hasGo && hasSend) {
+      lines.push('go func(){ ch &lt;- v }() ← <span class="c-ok">goroutine 发送</span>');
+      lines.push('v := &lt;-ch  ← <span class="c-ok">main 接收配对，输出 v</span>');
+      lines.push('→ 发送/接收配对成功，channel 同步生效。');
+    } else if (hasGo) {
+      lines.push('go f() ← <span class="c-warn">goroutine 已启动</span>');
+      lines.push('main 若无等待（WaitGroup/channel），程序可能在 goroutine 执行前退出。');
+    } else {
+      lines.push('<span class="c-warn">未识别到 goroutine 或 channel 收发，按普通代码解读。</span>');
+    }
+    out.innerHTML = lines.join('\n');
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'main 结束时未完成的其他 goroutine？', opts: ['继续执行完', '程序直接退出不等', '自动提升优先级', '报错终止'], right: 1, expl: 'main 返回程序即退出。' },
+    { q: '无缓冲 channel 发送需要？', opts: ['有缓冲', '有接收方', '加锁', 'defer'], right: 1, expl: '发送阻塞直到有人接收。' },
+    { q: 'make(chan int, 3) 在发送 3 个值后再发送？', opts: ['不阻塞', '阻塞（已满）', '覆盖旧值', '报错'], right: 1, expl: '缓冲满发送阻塞。' },
+    { q: '主协程发送无人接收 →？', opts: ['正常输出', 'deadlock', '自动缓冲', '静默丢弃'], right: 1, expl: '永久阻塞死锁。' },
+    { q: '多个 select case 就绪时？', opts: ['按顺序执行', '随机选一', '全部执行', '跳过'], right: 1, expl: '随机选择就绪分支。' },
+    { q: '等待所有 goroutine 完成用？', opts: ['Mutex', 'WaitGroup', 'defer', 'select'], right: 1, expl: 'Add/Done/Wait 汇合。' },
+    { q: '并发写共享变量是？', opts: ['安全的', '数据竞态', '自动同步', '编译错误'], right: 1, expl: '需要 Mutex 保护。' },
+    { q: '多个 defer 的执行顺序？', opts: ['书写顺序', 'LIFO 倒序', '随机', '并发'], right: 1, expl: '后进先出。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Go 并发模型。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

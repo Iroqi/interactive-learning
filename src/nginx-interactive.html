@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nginx 交互式学习 · 迷你配置校验器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --nginx: #4ade80;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(74,222,128,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--nginx); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--nginx), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--nginx); font-size: 17px;
+    border: 1px solid rgba(74,222,128,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #b7e8c7;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #b7e8c7; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--nginx); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--nginx); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .nlab {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .nlab-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .nlab-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .nlab-head .dot:nth-child(1) { background: #ef476f; }
+  .nlab-head .dot:nth-child(2) { background: #f0a04b; }
+  .nlab-head .dot:nth-child(3) { background: #34d399; }
+  .nlab-head span.txt { margin-left: 6px; }
+  .nlab-body { padding: 12px 14px; }
+  .nlab-body textarea {
+    width: 100%; min-height: 180px; resize: vertical;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 10px;
+    color: #b7e8c7; font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    padding: 12px; outline: none; tab-size: 2;
+  }
+  .nlab-body textarea:focus { border-color: rgba(74,222,128,0.5); }
+  .nlab-ctrl { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .nlab-ctrl button {
+    background: var(--nginx); border: 1px solid var(--nginx); border-radius: 8px;
+    color: #08250f; font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s;
+  }
+  .nlab-ctrl button:hover { opacity: 0.88; }
+  .nlab-ctrl .nlab-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .nlab-out {
+    border-top: 1px solid var(--border); padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    color: #b8c2dd;
+  }
+  .nlab-out .n-ok { color: #34d399; }
+  .nlab-out .n-err { color: #ef476f; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--nginx);
+    border: 1px solid rgba(74,222,128,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--nginx); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--nginx); color: var(--nginx); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Nginx</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Nginx <em>交互式学习</em></h1>
+    <p class="subtitle">迷你 nginx -t 配置校验器 · 9 个里程碑 · 进度自动保存在本浏览器</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 架构 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>Nginx 架构：事件驱动的高并发之王</h2>
+    <p class="lead">Nginx 采用 <strong>master 进程 + 多个 worker 进程</strong>模型：master 管配置与调度，worker 用<strong>事件驱动 + 非阻塞 IO</strong>处理连接，单 worker 可支撑数万并发。静态文件、反向代理、负载均衡是它的三大主场。</p>
+    <pre><span class="cmt"># nginx.conf 顶层骨架</span>
+<span class="key">worker_processes</span> auto;
+
+<span class="key">events</span> {
+  worker_connections 10240;
+}
+
+<span class="key">http</span> {
+  include       mime.types;
+  <span class="cmt"># ... server 块都放在 http 内</span>
+}</pre>
+    <h3>练习：Nginx 架构</h3>
+    <div class="opts" id="archOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="arch">worker 进程越多越好，与 CPU 无关</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="arch">worker 用事件驱动 + 非阻塞 IO 处理连接，可支撑高并发</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="arch">每个连接都要单独占用一个进程</label>
+    </div>
+    <div class="result" id="archResult"></div>
+  </section>
+
+  <!-- ═══ 2 配置层级 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>配置层级：http → server → location</h2>
+    <p class="lead">配置按上下文（context）分层：<code>http</code>（全局）→ <code>server</code>（一个站点/虚拟主机）→ <code>location</code>（URL 路径规则）。指令会<strong>继承</strong>：外层设的，内层没设就沿用。</p>
+    <pre><span class="key">http</span> {
+  gzip on;                      <span class="cmt"># 所有 server 继承</span>
+  <span class="key">server</span> {
+    listen 80;
+    server_name example.com;
+    <span class="key">location</span> / {
+      root /var/www/html;
+    }
+    <span class="key">location</span> /api/ {
+      proxy_pass http://backend;
+    }
+  }
+}</pre>
+    <h3>练习：层级关系</h3>
+    <div class="opts" id="ctxOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ctx">location 里的指令可以反向影响 http 层的其他 server</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ctx">外层（http）的指令会被内层（server/location）继承</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ctx">server 只能有一个，location 可以有很多</label>
+    </div>
+    <div class="result" id="ctxResult"></div>
+  </section>
+
+  <!-- ═══ 3 校验器 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>迷你 nginx -t：亲手写配置</h2>
+    <p class="lead">在下面写一个 <code>server</code> 块，点「nginx -t」测试。编辑器已给出一个能通过的示例；改错了会得到带行号的报错。</p>
+    <div class="insight"><strong>任务：</strong>保持示例配置（或自己改一版合法配置），让 <code>nginx -t</code> 输出 <strong>test is successful</strong>，解锁本里程碑。</div>
+    <div class="nlab">
+      <div class="nlab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">nginx.conf · 迷你校验器</span></div>
+      <div class="nlab-body">
+        <textarea id="nInput" spellcheck="false">http {
+  server {
+    listen 80;
+    server_name example.com;
+
+    location / {
+      root /var/www/html;
+      index index.html;
+    }
+  }
+}</textarea>
+      </div>
+      <div class="nlab-ctrl">
+        <button type="button" id="nTest">nginx -t</button>
+        <span class="nlab-hint">支持：listen / server_name / root / index / location / proxy_pass / return / rewrite / add_header / ssl_certificate / upstream</span>
+      </div>
+      <div class="nlab-out" id="nOut">— 点击「nginx -t」测试配置 —</div>
+    </div>
+    <div class="result" id="nResult"></div>
+  </section>
+
+  <!-- ═══ 4 静态文件 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>静态文件：root 与 try_files</h2>
+    <p class="lead"><code>root</code> 定义站点根目录（root + URI = 磁盘路径）；<code>index</code> 指定目录默认文件；<code>try_files</code> 按顺序尝试文件，常用于前端 SPA 的"找不到就回退 index.html"。</p>
+    <pre>location / {
+  root      /usr/share/nginx/html;
+  index     index.html;
+  try_files $uri $uri/ /index.html;   <span class="cmt"># 路由回退到 SPA 入口</span>
+}</pre>
+    <h3>练习：root 与 try_files</h3>
+    <div class="opts" id="staticOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="static">请求 /about，root /var/www/html 时，实际查找的是 /var/www/html/about</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="static">root 定义 URL 前缀映射，和磁盘路径无关</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="static">try_files 只能尝试一个文件</label>
+    </div>
+    <div class="result" id="staticResult"></div>
+  </section>
+
+  <!-- ═══ 5 虚拟主机 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>虚拟主机：一台机器跑多个站点</h2>
+    <p class="lead">一个 <code>server</code> 块就是一个站点。Nginx 按 <code>listen</code> + <code>server_name</code> 匹配请求该交给哪个 server；server_name 支持通配（<code>*.example.com</code>）与精确匹配，<strong>精确 > 最长通配 > 默认</strong>。</p>
+    <pre>server {
+  listen 80;
+  server_name api.example.com;    <span class="cmt"># 精确匹配优先</span>
+  location / { proxy_pass http://api-upstream; }
+}
+server {
+  listen 80 default_server;       <span class="cmt"># 兜底</span>
+  server_name _;
+  return 404;
+}</pre>
+    <h3>练习：server_name 匹配</h3>
+    <div class="opts" id="vhOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="vh">server_name 匹配时，精确匹配优先于通配符</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="vh">server_name 只对第一个 server 生效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="vh">没有匹配的 server 时，Nginx 直接崩溃</label>
+    </div>
+    <div class="result" id="vhResult"></div>
+  </section>
+
+  <!-- ═══ 6 反向代理 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>反向代理与负载均衡</h2>
+    <p class="lead"><code>proxy_pass</code> 把请求转发给后端；<code>upstream</code> 定义一组后端并支持轮询/权重等负载均衡策略。这也是 Nginx 作为网关最常见的用法。</p>
+    <pre>upstream backend {
+  server 10.0.0.11:8080 weight=3;
+  server 10.0.0.12:8080;
+}
+
+server {
+  listen 80;
+  server_name app.example.com;
+  location / {
+    proxy_pass http://backend;
+    proxy_set_header Host $host;
+  }
+}</pre>
+    <div class="insight"><strong>任务：</strong>在校验器中加入 <code>location / { proxy_pass http://backend; }</code>（可一并声明 upstream），<code>nginx -t</code> 通过后解锁本里程碑。</div>
+    <div class="result" id="proxyResult"></div>
+  </section>
+
+  <!-- ═══ 7 重定向 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>重定向：return 与 rewrite</h2>
+    <p class="lead"><code>return 301 https://$host$request_uri;</code> 强制 HTTPS；<code>rewrite</code> 改写 URL 再继续匹配；<code>return</code> 更高效，能做的场景优先用 return。</p>
+    <pre>server {
+  listen 80;
+  server_name example.com;
+  return 301 https://$host$request_uri;   <span class="cmt"># HTTP → HTTPS</span>
+}
+server {
+  listen 443 ssl;
+  # ...ssl_certificate 等
+}</pre>
+    <h3>练习：重定向</h3>
+    <div class="opts" id="redirOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="redir">301 是临时跳转，适合测试期间使用</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="redir">301 是永久跳转（会缓存），适合 HTTP→HTTPS 迁移</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="redir">rewrite 会立刻终止请求处理</label>
+    </div>
+    <div class="result" id="redirResult"></div>
+  </section>
+
+  <!-- ═══ 8 HTTPS ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>HTTPS：listen 443 ssl 与证书</h2>
+    <p class="lead">启用 TLS 需要三件事：<code>listen 443 ssl</code>、<code>ssl_certificate</code>（证书链）、<code>ssl_certificate_key</code>（私钥）。再加安全头（HSTS、X-Frame-Options 等）把站点加固。</p>
+    <pre>server {
+  listen 443 ssl;
+  server_name example.com;
+  ssl_certificate     /etc/nginx/ssl/example.com.crt;
+  ssl_certificate_key /etc/nginx/ssl/example.com.key;
+  add_header Strict-Transport-Security "max-age=31536000" always;
+}</pre>
+    <div class="insight"><strong>任务：</strong>在校验器中把某个 server 改成 <code>listen 443 ssl</code> 并配上 <code>ssl_certificate</code> + <code>ssl_certificate_key</code>，<code>nginx -t</code> 通过后解锁本里程碑。</div>
+    <div class="result" id="sslResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：架构 → 配置层级 → nginx -t → 静态文件 → 虚拟主机 → 反向代理 → 重定向 → HTTPS → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 在本地起一个 Nginx，从静态站点开始，逐步加虚拟主机；<br>
+      ② 用 upstream + proxy_pass 把你的后端服务挂到 Nginx 后面；<br>
+      ③ 配好 HTTP→HTTPS 跳转与证书，用浏览器确认锁图标；<br>
+      ④ 每次改配置都先 <code>nginx -t</code> 再 reload——本页校验器模拟的就是这个习惯。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">NGINX 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'nginx';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 架构正确
+     1 配置层级正确
+     2 nginx -t 首次通过
+     3 静态文件正确
+     4 虚拟主机正确
+     5 反代配置通过
+     6 重定向正确
+     7 HTTPS 配置通过
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('archOpts', 'b', 'archResult',
+    '正确！worker 用事件驱动 + 非阻塞 IO 处理海量连接；worker 数量一般按 CPU 核数设置，不是越多越好。',
+    '不对。Nginx 高并发靠事件驱动，不是每连接一个进程；worker 数通常按 CPU 核数配置。', 0);
+  bindOpts('ctxOpts', 'b', 'ctxResult',
+    '正确！指令按 http → server → location 继承，外层配置内层自动沿用。',
+    '不对。继承方向是外层 → 内层；一个 server 就是一个站点，可以有多个。', 1);
+  bindOpts('staticOpts', 'a', 'staticResult',
+    '正确！root + URI = 磁盘路径；try_files 按顺序尝试多个文件，常用于 SPA 回退。',
+    '不对。root 映射磁盘根目录；try_files 可以尝试多个候选。', 3);
+  bindOpts('vhOpts', 'a', 'vhResult',
+    '正确！匹配优先级：精确 server_name > 最长通配 > 默认/default_server。',
+    '不对。server_name 精确匹配优先；没有匹配时走 default_server 兜底，不会崩溃。', 4);
+  bindOpts('redirOpts', 'b', 'redirResult',
+    '正确！301 永久跳转会被浏览器/搜索引擎缓存，适合 HTTP→HTTPS 迁移；测试期临时跳转用 302。',
+    '不对。301 是永久跳转；rewrite 改写 URL 后继续匹配，不会立刻终止。', 6);
+
+  /* ═══════════════ 迷你 nginx -t 校验器 ═══════════════ */
+  var KNOWN = [
+    'listen', 'server_name', 'root', 'index', 'location', 'proxy_pass', 'proxy_set_header',
+    'return', 'rewrite', 'add_header', 'ssl_certificate', 'ssl_certificate_key', 'upstream',
+    'server', 'http', 'events', 'worker_processes', 'worker_connections', 'include', 'gzip',
+    'client_max_body_size', 'access_log', 'error_log', 'try_files', 'alias', 'deny', 'allow',
+    'charset', 'default_server', 'weight', 'max_fails', 'fail_timeout', 'keepalive'
+  ];
+  var upstreams = [];
+
+  function validateNginx(text) {
+    var lines = String(text || '').split(/\r?\n/);
+    var errs = [];
+    var open = 0, close = 0;
+    lines.forEach(function (ln) {
+      for (var i = 0; i < ln.length; i++) {
+        if (ln[i] === '{') open++;
+        else if (ln[i] === '}') close++;
+      }
+    });
+    if (open !== close) { errs.push('nginx: [emerg] braces are not balanced (' + open + ' open, ' + close + ' close) in /etc/nginx/nginx.conf'); return { ok: false, errs: errs }; }
+
+    upstreams = [];
+    var serverBlocks = [];
+    var depth = 0;
+    var curServer = null;
+    lines.forEach(function (ln, idx) {
+      var t = ln.trim();
+      if (!t || t.indexOf('#') === 0) return;
+      var lineNo = idx + 1;
+
+      if (/^upstream\s+\S+\s*\{/.test(t)) {
+        var um = t.match(/^upstream\s+(\S+)\s*\{/);
+        upstreams.push(um[1]);
+      }
+
+      if (/^server\s*\{/.test(t)) {
+        curServer = { start: lineNo, directives: [], locations: [] };
+        serverBlocks.push(curServer);
+      }
+
+      if (t.indexOf('{') > -1) depth++;
+      if (t.indexOf('}') > -1) depth--;
+      if (depth === 0) curServer = null;
+
+      var dm = t.match(/^([a-z_][a-z0-9_]*)\s+(.+)$/);
+      if (dm && t.indexOf('{') === -1 && t.indexOf('}') === -1) {
+        var name = dm[1], args = dm[2].replace(/;+$/, '').trim();
+        if (name === 'location') {
+          if (curServer) curServer.locations.push({ line: lineNo, args: args });
+          return;
+        }
+        if (KNOWN.indexOf(name) === -1) {
+          errs.push('nginx: [emerg] unknown directive "' + name + '" in /etc/nginx/nginx.conf:' + lineNo);
+        }
+        if (curServer) curServer.directives.push({ name: name, args: args, line: lineNo });
+      }
+    });
+
+    if (!serverBlocks.length) {
+      errs.push('nginx: [emerg] no "server" block found in /etc/nginx/nginx.conf');
+    }
+
+    serverBlocks.forEach(function (s) {
+      var listen = null, hasSsl = false;
+      s.directives.forEach(function (d) {
+        if (d.name === 'listen') {
+          listen = d.args;
+          var parts = d.args.split(/\s+/);
+          if (parts[0].indexOf('ssl') === -1 && d.args.indexOf('ssl') > -1) hasSsl = true;
+          if (parts[0].indexOf('ssl') > -1) hasSsl = true;
+          var port = parseInt(parts[0].replace('default_server', '').trim(), 10);
+          if (!isNaN(port) && (port < 1 || port > 65535)) {
+            errs.push('nginx: [emerg] invalid port "' + parts[0] + '" in /etc/nginx/nginx.conf:' + d.line);
+          }
+        }
+        if (d.name === 'ssl_certificate') {
+          if (!/^\S+\.(crt|pem|fullchain\.pem)$/.test(d.args)) {
+            errs.push('nginx: [emerg] invalid ssl_certificate path "' + d.args + '" in /etc/nginx/nginx.conf:' + d.line);
+          }
+        }
+      });
+      if (hasSsl) {
+        var hasCert = false, hasKey = false;
+        s.directives.forEach(function (d) {
+          if (d.name === 'ssl_certificate') hasCert = true;
+          if (d.name === 'ssl_certificate_key') hasKey = true;
+        });
+        if (!hasCert || !hasKey) {
+          errs.push('nginx: [emerg] no "ssl_certificate" / "ssl_certificate_key" is defined for ssl listen in /etc/nginx/nginx.conf:' + s.start);
+        }
+      }
+      s.locations.forEach(function (loc) {
+        if (loc.args.indexOf('/') === 0 || loc.args === '= /') {
+          /* 路径 location，无需额外校验 */
+        }
+      });
+    });
+
+    return { ok: errs.length === 0, errs: errs, serverBlocks: serverBlocks, hasProxy: hasProxy(serverBlocks), hasSsl: hasSslAny(serverBlocks) };
+  }
+
+  function hasProxy(blocks) {
+    return blocks.some(function (s) {
+      return s.directives.some(function (d) { return d.name === 'proxy_pass'; }) ||
+        s.locations.length > 0 && blocks.some(function (b2) { return b2.directives.some(function (d) { return d.name === 'proxy_pass'; }); });
+    });
+  }
+  function hasSslAny(blocks) {
+    return blocks.some(function (s) {
+      return s.directives.some(function (d) { return d.name === 'listen' && d.args.indexOf('ssl') > -1; });
+    });
+  }
+
+  function runTest() {
+    var out = $('nOut');
+    var res = validateNginx($('nInput').value);
+    var hasP = $('nInput').value.indexOf('proxy_pass') > -1;
+    var hasS = $('nInput').value.indexOf('listen 443 ssl') > -1 || /listen\s+\S+\s+ssl/.test($('nInput').value);
+    if (!res.ok) {
+      out.innerHTML = res.errs.map(function (e) { return '<div class="n-err">' + esc(e) + '</div>'; }).join('\n') +
+        '\n<div class="n-err">nginx: configuration file /etc/nginx/nginx.conf test failed</div>';
+      return;
+    }
+    out.innerHTML = '<div class="n-ok">nginx: the configuration file /etc/nginx/nginx.conf syntax is ok</div>' +
+      '<div class="n-ok">nginx: configuration file /etc/nginx/nginx.conf test is successful</div>';
+
+    if (!milestones[2]) {
+      completeMilestone(2);
+      $('nResult').className = 'result show ok';
+      $('nResult').innerHTML = '配置通过！你已经体验了"改配置 → nginx -t → reload"这条工程师铁律。';
+    }
+    if (hasP && !milestones[5]) {
+      completeMilestone(5);
+      $('proxyResult').className = 'result show ok';
+      $('proxyResult').innerHTML = '反代配置通过！proxy_pass 把流量转给后端，upstream 还能做负载均衡。';
+    }
+    if (hasS && !milestones[7]) {
+      completeMilestone(7);
+      $('sslResult').className = 'result show ok';
+      $('sslResult').innerHTML = 'HTTPS 配置通过！listen 443 ssl + 证书 + 私钥三件套齐全，别忘了加 HSTS 安全头。';
+    }
+  }
+  $('nTest').addEventListener('click', runTest);
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: 'Nginx 高并发的核心机制是？', opts: ['每连接一个进程', 'master/worker + 事件驱动非阻塞 IO', '线程池无限扩大', '多机房部署'], right: 1, expl: 'worker 用事件驱动处理连接，支撑海量并发。' },
+    { q: '配置指令的继承方向是？', opts: ['location → server → http', 'http → server → location', '互不继承', '只继承一次'], right: 1, expl: '外层 http 的指令被内层 server/location 继承。' },
+    { q: '请求 /about，root /var/www/html 时实际查找？', opts: ['/var/www/html/about', '/var/www/html/index.html', '/about', '/var/www/html'], right: 0, expl: 'root + URI = 磁盘路径；index 是目录默认文件。' },
+    { q: 'server_name 匹配的优先级是？', opts: ['随机', '精确 > 最长通配 > 默认', '默认 > 精确', '通配优先于精确'], right: 1, expl: '精确匹配最高，default_server 兜底。' },
+    { q: '把请求转发给后端应使用？', opts: ['return', 'proxy_pass', 'add_header', 'try_files'], right: 1, expl: 'proxy_pass 是反向代理的核心指令。' },
+    { q: 'HTTP → HTTPS 迁移最合适的跳转是？', opts: ['302 临时跳转', '301 永久跳转', 'rewrite break', '直接关闭 80 端口'], right: 1, expl: '301 会被缓存，适合永久迁移。' },
+    { q: '启用 TLS 必须配置的是？', opts: ['listen 80 + server_name', 'listen 443 ssl + ssl_certificate + ssl_certificate_key', 'gzip on', 'worker_connections'], right: 1, expl: 'TLS 三件套：监听 443 ssl + 证书 + 私钥。' },
+    { q: '改完 Nginx 配置后的标准动作是？', opts: ['直接重启机器', 'nginx -t 校验 → 通过后 reload', '删除配置文件重写', '等配置自动生效'], right: 1, expl: '先 nginx -t 再 reload，避免带着语法错误重启。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Nginx 的常用配置。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

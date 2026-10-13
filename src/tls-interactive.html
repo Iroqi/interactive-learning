@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth2/OIDC 交互式学习 · 迷你流程预测器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --tls: #00ff41; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050507; color: #d6ffe0; font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #1a2a20; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #050507; background: #00ff41; border-radius: 4px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #9fcca9; }
+  h1 { font-size: 34px; color: #d6ffe0; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: #00ff41; font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #9fcca9; }
+  .progress-track { height: 6px; background: #131318; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: #00ff41; border-radius: 999px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(0, 255, 65, 0.4); }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #9fcca9; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: #00ff41; font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #d6ffe0; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #00ff41; border: 1px solid #00ff41; border-radius: 4px; padding: 1px 7px; }
+  .challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
+  .ch-lead { min-width: 0; }
+  .ch-task { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; padding: 18px 20px; }
+  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #00ff41; margin-bottom: 10px; }
+  .task-list { margin: 0 0 14px; padding-left: 20px; color: #9fcca9; font-size: 13px; }
+  .task-list li { margin-bottom: 6px; }
+  .task-list li::marker { color: #00ff41; }
+  @media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
+  .lead { color: #c2d9c8; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #7dffa0; }
+  pre { background: #050507; border: 1px solid #1a2a20; border-radius: 6px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c2d9c8; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #5f7a66; }
+  .insight { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.35); border-radius: 6px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: #00ff41; }
+  h3 { font-size: 15px; color: #e6ffe9; margin: 0 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 6px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: #00ff41; }
+  .opt-row input { margin-top: 5px; accent-color: #00ff41; }
+  .opt-row.correct { border-color: #00ff41; background: rgba(0, 255, 65, 0.12); }
+  .opt-row.wrong { border-color: #d24d4d; background: rgba(210, 77, 77, 0.12); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 6px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.4); color: #e6ffe9; }
+  .result.err { background: rgba(210, 77, 77, 0.1); border: 1px solid rgba(210, 77, 77, 0.4); color: #f8d7d7; }
+  .clab { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d0d10; border-bottom: 1px solid #1a2a20; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a2a20; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #00ff41; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #5f7a66; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #050507; border: 1px solid #1a2a20; color: #d6ffe0; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 4px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 70px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: #00ff41; }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: #00ff41; color: #050507; border: none; border-radius: 4px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { background: #00d43a; }
+  .clab-hint { font-size: 11px; color: #5f7a66; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #050507; border: 1px solid #1a2a20; border-radius: 4px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c2d9c8; min-height: 40px; }
+  .c-cmd { color: #5f7a66; }
+  .c-ok { color: #7dffa0; }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6ffe9; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: #00ff41; margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #050507; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: #00ff41; font-family: 'JetBrains Mono', monospace; text-shadow: 0 0 12px rgba(0, 255, 65, 0.35); }
+  .quiz-score p { color: #9fcca9; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(5, 5, 7, 0.94); backdrop-filter: blur(8px); border-top: 1px solid #1a2a20; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #0d0d12; color: #9fcca9; border: 1px solid #1a2a20; border-radius: 4px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: #00ff41; color: #00ff41; }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #5f7a66; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #0d0d12; border: 1px solid #00ff41; color: #e6ffe9; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #4a5a4e; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>TLS <em>与 HTTPS</em></h1>
+    <p class="subtitle">迷你握手预测器 · 证书链 · TLS 1.3 · 混合加密 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 加密基础 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>加密基础</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><strong>对称加密</strong>（AES）快但密钥要共享；<strong>非对称加密</strong>（RSA/ECC）慢但能解决密钥分发；<strong>哈希</strong>（SHA-256）不可逆，用于完整性。TLS 用<strong>混合加密</strong>：握手阶段非对称交换密钥，数据传输阶段用对称加密。</p>
+        <pre>对称: AES/ChaCha20 - 快，双方共享密钥
+非对称: RSA/ECDHE - 慢，解决密钥分发
+哈希: SHA-256 - 完整性/指纹
+混合: 非对称握手 → 对称传输</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>区分三类加密的用途</li>
+          <li>理解混合加密的分工</li>
+        </ul>
+        <h3>练习：加密分工</h3>
+        <div class="opts" id="cryptoOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="crypto">握手用非对称交换密钥，数据传输用对称加密（混合加密）</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="crypto">全程只用非对称加密</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="crypto">哈希用于加密数据</label>
+        </div>
+        <div class="result" id="cryptoResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 2 证书与 CA ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>证书与信任链</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">服务器公钥由<strong>CA 签名</strong>的证书背书。信任链：根 CA → 中间 CA → 服务器证书。浏览器内置根证书，验证链上每个签名。自签名证书无法链到根，浏览器告警。</p>
+        <pre>根 CA (浏览器内置)
+ └─ 中间 CA
+     └─ 服务器证书 (CN=example.com, 公钥, 有效期)
+验证：链式验签 + 域名匹配 + 有效期</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解证书链与验签</li>
+          <li>知道自签名为何被拒</li>
+        </ul>
+        <h3>练习：信任链</h3>
+        <div class="opts" id="chainOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="chain">浏览器内置根证书，逐级验证签名直到根</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="chain">任何证书都直接可信</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="chain">自签名证书浏览器默认可信</label>
+        </div>
+        <div class="result" id="chainResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3 TLS 1.2 握手 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>TLS 1.2 握手</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">TLS 1.2 握手：① ClientHello（版本/随机数/密码套件）；② ServerHello + 证书；③ 客户端验证证书并发送密钥交换（预主密钥）；④ 双方各自派生会话密钥；⑤ ChangeCipherSpec + Finished 确认。随后数据用对称密钥加密。</p>
+        <pre>Client ── ClientHello ──→ Server
+Client ←─ ServerHello+证书 ← Server
+Client ── 密钥交换(预主密钥) ──→ Server
+双方派生会话密钥
+Client ⇄ Finished 确认
+之后：对称加密传输</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>记住 TLS 1.2 握手五步顺序</li>
+          <li>理解 Finished 的作用</li>
+        </ul>
+        <h3>练习：握手顺序</h3>
+        <div class="opts" id="hs12Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="hs12">ClientHello → ServerHello+证书 → 密钥交换 → 派生密钥 → Finished</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="hs12">服务器先发 Finished 再发证书</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="hs12">握手阶段就传输业务数据</label>
+        </div>
+        <div class="result" id="hs12Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 4 TLS 1.3 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>TLS 1.3 的改进</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">TLS 1.3：① <strong>1-RTT</strong>——ClientHello 直接携带密钥共享（Key Share），一个往返完成握手；② 移除 RSA 密钥交换与弱套件；③ 支持 0-RTT 会话恢复（重连更快）；④ 强制前向保密（ECDHE）。</p>
+        <pre>TLS 1.3 握手 (1-RTT):
+Client ── ClientHello + key_share ──→ Server
+Client ←─ ServerHello + 证书 + Finished ← Server
+双方直接派生密钥，开始加密传输</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握 TLS 1.3 的 1-RTT</li>
+          <li>知道 key_share 是什么</li>
+        </ul>
+        <h3>练习：TLS 1.3</h3>
+        <div class="opts" id="hs13Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="hs13">ClientHello 携带 key_share，一个往返完成握手（1-RTT）</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="hs13">TLS 1.3 需要两个额外往返</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="hs13">TLS 1.3 恢复 RSA 密钥交换</label>
+        </div>
+        <div class="result" id="hs13Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5 握手预测器 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>握手步骤预测</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">输入当前握手步骤，预测下一步。下面判读器覆盖 TLS 1.2 与 1.3 两条路径，并给出常见失败点。</p>
+        <div class="insight"><strong>练习：</strong>输入当前步骤关键词，看下一步与检查点。</div>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>能说出握手任一步的下一步</li>
+          <li>识别握手失败原因</li>
+        </ul>
+        <div class="clab">
+          <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">握手预测器</span></div>
+          <div class="clab-body">
+            <input type="text" id="hsInput" spellcheck="false" value="收到了服务器证书">
+            <div class="clab-ctrl">
+              <button type="button" class="clab-btn" id="hsBtn">预测</button>
+              <span class="clab-hint">步骤：ClientHello / 证书 / 密钥交换 / Finished / 已加密</span>
+            </div>
+            <div class="clab-out" id="hsOut">— 输入步骤 —</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6 证书链验证 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>证书验证清单</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">浏览器验证书四件事：① <strong>信任链</strong>（签名链到内置根）；② <strong>域名</strong>（SAN/CN 匹配访问的 host）；③ <strong>有效期</strong>（notBefore/notAfter）；④ <strong>吊销状态</strong>（CRL/OCSP）。任一失败 → 不可信。</p>
+        <pre>✓ 签名链到受信根
+✓ 域名在 SAN 中 (example.com)
+✓ 当前时间在有效期内
+✓ 未被吊销
+任一失败 → 浏览器告警/拒绝</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>记住四项验证</li>
+          <li>能解释常见证书错误</li>
+        </ul>
+        <h3>练习：验证项</h3>
+        <div class="opts" id="verifyOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="verify">信任链 + 域名 + 有效期 + 吊销，四项全过才可信</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="verify">只要域名对就行</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="verify">过期证书可以继续用</label>
+        </div>
+        <div class="result" id="verifyResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7 HTTPS 细节 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>HTTPS 与安全细节</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">HTTPS = HTTP over TLS。安全细节：<strong>HSTS</strong> 强制 HTTPS；<strong>证书固定</strong>（防中间人）；<strong>混合内容</strong>（HTTPS 页面加载 HTTP 资源）会被浏览器拦截；<strong>降级攻击</strong>（强制回到 HTTP）用 HSTS 防。</p>
+        <pre>HSTS 头: Strict-Transport-Security: max-age=31536000
+→ 浏览器强制 HTTPS，防降级
+混合内容: https 页面里的 http 脚本/图片 → 拦截
+证书固定: 校验固定指纹，防自签中间人</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 HSTS 防降级</li>
+          <li>知道混合内容风险</li>
+        </ul>
+        <h3>练习：HTTPS</h3>
+        <div class="opts" id="httpsOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="https">HSTS 强制 HTTPS 防降级；混合内容被浏览器拦截</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="https">HTTPS 页面加载 HTTP 资源没问题</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="https">HSTS 是推荐性头，浏览器不执行</label>
+        </div>
+        <div class="result" id="httpsResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 8 攻击面 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>常见攻击与防护</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">① <strong>中间人</strong>：证书验证是唯一防线（自签/钓鱼 CA 必须告警）；② <strong>证书过期</strong>：运维巡检 + 自动续期（ACME）；③ <strong>弱套件/旧协议</strong>：禁用 TLS 1.0/1.1、禁用 RC4/3DES；④ <strong>客户端忽略证书错误</strong>（curl -k 生产禁用）。</p>
+        <pre>防护基线：
+- 证书自动续期 + 有效期监控
+- 仅启用 TLS 1.2+/TLS 1.3，禁用弱套件
+- 客户端不跳过证书验证 (禁 -k)
+- 私有 CA 管理好根私钥</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解中间人的防线是证书验证</li>
+          <li>掌握 TLS 加固基线</li>
+        </ul>
+        <h3>练习：防护</h3>
+        <div class="opts" id="attackOpts">
+          <label class="opt-row" data-id="a"><input type="radio" name="attack">证书验证防中间人；禁用旧协议弱套件；生产不跳过验证</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="attack">curl -k 是生产最佳实践</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="attack">TLS 1.0 很安全不需要禁用</label>
+        </div>
+        <div class="result" id="attackResult"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度与错题。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：加密基础 → 证书链 → TLS1.2 → TLS1.3 → 预测 → 验证 → HTTPS → 攻击面 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 openssl s_client 或 ssllabs.com 检查自己站点的握手与套件；<br>
+      ② 部署证书自动续期（certbot/ACME），监控有效期；<br>
+      ③ 在 nginx/网关层强制 TLS 1.2+、配置 HSTS；<br>
+      ④ 用 Wireshark 抓一次 TLS 1.3 握手，亲眼看到 1-RTT。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:#00ff41">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">TLS 与 HTTPS 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'tls';
+  var TOTAL_MILESTONES = 9;
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定 ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('cryptoOpts', 'a', 'cryptoResult',
+    '正确！握手阶段非对称交换密钥，传输阶段对称加密。',
+    '不对。非对称只用于握手交换密钥；哈希管完整性。', 0);
+  bindOpts('chainOpts', 'a', 'chainResult',
+    '正确！逐级验签直到内置根，自签名无法链根被拒。',
+    '不对。浏览器只信任链到根的证书。', 1);
+  bindOpts('hs12Opts', 'a', 'hs12Result',
+    '正确！ClientHello → ServerHello+证书 → 密钥交换 → 派生 → Finished。',
+    '不对。证书在 Finished 之前；握手后才是加密传输。', 2);
+  bindOpts('hs13Opts', 'a', 'hs13Result',
+    '正确！key_share 让 1-RTT 完成握手。',
+    '不对。TLS 1.3 更快且移除 RSA 密钥交换。', 3);
+  bindOpts('verifyOpts', 'a', 'verifyResult',
+    '正确！四项全过才可信，任一失败告警。',
+    '不对。域名之外还要验链、有效期与吊销。', 5);
+  bindOpts('httpsOpts', 'a', 'httpsResult',
+    '正确！HSTS 强制 HTTPS，混合内容被拦截。',
+    '不对。混合内容有泄露风险，HSTS 浏览器强制执行。', 6);
+  bindOpts('attackOpts', 'a', 'attackResult',
+    '正确！证书验证是中间人防线，旧协议必须禁用。',
+    '不对。curl -k 跳过验证是反面实践；TLS 1.0 已破。', 7);
+
+  /* ═════════════ 流程预测器 ═════════════ */
+  $('hsBtn').addEventListener('click', function () {
+    var t = $('hsInput').value;
+    var out = $('hsOut');
+    var s = String(t).toLowerCase();
+    var lines = ['<span class="c-cmd">$ tls handshake</span>'];
+    if (/clienthello|开始|发起/.test(s) && !/证书/.test(s)) {
+      lines.push('当前：客户端已发 ClientHello');
+      lines.push('下一步：<span class="c-ok">服务器回 ServerHello + 证书（TLS1.3 额外带 key_share）</span>');
+      lines.push('检查点：密码套件协商；TLS1.3 中 ClientHello 已含密钥共享。');
+    } else if (/证书|certificate|serverhello/.test(s)) {
+      lines.push('当前：收到服务器证书');
+      lines.push('下一步：<span class="c-ok">验证证书（链/域名/有效期/吊销），然后进行密钥交换</span>');
+      lines.push('检查点：<span class="c-warn">证书自签/过期/域名不符 → 握手失败，浏览器告警。</span>');
+    } else if (/密钥|交换|key|预主|premaster/.test(s)) {
+      lines.push('当前：密钥交换阶段');
+      lines.push('下一步：<span class="c-ok">双方从共享秘密派生会话密钥 → 发 Finished</span>');
+      lines.push('检查点：TLS1.2 走 ECDHE/RSA 交换预主密钥；TLS1.3 直接 key_share 派生。');
+    } else if (/finished|确认/.test(s)) {
+      lines.push('当前：Finished 确认');
+      lines.push('下一步：<span class="c-ok">握手完成，开始用对称会话密钥加密传输应用数据</span>');
+      lines.push('检查点：Finished 校验双方视图一致，防止降级攻击。');
+    } else if (/加密|数据|https|传输/.test(s)) {
+      lines.push('当前：加密传输已建立');
+      lines.push('下一步：<span class="c-ok">HTTP 请求在 TLS 记录层内加密传输；密钥定期轮换</span>');
+      lines.push('检查点：会话密钥短期有效；重连可走 TLS1.3 会话恢复。');
+    } else {
+      lines.push('<span class="c-warn">未识别步骤。试试：ClientHello / 证书 / 密钥交换 / Finished / 加密传输</span>');
+    }
+    out.innerHTML = lines.join('\n');
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'TLS 传输阶段使用什么加密？', opts: ['非对称', '对称', '哈希', '明文'], right: 1, expl: '握手后数据用对称加密。' },
+    { q: '浏览器如何信任服务器证书？', opts: ['看域名就行', '链式验签到内置根', '用户手动确认', '不验证'], right: 1, expl: '信任链验证是根基。' },
+    { q: 'TLS 1.2 握手的第一步是？', opts: ['ServerHello', 'ClientHello', 'Finished', '证书'], right: 1, expl: '客户端先发 ClientHello。' },
+    { q: 'TLS 1.3 的主要改进是？', opts: ['更慢但更安全', '1-RTT 完成握手', '恢复 RSA', '无需证书'], right: 1, expl: 'key_share 实现 1-RTT。' },
+    { q: '证书验证不包含？', opts: ['信任链', '域名匹配', '有效期', '服务器 CPU 型号'], right: 3, expl: '链/域名/有效期/吊销四项。' },
+    { q: 'HSTS 的作用是？', opts: ['强制 HTTPS 防降级', '加快速度', '替代证书', '缓存页面'], right: 0, expl: 'Strict-Transport-Security 强制 HTTPS。' },
+    { q: '中间人攻击的主要防线是？', opts: ['证书验证', '加长 URL', '多刷新', '用户密码'], right: 0, expl: '证书验证失败必须告警。' },
+    { q: '生产环境的正确做法是？', opts: ['curl -k 跳过验证', '自动续期 + 只启用 TLS1.2+', '禁用 HSTS', '用自签名证书'], right: 1, expl: '自动续期与加固基线。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0, quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+          quizWrongs.push(qi);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 TLS 与 HTTPS 核心机制。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal, wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

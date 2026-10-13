@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL 查询</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+
+
+  :root {
+    --bg: #0e1117;
+    --bg2: #0a0d12;
+    --card: #151a22;
+    --raise: #1b222c;
+    --border: #242c38;
+    --text: #e6e9ef;
+    --text2: #9aa4b2;
+    --dim: #5b6572;
+    --accent: #d4a853;
+    --accent2: #e6c98a;
+    --mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --serif: 'Cormorant Garamond', 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    --ok: #4ade80;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--body); background: var(--bg); color: var(--text);
+    line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(212,168,83,0.07), transparent),
+      radial-gradient(ellipse 50% 35% at 90% 5%, rgba(140,120,255,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(240,81,51,0.04), transparent);
+  }
+  .container { max-width: 940px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .mast { max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center; }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08); }
+  .mast-count { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .mast h1 { font-family: var(--serif); font-size: 52px; font-weight: 600; line-height: 1.1; margin: 6px 0 4px; }
+  .mast h1 em { font-style: italic; color: var(--accent); }
+  .mast .subtitle { color: var(--text2); font-size: 14px; }
+
+  .progress-strip { max-width: 940px; margin: 18px auto 6px; padding: 0 24px;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .progress-strip .prog { flex: 1; height: 6px; background: var(--raise); border-radius: 999px; overflow: hidden; }
+  .progress-strip .prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.5s ease; }
+  .progress-strip .plabel { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+  .progress-strip .pdone { color: var(--ok); font-weight: 600; }
+
+  .step { max-width: 940px; margin: 18px auto; padding: 28px 28px 24px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 14px; }
+  .step h2 { display: flex; align-items: baseline; gap: 12px; font-family: var(--serif);
+    font-size: 26px; font-weight: 600; margin-bottom: 12px; }
+  .step h2 .num { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 1px; }
+  .step p.lead { color: var(--text2); font-size: 14px; margin-bottom: 14px; }
+  .step p.lead b { color: var(--text); }
+  .step ul { padding-left: 20px; color: var(--text2); font-size: 13.5px; margin-bottom: 14px; }
+  .step li { margin: 4px 0; }
+  .step li b, .step li code { color: var(--text); }
+
+  code, .mono { font-family: var(--mono); font-size: 0.92em; background: rgba(212,168,83,0.1);
+    color: var(--accent2); padding: 1px 6px; border-radius: 5px; }
+  .eg { font-family: var(--mono); font-size: 0.85em; background: #0b0e14; border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; color: var(--text2); margin: 8px 0; overflow-x: auto; white-space: pre; }
+  .eg b { color: var(--accent2); font-weight: 600; }
+
+  .lab { margin-top: 14px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .lab-head { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--raise);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .lab-head label { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+  .lab-head input[type=text] { font-family: var(--mono); font-size: 13px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 7px; color: var(--text); padding: 6px 10px; min-width: 130px; outline: none; }
+  .lab-head input:focus { border-color: var(--accent); }
+  .lab-head .flags { display: flex; gap: 10px; align-items: center; }
+  .lab-head .flag { display: flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .lab-body { padding: 0; }
+  .lab-body textarea { width: 100%; min-height: 90px; background: var(--bg2); border: 0;
+    border-bottom: 1px solid var(--border); color: var(--text); font-family: var(--mono);
+    font-size: 13px; line-height: 1.6; padding: 12px 14px; resize: vertical; outline: none; }
+  .lab-out { padding: 10px 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.9; min-height: 40px; }
+  .lab-out .mt { background: rgba(212,168,83,0.25); color: var(--accent2); border-radius: 3px; padding: 1px 2px; }
+  .lab-out .mg { background: rgba(74,222,128,0.2); color: var(--ok); border-radius: 3px; padding: 1px 2px; }
+  .lab-out .err { color: var(--err); }
+  .lab-info { padding: 4px 14px 12px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .lab-info b { color: var(--text2); font-weight: 400; }
+
+  .btn { display: inline-block; font-family: var(--mono); font-size: 12px; background: var(--raise);
+    border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 8px;
+    cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: rgba(212,168,83,0.15); border-color: rgba(212,168,83,0.5); color: var(--accent); }
+  .btn.primary:hover { background: rgba(212,168,83,0.25); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.ok { border-color: var(--ok); color: var(--ok); }
+
+  .check-result { margin-top: 10px; font-family: var(--mono); font-size: 12px; min-height: 20px; }
+  .check-result.ok { color: var(--ok); }
+  .check-result.fail { color: var(--err); }
+  .check-result.hint { color: var(--dim); }
+
+  .quiz-q { margin-bottom: 16px; }
+  .quiz-q .q { font-size: 13.5px; color: var(--text); margin-bottom: 8px; }
+  .quiz-q .q span { color: var(--accent); font-family: var(--mono); font-size: 12px; margin-right: 6px; }
+  .quiz-q .opts { display: flex; flex-direction: column; gap: 6px; }
+  .quiz-q .opt { display: flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12.5px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  .quiz-q .opt:hover { border-color: var(--text2); }
+  .quiz-q .opt.sel { border-color: var(--accent); background: rgba(212,168,83,0.08); }
+  .quiz-q .opt.correct { border-color: var(--ok); color: var(--ok); }
+  .quiz-q .opt.wrong { border-color: var(--err); color: var(--err); }
+  .quiz-score { font-family: var(--mono); font-size: 13px; margin-top: 8px; min-height: 22px; }
+
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--raise); border: 1px solid var(--border); color: var(--text);
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 99;
+    transition: transform 0.3s ease; opacity: 0; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  .nav-foot { max-width: 940px; margin: 28px auto; padding: 0 24px; display: flex; justify-content: space-between; gap: 12px; }
+  .nav-foot a { font-size: 12px; color: var(--text2); text-decoration: none; padding: 9px 16px;
+    border: 1px solid var(--border); border-radius: 999px; transition: color 0.2s, border-color 0.2s; }
+  .nav-foot a:hover { color: var(--accent); border-color: var(--accent); }
+  .foot-note { text-align: center; color: var(--dim); font-size: 12px; padding: 20px 0 36px; }
+  .foot-note a { color: var(--text2); }
+
+  @media (max-width: 700px) {
+    .mast h1 { font-size: 38px; }
+    .step { padding: 20px 16px; }
+    .lab-head { flex-direction: column; align-items: flex-start; }
+  }
+
+
+  table.rt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.rt th { font-family: var(--mono); text-align: left; color: var(--accent2);
+    border-bottom: 1px solid var(--border); padding: 6px 10px; letter-spacing: 0.5px; }
+  table.rt td { font-family: var(--mono); border-bottom: 1px solid rgba(36,44,56,0.6);
+    padding: 5px 10px; color: var(--text2); }
+  table.rt tbody tr:hover td { background: rgba(212,168,83,0.05); color: var(--text); }
+  .rt-info { font-size: 11px; color: var(--dim); padding: 6px 2px 2px; }
+  .lab-tip { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .lab-tip:not(:empty) { color: var(--err); }
+
+</style>
+</head>
+<body>
+<div class="mast">
+  <div class="mast-top">
+    <span class="badge">SQL LAB</span>
+    <span class="mast-count">1 / 12</span>
+  </div>
+  <h1>SQL <em>查询</em></h1>
+  <p class="subtitle">从 SELECT 到 JOIN —— 在真实的小型查询引擎里，写 SQL，看结果。</p>
+  <div class="progress-strip">
+    <div class="prog"><i id="progBar"></i></div>
+    <span class="plabel" id="progressLabel">0 / 9 里程碑</span>
+  </div>
+</div>
+
+<div class="step" data-step="0">
+  <h2><span class="num">01</span> 认识 SQL</h2>
+  <p class="lead">SQL（结构化查询语言）是从数据库表中<b>取数据</b>的声明式语言。它不关心怎么找，只声明<b>要什么</b>——引擎自己决定执行路径。最基础的语句：</p>
+  <div class="eg"><b>SELECT</b> 列名 <b>FROM</b> 表名 <b>[WHERE</b> 条件<b>]</b> <b>[ORDER BY</b> 列<b>]</b> <b>[LIMIT</b> n<b>]</b></div>
+  <ul>
+    <li><code>SELECT *</code> 返回表的所有列，<code>SELECT name, city</code> 只取指定列</li>
+    <li>表里的每一行叫一条<b>记录</b>，每一列对应一个字段</li>
+    <li>执行顺序（逻辑上）：FROM → WHERE → GROUP BY → SELECT → ORDER BY → LIMIT</li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m0Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m0Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m0Sql" spellcheck="false">SELECT * FROM employees</textarea>
+      <div class="lab-out" id="m0Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m0Msg">任务：返回全部员工记录（8 行 6 列）。</div>
+  </div>
+</div>
+
+<div class="step" data-step="1">
+  <h2><span class="num">02</span> 选择列</h2>
+  <p class="lead"><code>SELECT</code> 后面列出<b>想要的列</b>，用逗号分隔。只取需要的列，能减少传输与显示负担，也让结果更易读。</p>
+  <div class="eg"><b>SELECT</b> name, city <b>FROM</b> employees</div>
+  <ul>
+    <li>列顺序就是输出顺序：<code>name, city</code> → 每行先是姓名再是城市</li>
+    <li>两个连续单词的名字可以用<b>反引号</b>包起来，例如 <code>`first name`</code></li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m1Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m1Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m1Sql" spellcheck="false">SELECT name, city FROM employees</textarea>
+      <div class="lab-out" id="m1Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m1Msg">任务：只返回 name 和 city 两列，共 8 行。</div>
+  </div>
+</div>
+
+<div class="step" data-step="2">
+  <h2><span class="num">03</span> WHERE 过滤行</h2>
+  <p class="lead"><code>WHERE</code> 按<b>条件</b>筛行：只有条件为真的行才会留下。支持比较运算与逻辑组合。</p>
+  <div class="eg"><b>SELECT</b> name <b>FROM</b> employees <b>WHERE</b> salary &gt; 6000</div>
+  <ul>
+    <li>比较符：<code>=</code> <code>&lt;&gt;</code>（不等）<code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code></li>
+    <li>组合：<code>AND</code>（同时满足）<code>OR</code>（任一满足）<code>NOT</code>（取反）</li>
+    <li>文本值用单引号：<code>WHERE city = '北京'</code></li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m2Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m2Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m2Sql" spellcheck="false">SELECT name FROM employees WHERE salary &gt; 6000</textarea>
+      <div class="lab-out" id="m2Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m2Msg">任务：找出月薪超过 6000 的员工（应返回 4 行）。</div>
+  </div>
+</div>
+
+<div class="step" data-step="3">
+  <h2><span class="num">04</span> 排序与限制</h2>
+  <p class="lead"><code>ORDER BY</code> 按列排序（默认升序 <code>ASC</code>，可加 <code>DESC</code> 降序）；<code>LIMIT n</code> 只取前 n 行。两者常搭配使用，比如"排行榜前几名"。</p>
+  <div class="eg"><b>SELECT</b> name <b>FROM</b> employees <b>ORDER BY</b> salary <b>DESC LIMIT</b> 3</div>
+  <ul>
+    <li>可以按<b>没有出现在 SELECT 里的列</b>排序</li>
+    <li>多列排序：<code>ORDER BY dept_id ASC, salary DESC</code></li>
+    <li><code>LIMIT 2 OFFSET 1</code> 跳过 1 行取 2 行（分页）</li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m3Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m3Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m3Sql" spellcheck="false">SELECT name FROM employees ORDER BY salary DESC LIMIT 3</textarea>
+      <div class="lab-out" id="m3Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m3Msg">任务：按月薪从高到低取前 3 名，第一行应是苏航。</div>
+  </div>
+</div>
+
+<div class="step" data-step="4">
+  <h2><span class="num">05</span> 聚合与分组</h2>
+  <p class="lead">聚合函数把多行<b>压成一行</b>：<code>COUNT</code> 计数、<code>SUM</code> 求和、<code>AVG</code> 平均、<code>MIN</code>/<code>MAX</code> 极值。<code>GROUP BY</code> 先按某列分组，再对每组聚合。</p>
+  <div class="eg"><b>SELECT</b> dept_id, <b>COUNT(*)</b> AS n <b>FROM</b> employees <b>GROUP BY</b> dept_id</div>
+  <ul>
+    <li><code>AS</code> 给结果列起<b>别名</b>（本例 n 表示每组人数）</li>
+    <li>SELECT 里出现聚合函数时，其他列必须出现在 GROUP BY 中</li>
+    <li>分组后再过滤用 <code>HAVING</code>（WHERE 不能用于聚合结果）</li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m4Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m4Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m4Sql" spellcheck="false">SELECT dept_id, COUNT(*) AS n FROM employees GROUP BY dept_id</textarea>
+      <div class="lab-out" id="m4Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m4Msg">任务：按部门分组统计人数，应返回 4 组（dept_id + n 两列）。</div>
+  </div>
+</div>
+
+<div class="step" data-step="5">
+  <h2><span class="num">06</span> 连接 JOIN</h2>
+  <p class="lead">数据常分散在多张表里，<code>JOIN</code> 通过<b>关联键</b>把两张表的行拼起来。<code>ON</code> 说明匹配条件——本例 <code>e.dept_id = d.id</code> 表示"员工属于哪个部门"。</p>
+  <div class="eg"><b>SELECT</b> e.name, d.name AS dept <b>FROM</b> employees e <b>JOIN</b> departments d <b>ON</b> e.dept_id = d.id</div>
+  <ul>
+    <li><code>e</code> / <code>d</code> 是<b>表别名</b>，多表时推荐用 <code>表名.列名</code> 消歧</li>
+    <li>INNER JOIN（即 JOIN）只保留<b>匹配上</b>的行；LEFT JOIN 会保留左表所有行</li>
+    <li>ON 条件也可以是复合条件：<code>ON a.x = b.x AND a.y = b.y</code></li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m5Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m5Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m5Sql" spellcheck="false">SELECT e.name, d.name AS dept FROM employees e JOIN departments d ON e.dept_id = d.id</textarea>
+      <div class="lab-out" id="m5Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m5Msg">任务：列出每位员工的姓名与其部门名（8 行，name + dept 两列）。</div>
+  </div>
+</div>
+
+<div class="step" data-step="6">
+  <h2><span class="num">07</span> 模糊匹配 LIKE 与 IN</h2>
+  <p class="lead">精确相等之外，SQL 还支持<b>模糊匹配</b>：<code>LIKE</code> 用 <code>%</code> 通配任意字符、<code>_</code> 通配单个字符；<code>IN (…)</code> 匹配一组值中的任意一个。</p>
+  <div class="eg"><b>SELECT</b> name <b>FROM</b> employees <b>WHERE</b> city <b>IN</b> ('北京', '上海')</div>
+  <ul>
+    <li><code>LIKE '%海%'</code> → 城市里含"海"字（上海、珠海…）</li>
+    <li><code>LIKE '张%'</code> → 以"张"开头；<code>LIKE '_王'</code> → 第二个字是"王"</li>
+    <li><code>NOT LIKE</code>、<code>NOT IN</code> 取反</li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m6Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m6Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m6Sql" spellcheck="false">SELECT name FROM employees WHERE city IN ('北京', '上海')</textarea>
+      <div class="lab-out" id="m6Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m6Msg">任务：找出在北京或上海的员工（应返回 5 行）。</div>
+  </div>
+</div>
+
+<div class="step" data-step="7">
+  <h2><span class="num">08</span> 表达式与别名</h2>
+  <p class="lead">SELECT 里可以放<b>表达式</b>——算术运算、拼接等，配合 <code>AS</code> 起名。表达式列是"算出来的"，不是表里的真实列。</p>
+  <div class="eg"><b>SELECT</b> name, salary * 12 <b>AS</b> annual <b>FROM</b> employees</div>
+  <ul>
+    <li>运算符：<code>+ - * /</code>，可组合括号：<code>(salary + bonus) * 12</code></li>
+    <li>字符串连接在部分方言用 <code>||</code> 或 <code>CONCAT()</code></li>
+    <li>别名供 ORDER BY / 外层引用：<code>ORDER BY annual DESC</code></li>
+  </ul>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="m7Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="m7Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="m7Sql" spellcheck="false">SELECT name, salary * 12 AS annual FROM employees</textarea>
+      <div class="lab-out" id="m7Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="m7Msg">任务：计算年薪（salary × 12），第一行 annual 应为 114000。</div>
+  </div>
+</div>
+
+<div class="step" data-step="8">
+  <h2><span class="num">09</span> 综合实战</h2>
+  <p class="lead">把前面的知识点组合起来。三道题由易到难，<b>把 SQL 写进编辑框并执行</b>，通过检查即解锁。</p>
+  <p class="lead"><b>① 找出全公司工资最高的员工</b></p>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="p1Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="p1Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="p1Sql" spellcheck="false">SELECT name FROM employees ORDER BY salary DESC LIMIT 1</textarea>
+      <div class="lab-out" id="p1Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="p1Msg">任务：只返回他的名字，1 行。</div>
+  </div>
+  <p class="lead"><b>② 统计每个部门的人数，按人数降序</b></p>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="p2Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="p2Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="p2Sql" spellcheck="false">SELECT d.name AS dept, COUNT(*) AS n FROM employees e JOIN departments d ON e.dept_id = d.id GROUP BY d.name ORDER BY n DESC</textarea>
+      <div class="lab-out" id="p2Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="p2Msg">任务：dept + n 两列，第一行应是工程部。</div>
+  </div>
+  <p class="lead"><b>③ 按月统计订单总额</b></p>
+  <div class="lab">
+    <div class="lab-head">
+      <label>SQL</label>
+      <button class="btn primary" id="p3Run">执行 &amp; 检查</button>
+      <span class="lab-tip" id="p3Tip"></span>
+    </div>
+    <div class="lab-body">
+      <textarea id="p3Sql" spellcheck="false">SELECT month, SUM(amount) AS total FROM orders GROUP BY month ORDER BY month</textarea>
+      <div class="lab-out" id="p3Out"><span class="dim">输入 SQL 后自动执行…</span></div>
+    </div>
+    <div class="check-result hint" id="p3Msg">任务：3 行，1 月的 total 应为 9100。</div>
+  </div>
+</div>
+
+<div class="step" data-step="none">
+  <h2><span class="num">10</span> SQL 速查卡</h2>
+  <div class="eg">SELECT <i>cols</i> FROM <i>t</i>          -- 取列
+WHERE <i>cond</i>                    -- 筛行
+GROUP BY <i>cols</i>                 -- 分组
+HAVING <i>agg cond</i>               -- 过滤分组
+ORDER BY <i>col</i> ASC|DESC        -- 排序
+LIMIT n OFFSET m                    -- 分页
+JOIN <i>t2</i> ON <i>cond</i>         -- 关联
+COUNT(*) / SUM(x) / AVG(x)          -- 聚合
+LIKE '%..%' / IN (v1, v2)           -- 模糊与枚举</div>
+  <ul>
+    <li>单引号包文本，双引号在部分方言表示标识符，<code>--</code> 是注释</li>
+    <li>写 SQL 先想<b>逻辑顺序</b>：FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT</li>
+  </ul>
+</div>
+
+<div class="step" data-step="8">
+  <h2><span class="num">11</span> 掌握度测验</h2>
+  <p class="lead">8 道题，答对 <b>6</b> 题即通过本模块。每选一项会立刻标记对错，可反复修改。</p>
+  <div class="quiz-q"><div class="q"><span>Q1</span>SQL 全称是什么？</div>
+    <div class="opts">
+      <div class="opt" data-q="0">Structured Query Language（结构化查询语言）</div>
+      <div class="opt" data-q="0">Simple Quick Language（简易快捷语言）</div>
+      <div class="opt" data-q="0">System Queue Logic（系统队列逻辑）</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q2</span>要返回表的全部列，应写：</div>
+    <div class="opts">
+      <div class="opt" data-q="1">SELECT * FROM t</div>
+      <div class="opt" data-q="1">GET ALL FROM t</div>
+      <div class="opt" data-q="1">SHOW t</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q3</span>按条件过滤行的子句是：</div>
+    <div class="opts">
+      <div class="opt" data-q="2">WHERE</div>
+      <div class="opt" data-q="2">SELECT</div>
+      <div class="opt" data-q="2">LIMIT</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q4</span>只想看前 10 条结果，用：</div>
+    <div class="opts">
+      <div class="opt" data-q="3">LIMIT 10</div>
+      <div class="opt" data-q="3">WHERE 10</div>
+      <div class="opt" data-q="3">ORDER 10</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q5</span>统计每个部门的人数，核心写法是：</div>
+    <div class="opts">
+      <div class="opt" data-q="4">SELECT dept_id, COUNT(*) FROM … GROUP BY dept_id</div>
+      <div class="opt" data-q="4">SELECT dept_id, COUNT(*) FROM … ORDER BY dept_id</div>
+      <div class="opt" data-q="4">SELECT dept_id FROM … LIMIT dept_id</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q6</span>关联两张表的子句是：</div>
+    <div class="opts">
+      <div class="opt" data-q="5">JOIN … ON …</div>
+      <div class="opt" data-q="5">MERGE … IN …</div>
+      <div class="opt" data-q="5">LINK … BY …</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q7</span>WHERE name LIKE '%张%' 匹配的是：</div>
+    <div class="opts">
+      <div class="opt" data-q="6">姓名中含"张"字的行</div>
+      <div class="opt" data-q="6">姓名以"张"开头的行</div>
+      <div class="opt" data-q="6">姓名为"张%"的行</div>
+    </div></div>
+  <div class="quiz-q"><div class="q"><span>Q8</span>按部门统计工资超 8000 的人数，正确顺序是：</div>
+    <div class="opts">
+      <div class="opt" data-q="7">WHERE salary &gt; 8000 在前，GROUP BY 在后</div>
+      <div class="opt" data-q="7">GROUP BY 在前，WHERE salary &gt; 8000 在后</div>
+      <div class="opt" data-q="7">两者位置无所谓</div>
+    </div></div>
+  <button class="btn primary" id="quizSubmit">提交测验</button>
+  <div class="quiz-score" id="quizScore"></div>
+</div>
+
+<div class="step" data-step="none">
+  <h2><span class="num">12</span> 示例数据表</h2>
+  <p class="lead">本模块内置三张表，所有练习都在它们之上执行。随时回到这里查看字段。</p>
+  <div class="eg"><b>employees（8 行）</b>
+id | name | dept_id | city | salary | years
+ 1  | 林晚晴 | 1 | 北京 | 9500  | 4
+ 2  | 陈默   | 1 | 上海 | 8200  | 6
+ 3  | 苏航   | 2 | 深圳 | 12800 | 3
+ 4  | 赵一鸣 | 2 | 北京 | 6400  | 1
+ 5  | 周梦琪 | 3 | 杭州 | 5800  | 2
+ 6  | 王磊   | 3 | 上海 | 5100  | 5
+ 7  | 孙晓雨 | 4 | 广州 | 4600  | 1
+ 8  | 吴昊   | 4 | 北京 | 4900  | 3</div>
+  <div class="eg"><b>departments（4 行）</b>
+id | name   | budget
+ 1 | 工程部 | 300000
+ 2 | 产品部 | 250000
+ 3 | 市场部 | 180000
+ 4 | 客服部 | 120000</div>
+  <div class="eg"><b>orders（10 行）</b>
+id | emp_id | amount | month
+101 | 1 | 3200 | 1
+102 | 1 | 4100 | 2
+103 | 2 | 2800 | 1
+104 | 3 | 5600 | 2
+105 | 3 | 4900 | 3
+106 | 4 | 1500 | 3
+107 | 5 | 2200 | 1
+108 | 5 | 2600 | 2
+109 | 7 | 1800 | 3
+110 | 8 |  900 | 1</div>
+</div>
+
+<div class="nav-foot">
+  <a id="prevStep" href="#">← 上一节</a>
+  <a id="nextStep" href="#">下一节 →</a>
+</div>
+<div class="toast" id="toast"></div>
+
+
+<script>
+/* mini SQL engine — shared by node tests and the interactive module */
+
+var DATA = {
+  employees: [
+    { id: 1, name: '林晚晴', dept_id: 1, city: '北京', salary: 9500, years: 4 },
+    { id: 2, name: '陈默',   dept_id: 1, city: '上海', salary: 8200, years: 6 },
+    { id: 3, name: '苏航',   dept_id: 2, city: '深圳', salary: 12800, years: 3 },
+    { id: 4, name: '赵一鸣', dept_id: 2, city: '北京', salary: 6400, years: 1 },
+    { id: 5, name: '周梦琪', dept_id: 3, city: '杭州', salary: 5800, years: 2 },
+    { id: 6, name: '王磊',   dept_id: 3, city: '上海', salary: 5100, years: 5 },
+    { id: 7, name: '孙晓雨', dept_id: 4, city: '广州', salary: 4600, years: 1 },
+    { id: 8, name: '吴昊',   dept_id: 4, city: '北京', salary: 4900, years: 3 }
+  ],
+  departments: [
+    { id: 1, name: '工程部', budget: 300000 },
+    { id: 2, name: '产品部', budget: 250000 },
+    { id: 3, name: '市场部', budget: 180000 },
+    { id: 4, name: '客服部', budget: 120000 }
+  ],
+  orders: [
+    { id: 101, emp_id: 1, amount: 3200, month: 1 },
+    { id: 102, emp_id: 1, amount: 4100, month: 2 },
+    { id: 103, emp_id: 2, amount: 2800, month: 1 },
+    { id: 104, emp_id: 3, amount: 5600, month: 2 },
+    { id: 105, emp_id: 3, amount: 4900, month: 3 },
+    { id: 106, emp_id: 4, amount: 1500, month: 3 },
+    { id: 107, emp_id: 5, amount: 2200, month: 1 },
+    { id: 108, emp_id: 5, amount: 2600, month: 2 },
+    { id: 109, emp_id: 7, amount: 1800, month: 3 },
+    { id: 110, emp_id: 8, amount: 900, month: 1 }
+  ]
+};
+
+function splitTop(s, seps) {
+  if (typeof seps === 'string') seps = [seps];
+  seps = seps.slice().sort(function (a, b) { return b.length - a.length; });
+  var parts = [], cur = '', i = 0, depth = 0;
+  while (i < s.length) {
+    var c = s[i];
+    if (c === "'" || c === '"' || c === '`') {
+      var q = c; cur += c; i++;
+      while (i < s.length && s[i] !== q) { if (s[i] === '\\') { cur += s[i]; i++; } if (i < s.length) { cur += s[i]; i++; } }
+      if (i < s.length) { cur += q; i++; }
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    if (depth === 0) {
+      var hit = null;
+      for (var j = 0; j < seps.length; j++) {
+        var seg = s.slice(i, i + seps[j].length);
+        if (seg.toUpperCase() === seps[j].toUpperCase()) { hit = seps[j]; break; }
+      }
+      if (hit) { parts.push(cur); cur = ''; i += hit.length; continue; }
+    }
+    cur += c; i++;
+  }
+  parts.push(cur);
+  return parts.map(function (p) { return p.trim(); }).filter(Boolean);
+}
+
+/* find keyword outside quoted strings; returns index or -1 */
+function findKW(s, kw) {
+  var up = kw.toUpperCase(), i = 0;
+  while (i < s.length) {
+    var c = s[i];
+    if (c === "'" || c === '"' || c === '`') {
+      var q = c; i++;
+      while (i < s.length && s[i] !== q) { if (s[i] === '\\') i++; i++; }
+      if (i < s.length) i++;
+      continue;
+    }
+    if (s.slice(i, i + up.length).toUpperCase() === up) {
+      var before = i === 0 ? '' : s[i - 1];
+      var after = s[i + up.length] || '';
+      if (/\s/.test(before) || before === '(' || before === '') {
+        if (/\s/.test(after) || after === '' || after === '(') return i;
+      }
+    }
+    i++;
+  }
+  return -1;
+}
+
+/* logic split on OR / AND with word boundaries, outside quotes */
+function splitLogic(s, kw) {
+  var parts = [], cur = '', i = 0, depth = 0;
+  while (i < s.length) {
+    var c = s[i];
+    if (c === "'" || c === '"' || c === '`') {
+      var q = c; cur += c; i++;
+      while (i < s.length && s[i] !== q) { if (s[i] === '\\') { cur += s[i]; i++; } if (i < s.length) { cur += s[i]; i++; } }
+      if (i < s.length) { cur += q; i++; }
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    if (depth === 0) {
+      var m = s.slice(i).match(new RegExp('^' + kw + '\\b', 'i'));
+      if (m && m[0].length === kw.length && (i === 0 || !/[A-Za-z0-9_\u4e00-\u9fa5]/.test(s[i - 1]))) {
+        parts.push(cur.trim()); cur = ''; i += kw.length; continue;
+      }
+    }
+    cur += c; i++;
+  }
+  parts.push(cur.trim());
+  return parts.filter(Boolean);
+}
+
+function isNum(v) { return typeof v === 'number'; }
+function toNum(v) { if (typeof v === 'number') return v; var n = parseFloat(v); return isNaN(n) ? null : n; }
+function cmpVal(a, b, op) {
+  var na = toNum(a), nb = toNum(b);
+  var useNum = na !== null && nb !== null;
+  if (op === '=') return useNum ? na === nb : String(a) === String(b);
+  if (op === '!=' || op === '<>') return useNum ? na !== nb : String(a) !== String(b);
+  if (!useNum) {
+    var sa = String(a), sb = String(b);
+    if (op === '<') return sa < sb;
+    if (op === '>') return sa > sb;
+    if (op === '<=') return sa <= sb;
+    if (op === '>=') return sa >= sb;
+    return false;
+  }
+  if (op === '<') return na < nb;
+  if (op === '>') return na > nb;
+  if (op === '<=') return na <= nb;
+  if (op === '>=') return na >= nb;
+  return false;
+}
+
+function likeMatch(v, pat) {
+  var re = '^' + String(pat).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.') + '$';
+  return new RegExp(re).test(String(v));
+}
+
+/* ---------- expression evaluation ---------- */
+
+/* get column value; supports 'e.name' prefix via alias map */
+function getCol(row, col) {
+  var parts = col.split('.');
+  if (parts.length === 2) {
+    var alias = parts[0], key = parts[1];
+    for (var t = 0; t < row._tables.length; t++) {
+      if (row._tables[t].alias === alias) {
+        return row._tables[t].rows[0][key];
+      }
+    }
+    return undefined;
+  }
+  /* single name: search all joined tables */
+  for (var k = 0; k < row._tables.length; k++) {
+    var o = row._tables[k].rows[0];
+    if (o && col in o) return o[col];
+  }
+  return undefined;
+}
+
+function evalExpr(expr, row, aggCtx) {
+  expr = expr.trim();
+  if (!expr) return null;
+  var c0 = expr[0];
+  if (c0 === "'" || c0 === '"') return expr.slice(1, -1);
+  if (/^[-+]?\d+(\.\d+)?$/.test(expr)) return parseFloat(expr);
+  if (/^(true|false)$/i.test(expr)) return /^true$/i.test(expr);
+  if (/^null$/i.test(expr)) return null;
+  var fm = expr.match(/^(\w+)\s*\((.*)\)$/i);
+  if (fm) {
+    var fn = fm[1].toUpperCase();
+    if (['COUNT', 'SUM', 'AVG', 'MIN', 'MAX'].indexOf(fn) >= 0) {
+      if (aggCtx) return aggCalc(fn, fm[2].trim(), aggCtx.rows);
+      return { agg: fn, arg: fm[2].trim() };
+    }
+    throw new Error('未知函数 ' + fn);
+  }
+  if (/^[\w.]+$/.test(expr)) return getCol(row, expr);
+  if (c0 === '(' && expr[expr.length - 1] === ')') return evalExpr(expr.slice(1, -1), row, aggCtx);
+  /* arithmetic: + - at top level, then * / */
+  var plus = splitTop(expr, ['+', '-']);
+  if (plus.length > 1) {
+    var acc = evalExpr(plus[0], row, aggCtx);
+    var pos = 0;
+    for (var p = 1; p < plus.length; p++) {
+      pos = expr.indexOf(plus[p - 1]) + plus[p - 1].length;
+      var op = expr.slice(pos).trim()[0];
+      var b = evalExpr(plus[p], row, aggCtx);
+      if (op === '+') acc = (isNum(acc) && isNum(b)) ? acc + b : String(acc) + String(b);
+      else acc = (toNum(acc) !== null && toNum(b) !== null) ? toNum(acc) - toNum(b) : acc - b;
+      expr = expr.slice(pos + 1);
+    }
+    return acc;
+  }
+  var mul = splitTop(expr, ['*', '/']);
+  if (mul.length > 1) {
+    var acc2 = evalExpr(mul[0], row, aggCtx);
+    for (var m2 = 1; m2 < mul.length; m2++) {
+      var b2 = evalExpr(mul[m2], row, aggCtx);
+      acc2 = (toNum(acc2) !== null && toNum(b2) !== null) ? toNum(acc2) * toNum(b2) : acc2;
+    }
+    return acc2;
+  }
+  throw new Error('无法解析表达式: ' + expr);
+}
+
+function evalCond(expr, row, aggCtx) {
+  expr = expr.trim();
+  if (!expr) return true;
+  var ors = splitLogic(expr, 'OR');
+  if (ors.length > 1) {
+    for (var o = 0; o < ors.length; o++) if (evalCond(ors[o], row, aggCtx)) return true;
+    return false;
+  }
+  var ands = splitLogic(expr, 'AND');
+  if (ands.length > 1) {
+    for (var a = 0; a < ands.length; a++) if (!evalCond(ands[a], row, aggCtx)) return false;
+    return true;
+  }
+  var nm = expr.match(/^NOT\s+(.+)$/i);
+  if (nm) return !evalCond(nm[1], row, aggCtx);
+  var lm = expr.match(/^(.+?)\s+LIKE\s+(.+)$/i);
+  if (lm) return likeMatch(evalExpr(lm[1], row, aggCtx), evalExpr(lm[2], row, aggCtx));
+  var im = expr.match(/^(.+?)\s+IN\s*\((.*)\)$/i);
+  if (im) {
+    var v = evalExpr(im[1], row, aggCtx);
+    var list = splitTop(im[2], ',').map(function (e) { return evalExpr(e, row, aggCtx); });
+    return list.some(function (x) { return String(x) === String(v) || (toNum(x) !== null && toNum(v) !== null && toNum(x) === toNum(v)); });
+  }
+  var nm2 = expr.match(/^(.+?)\s+IS\s+(NOT\s+)?NULL$/i);
+  if (nm2) { var v2 = evalExpr(nm2[1], row, aggCtx); return nm2[2] ? v2 !== null && v2 !== undefined : v2 === null || v2 === undefined; }
+  var cm = expr.match(/^(.+?)\s*(<=|>=|<>|!=|=|<|>)\s*(.+)$/i);
+  if (cm) return cmpVal(evalExpr(cm[1], row, aggCtx), evalExpr(cm[3], row, aggCtx), cm[2]);
+  if (expr[0] === '(' && expr[expr.length - 1] === ')') return evalCond(expr.slice(1, -1), row, aggCtx);
+  return !!evalExpr(expr, row, aggCtx);
+}
+
+/* ---------- aggregation ---------- */
+function aggCalc(fn, arg, rows) {
+  if (fn === 'COUNT') {
+    if (arg === '*' || arg === '') return rows.length;
+    var dm = arg.match(/^DISTINCT\s+(.+)$/i);
+    var col = dm ? dm[1].trim() : arg;
+    var seen = {}, n = 0, any = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var v = evalExpr(col, rows[i]);
+      if (v === null || v === undefined) continue;
+      any++;
+      var kk = String(v);
+      if (dm && seen[kk]) continue;
+      seen[kk] = 1;
+      n++;
+    }
+    return dm ? n : any;
+  }
+  var vals = [];
+  for (var j = 0; j < rows.length; j++) {
+    var vv = evalExpr(arg, rows[j]);
+    if (vv !== null && vv !== undefined) vals.push(toNum(vv) !== null ? toNum(vv) : vv);
+  }
+  if (fn === 'SUM') { var s = 0; for (var s1 = 0; s1 < vals.length; s1++) s += toNum(vals[s1]); return s; }
+  if (fn === 'AVG') { var s2 = 0; for (var s3 = 0; s3 < vals.length; s3++) s2 += toNum(vals[s3]); return vals.length ? s2 / vals.length : null; }
+  if (fn === 'MIN') { return vals.length ? vals.reduce(function (a, b) { return cmpVal(a, b, '<') ? a : b; }) : null; }
+  if (fn === 'MAX') { return vals.length ? vals.reduce(function (a, b) { return cmpVal(a, b, '>') ? a : b; }) : null; }
+  return null;
+}
+
+/* ---------- query execution ---------- */
+function runSQL(sql) {
+  try {
+    sql = sql.trim().replace(/;\s*$/, '');
+    if (!/^SELECT\b/i.test(sql)) return { error: '语句必须以 SELECT 开头' };
+    var distinct = /^SELECT\s+DISTINCT\b/i.test(sql);
+    var body = sql.replace(/^SELECT\s+(DISTINCT\s+)?/i, '');
+    var fromPos = findKW(body, 'FROM');
+    if (fromPos < 0) return { error: '缺少 FROM 子句' };
+    var tail = body.slice(fromPos + 4);
+
+    /* find end of FROM/JOIN region: first of WHERE/GROUP BY/HAVING/ORDER BY/LIMIT */
+    var kws = ['JOIN', 'WHERE', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT'];
+    var stops = {};
+    for (var i = 0; i < kws.length; i++) {
+      var p = findKW(tail, kws[i]);
+      if (p >= 0) stops[kws[i]] = p;
+    }
+    var sorted = Object.keys(stops).sort(function (a, b) { return stops[a] - stops[b]; });
+    /* FROM clause extends past JOIN until the first non-JOIN stop */
+    var firstStop = null;
+    for (var si = 0; si < sorted.length; si++) {
+      if (sorted[si] === 'JOIN') continue;
+      firstStop = stops[sorted[si]];
+      break;
+    }
+    var fromClause = firstStop !== null ? tail.slice(0, firstStop) : tail;
+
+    /* FROM clause: [table [alias]] [JOIN table alias ON cond] ... */
+    var jp = findKW(fromClause, 'JOIN');
+    var basePart, joinParts = [];
+    if (jp >= 0) {
+      basePart = fromClause.slice(0, jp);
+      var rest = fromClause.slice(jp);
+      while (rest) {
+        var jm = rest.match(/^JOIN\s+(\w+)(?:\s+(\w+))?\s+ON\s+(.+)$/i);
+        if (!jm) { rest = ''; break; }
+        joinParts.push({ table: jm[1], alias: jm[2] || jm[1], on: jm[3] });
+        var jp2 = findKW(jm[3], 'JOIN');
+        rest = jp2 >= 0 ? jm[3].slice(jp2) : '';
+      }
+    } else {
+      basePart = fromClause;
+    }
+    var bm = basePart.trim().match(/^(\w+)(?:\s+(\w+))?$/i);
+    if (!bm) return { error: '无法解析 FROM 子句: ' + basePart.trim() };
+    var baseTable = bm[1].toLowerCase(), baseAlias = bm[2] || bm[1];
+    var t = DATA[baseTable];
+    if (!t) return { error: '表不存在: ' + baseTable + '（可用表：employees / departments / orders）' };
+
+    /* build joined rows: row._tables = [{alias, rows:[obj]}] */
+    var baseRows = t.map(function (obj) { return { _tables: [{ alias: baseAlias, rows: [obj] }] }; });
+    for (var j = 0; j < joinParts.length; j++) {
+      var jt = DATA[joinParts[j].table.toLowerCase()];
+      if (!jt) return { error: '表不存在: ' + joinParts[j].table };
+      var next = [];
+      for (var r = 0; r < baseRows.length; r++) {
+        for (var rr = 0; rr < jt.length; rr++) {
+          var nr = { _tables: baseRows[r]._tables.concat([{ alias: joinParts[j].alias, rows: [jt[rr]] }]) };
+          if (evalCond(joinParts[j].on, nr)) next.push(nr);
+        }
+      }
+      baseRows = next;
+    }
+
+    /* clause positions relative to body */
+    var whereClause = null, groupCols = null, havingClause = null, orderCols = null, limitClause = null;
+    if ('WHERE' in stops) whereClause = tail.slice(stops.WHERE + 5, sorted[sorted.indexOf('WHERE') + 1] !== undefined ? stops[sorted[sorted.indexOf('WHERE') + 1]] : tail.length).trim();
+    if ('GROUP BY' in stops) groupCols = splitTop(tail.slice(stops['GROUP BY'] + 9, sorted[sorted.indexOf('GROUP BY') + 1] !== undefined ? stops[sorted[sorted.indexOf('GROUP BY') + 1]] : tail.length), ',');
+    if ('HAVING' in stops) havingClause = tail.slice(stops.HAVING + 6, sorted[sorted.indexOf('HAVING') + 1] !== undefined ? stops[sorted[sorted.indexOf('HAVING') + 1]] : tail.length).trim();
+    if ('ORDER BY' in stops) orderCols = splitTop(tail.slice(stops['ORDER BY'] + 9, sorted[sorted.indexOf('ORDER BY') + 1] !== undefined ? stops[sorted[sorted.indexOf('ORDER BY') + 1]] : tail.length), ',');
+    if ('LIMIT' in stops) limitClause = tail.slice(stops.LIMIT + 5).trim();
+
+    /* WHERE filter */
+    if (whereClause) baseRows = baseRows.filter(function (r) { return evalCond(whereClause, r); });
+
+    /* select column expressions */
+    var selText = body.slice(0, fromPos);
+    var colExprs = splitTop(selText, ',');
+    var cols = [], aliases = [];
+    for (var c = 0; c < colExprs.length; c++) {
+      var e = colExprs[c];
+      var asm = e.match(/^(.*?)\s+AS\s+([\w\u4e00-\u9fa5]+)$/i);
+      var expr, outName;
+      if (asm) { expr = asm[1].trim(); outName = asm[2]; }
+      else {
+        expr = e.trim();
+        var fm2 = expr.match(/^(\w+)\s*\((.*)\)$/i);
+        if (fm2 && ['COUNT','SUM','AVG','MIN','MAX'].indexOf(fm2[1].toUpperCase()) >= 0) {
+          outName = fm2[1].toUpperCase() + '(' + fm2[2].trim() + ')';
+        } else if (expr === '*') { outName = '*'; }
+        else {
+          var parts = expr.split('.');
+          outName = parts[parts.length - 1];
+        }
+      }
+      cols.push({ expr: expr, outName: outName });
+    }
+
+    /* GROUP BY */
+    var groups = null;
+    if (groupCols) {
+      groups = [];
+      var gmap = {};
+      for (var g = 0; g < baseRows.length; g++) {
+        var key = groupCols.map(function (gc) { return String(evalExpr(gc, baseRows[g])); }).join('\u0001');
+        if (!(key in gmap)) { gmap[key] = groups.length; groups.push({ key: key, rows: [] }); }
+        groups[gmap[key]].rows.push(baseRows[g]);
+      }
+      if (havingClause) {
+        groups = groups.filter(function (gr) { return evalCond(havingClause, { _tables: [{ alias: '', rows: gr.rows }] }, { rows: gr.rows }); });
+      }
+    }
+
+    /* project */
+    var outRows = [], outCols = [];
+    var anyAgg = cols.some(function (c) {
+      var fm = c.expr.match(/^(\w+)\s*\((.*)\)$/i);
+      return fm && ['COUNT','SUM','AVG','MIN','MAX'].indexOf(fm[1].toUpperCase()) >= 0;
+    });
+
+    /* SELECT * : expand all columns (joined tables merged, unique keys) */
+    if (cols.length === 1 && cols[0].expr === '*') {
+      var starKeys = [], starSeen = {};
+      if (baseRows.length) {
+        baseRows[0]._tables.forEach(function (tb) {
+          Object.keys(tb.rows[0]).forEach(function (k) {
+            if (!starSeen[k]) { starSeen[k] = 1; starKeys.push(k); }
+          });
+        });
+      }
+      outCols = starKeys;
+      outRows = baseRows.map(function (r) { return starKeys.map(function (k) { return getCol(r, k); }); });
+    } else {
+      if (groups) {
+        for (var gi = 0; gi < groups.length; gi++) {
+          var gr = groups[gi], o = [];
+          for (var ci = 0; ci < cols.length; ci++) {
+            var fm3 = cols[ci].expr.match(/^(\w+)\s*\((.*)\)$/i);
+            if (fm3 && ['COUNT','SUM','AVG','MIN','MAX'].indexOf(fm3[1].toUpperCase()) >= 0) {
+              o.push(aggCalc(fm3[1].toUpperCase(), fm3[2].trim(), gr.rows));
+            } else {
+              o.push(evalExpr(cols[ci].expr, gr.rows[0]));
+            }
+          }
+          outRows.push(o);
+        }
+      } else if (anyAgg) {
+        /* aggregate over whole result set -> single row */
+        var oA = [];
+        for (var ciA = 0; ciA < cols.length; ciA++) {
+          var fmA = cols[ciA].expr.match(/^(\w+)\s*\((.*)\)$/i);
+          if (fmA && ['COUNT','SUM','AVG','MIN','MAX'].indexOf(fmA[1].toUpperCase()) >= 0) {
+            oA.push(aggCalc(fmA[1].toUpperCase(), fmA[2].trim(), baseRows));
+          } else {
+            oA.push(baseRows.length ? evalExpr(cols[ciA].expr, baseRows[0]) : null);
+          }
+        }
+        outRows.push(oA);
+      } else {
+        for (var rr2 = 0; rr2 < baseRows.length; rr2++) {
+          var row = baseRows[rr2], o2 = [];
+          for (var ci2 = 0; ci2 < cols.length; ci2++) {
+            o2.push(evalExpr(cols[ci2].expr, row));
+          }
+          outRows.push(o2);
+        }
+      }
+      for (var cc = 0; cc < cols.length; cc++) outCols.push(cols[cc].outName === '*' ? '*' : cols[cc].outName);
+    }
+
+    /* DISTINCT */
+    if (distinct) {
+      var seen2 = {}, dedup = [];
+      for (var d = 0; d < outRows.length; d++) {
+        var kk2 = JSON.stringify(outRows[d]);
+        if (!seen2[kk2]) { seen2[kk2] = 1; dedup.push(outRows[d]); }
+      }
+      outRows = dedup;
+    }
+
+    /* ORDER BY (non-grouped: fall back to raw row evaluation for non-output cols) */
+    if (orderCols) {
+      var rawRows = groups ? null : baseRows;
+      var keyIdx = function (oc) {
+        var m = oc.trim().match(/^(\w+)\s+(ASC|DESC)$/i);
+        var name = m ? m[1] : oc.trim(), dir = m ? m[2].toUpperCase() : 'ASC';
+        var idx = -1;
+        for (var q = 0; q < outCols.length; q++) if (String(outCols[q]) === name) { idx = q; break; }
+        if (idx < 0 && /^\d+$/.test(name)) idx = parseInt(name, 10) - 1;
+        return { idx: idx, dir: dir, raw: name };
+      };
+      var sorts = orderCols.map(keyIdx);
+      var idxMap = outRows.map(function (_, ii) { return ii; });
+      idxMap.sort(function (i, j) {
+        for (var s = 0; s < sorts.length; s++) {
+          var so = sorts[s];
+          var va, vb;
+          if (so.idx >= 0) { va = outRows[i][so.idx]; vb = outRows[j][so.idx]; }
+          else if (rawRows) {
+            try { va = evalExpr(so.raw, rawRows[i]); } catch (e) { va = null; }
+            try { vb = evalExpr(so.raw, rawRows[j]); } catch (e2) { vb = null; }
+          } else { va = null; vb = null; }
+          if (va === null && vb === null) continue;
+          if (va === null) return so.dir === 'DESC' ? 1 : -1;
+          if (vb === null) return so.dir === 'DESC' ? -1 : 1;
+          var c = cmpVal(va, vb, '<') ? -1 : (cmpVal(va, vb, '>') ? 1 : 0);
+          if (c !== 0) return so.dir === 'DESC' ? -c : c;
+        }
+        return 0;
+      });
+      outRows = idxMap.map(function (ii) { return outRows[ii]; });
+    }
+
+    /* LIMIT */
+    if (limitClause) {
+      var lm = limitClause.match(/^(\d+)(?:\s+OFFSET\s+(\d+))?$/i) || limitClause.match(/^(\d+)\s*,\s*(\d+)$/);
+      if (lm) {
+        var off = 0, cnt;
+        if (lm[3] !== undefined) { off = parseInt(lm[1], 10); cnt = parseInt(lm[2], 10); }
+        else { cnt = parseInt(lm[1], 10); off = lm[2] ? parseInt(lm[2], 10) : 0; }
+        outRows = outRows.slice(off, off + cnt);
+      } else {
+        return { error: 'LIMIT 语法错误: ' + limitClause };
+      }
+    }
+
+    return { cols: outCols, rows: outRows, count: outRows.length };
+  } catch (e) {
+    return { error: String(e.message || e) };
+  }
+}
+
+  /* ── UI helpers ── */
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function renderTable(out, r) {
+    if (!r) { out.innerHTML = '<span class="dim">…</span>'; return; }
+    if (r.error) { out.innerHTML = '<span class="err">✗ ' + esc(r.error) + '</span>'; return; }
+    if (!r.cols.length) { out.innerHTML = '<span class="dim">0 行</span>'; return; }
+    var h = '<table class="rt"><thead><tr>';
+    r.cols.forEach(function (c) { h += '<th>' + esc(String(c)) + '</th>'; });
+    h += '</tr></thead><tbody>';
+    r.rows.slice(0, 30).forEach(function (row) {
+      h += '<tr>';
+      row.forEach(function (v) { h += '<td>' + esc(v === null || v === undefined ? 'NULL' : String(v)) + '</td>'; });
+      h += '</tr>';
+    });
+    if (r.rows.length > 30) h += '<tr><td colspan="' + r.cols.length + '" class="dim">… 仅显示前 30 行</td></tr>';
+    h += '</tbody></table><div class="rt-info">' + r.rows.length + ' 行 × ' + r.cols.length + ' 列</div>';
+    out.innerHTML = h;
+  }
+
+  /* ── live runner: render on every input, check on button ── */
+  function bindLab(runId, sqlId, outId, tipId) {
+    var ta = $(sqlId), out = $(outId);
+    function live() { renderTable(out, runSQL(ta.value)); }
+    ta.addEventListener('input', live);
+    live();
+    $(runId).addEventListener('click', function () { live(); $(tipId).textContent = ''; });
+  }
+
+  /* ── milestone check helpers ── */
+  function done(mi, el, ok, okText, hint) {
+    el.className = 'check-result ' + (ok ? 'ok' : 'fail');
+    el.textContent = ok ? okText : hint;
+    if (ok && mi >= 0) unlock(mi);
+    return ok;
+  }
+  function runCheck(sqlId, outId, msgId, tipId, mi, cond, okText, hint) {
+    var r = runSQL($(sqlId).value);
+    renderTable($(outId), r);
+    var ok = false;
+    if (r && !r.error) { try { ok = cond(r); } catch (e) { ok = false; } }
+    if (ok) $(tipId).textContent = '';
+    else $(tipId).textContent = r && r.error ? '✗ ' + r.error : '';
+    return done(mi, $(msgId), ok, okText, hint);
+  }
+
+  bindLab('m0Run', 'm0Sql', 'm0Out', 'm0Tip');
+  bindLab('m1Run', 'm1Sql', 'm1Out', 'm1Tip');
+  bindLab('m2Run', 'm2Sql', 'm2Out', 'm2Tip');
+  bindLab('m3Run', 'm3Sql', 'm3Out', 'm3Tip');
+  bindLab('m4Run', 'm4Sql', 'm4Out', 'm4Tip');
+  bindLab('m5Run', 'm5Sql', 'm5Out', 'm5Tip');
+  bindLab('m6Run', 'm6Sql', 'm6Out', 'm6Tip');
+  bindLab('m7Run', 'm7Sql', 'm7Out', 'm7Tip');
+  bindLab('p1Run', 'p1Sql', 'p1Out', 'p1Tip');
+  bindLab('p2Run', 'p2Sql', 'p2Out', 'p2Tip');
+  bindLab('p3Run', 'p3Sql', 'p3Out', 'p3Tip');
+
+  $('m0Run').addEventListener('click', function () {
+    runCheck('m0Sql', 'm0Out', 'm0Msg', 'm0Tip', 0,
+      function (r) { return r.cols.length === 6 && r.rows.length === 8; },
+      '✓ 8 行 6 列全部返回', '期望 8 行 6 列（SELECT * 取全部列）。');
+  });
+  $('m1Run').addEventListener('click', function () {
+    runCheck('m1Sql', 'm1Out', 'm1Msg', 'm1Tip', 1,
+      function (r) { return r.cols.length === 2 && r.cols[0] === 'name' && r.cols[1] === 'city' && r.rows.length === 8; },
+      '✓ name + city 两列，8 行', '期望列 name, city，共 8 行。');
+  });
+  $('m2Run').addEventListener('click', function () {
+    runCheck('m2Sql', 'm2Out', 'm2Msg', 'm2Tip', 2,
+      function (r) { return r.rows.length === 4; },
+      '✓ WHERE 过滤出 4 行', '期望返回 4 行（月薪 > 6000 的 4 人）。');
+  });
+  $('m3Run').addEventListener('click', function () {
+    runCheck('m3Sql', 'm3Out', 'm3Msg', 'm3Tip', 3,
+      function (r) { return r.rows.length === 3 && String(r.rows[0][0]) === '苏航'; },
+      '✓ 前三名按薪资降序，首位苏航', '期望 3 行且第一行姓名 = 苏航（最高薪 12800）。');
+  });
+  $('m4Run').addEventListener('click', function () {
+    runCheck('m4Sql', 'm4Out', 'm4Msg', 'm4Tip', 4,
+      function (r) { return r.rows.length === 4 && r.cols.length === 2 && r.cols[1] === 'n'; },
+      '✓ 4 个部门各一组，n 列统计正确', '期望 4 组：dept_id + n 两列，n 为各组人数。');
+  });
+  $('m5Run').addEventListener('click', function () {
+    runCheck('m5Sql', 'm5Out', 'm5Msg', 'm5Tip', 5,
+      function (r) { return r.rows.length === 8 && r.cols.length === 2 && r.cols[1] === 'dept'; },
+      '✓ JOIN 成功：8 行，name + dept 两列', '期望 8 行两列（name, dept），JOIN 键 e.dept_id = d.id。');
+  });
+  $('m6Run').addEventListener('click', function () {
+    runCheck('m6Sql', 'm6Out', 'm6Msg', 'm6Tip', 6,
+      function (r) { return r.rows.length === 5; },
+      '✓ IN 命中北京/上海共 5 人', '期望 5 行（北京 3 人 + 上海 2 人）。');
+  });
+  $('m7Run').addEventListener('click', function () {
+    runCheck('m7Sql', 'm7Out', 'm7Msg', 'm7Tip', 7,
+      function (r) { return r.rows.length === 8 && r.cols.length === 2 && r.cols[1] === 'annual' && r.rows[0][1] === 114000; },
+      '✓ 年薪列计算正确（首位 114000）', '期望 name + annual 两列，annual = salary×12。');
+  });
+  $('p1Run').addEventListener('click', function () {
+    runCheck('p1Sql', 'p1Out', 'p1Msg', 'p1Tip', -1,
+      function (r) { return r.rows.length === 1 && String(r.rows[0][0]) === '苏航'; },
+      '✓ 苏航（12800）', '期望 1 行 1 列，值是最高薪员工苏航。');
+  });
+  $('p2Run').addEventListener('click', function () {
+    runCheck('p2Sql', 'p2Out', 'p2Msg', 'p2Tip', -1,
+      function (r) { return r.rows.length === 4 && String(r.rows[0][0]) === '工程部'; },
+      '✓ 4 个部门按人数降序，首位工程部', '期望 JOIN + GROUP BY + ORDER BY，第一行工程部。');
+  });
+  $('p3Run').addEventListener('click', function () {
+    runCheck('p3Sql', 'p3Out', 'p3Msg', 'p3Tip', -1,
+      function (r) { return r.rows.length === 3 && r.rows[0][1] === 9100; },
+      '✓ 3 个月订单总额，1 月 = 9100', '期望按月分组求和，month + total 两列 3 行。');
+  });
+
+  /* ── quiz (8 questions, pass >= 6) ── */
+  var ANSWERS = [0, 1, 0, 1, 1, 1, 1, 1];
+  var selected = {};
+  document.querySelectorAll('.quiz-q').forEach(function (box, qi) {
+    box.querySelectorAll('.opt').forEach(function (opt, oi) {
+      opt.addEventListener('click', function () {
+        box.querySelectorAll('.opt').forEach(function (x) { x.classList.remove('sel'); });
+        opt.classList.add('sel');
+        selected[qi] = oi;
+        if (oi === ANSWERS[qi]) {
+          box.querySelectorAll('.opt').forEach(function (x, xi) { x.classList.toggle('correct', xi === ANSWERS[qi]); x.classList.remove('wrong'); });
+        } else {
+          opt.classList.add('wrong');
+          box.querySelectorAll('.opt')[ANSWERS[qi]].classList.add('correct');
+        }
+      });
+    });
+  });
+  $('quizSubmit').addEventListener('click', function () {
+    var n = 0;
+    for (var i = 0; i < 8; i++) if (selected[i] === ANSWERS[i]) n++;
+    var el = $('quizScore');
+    var ok = n >= 6;
+    el.className = 'quiz-score ' + (ok ? 'ok' : 'fail');
+    el.textContent = n + ' / 8 正确' + (ok ? ' — 通过！' : ' — 至少答对 6 题才能通过，继续加油。');
+    if (ok) unlock(8);
+  });
+
+  /* ── progress persistence (il_progress[sql]) ── */
+  var STEPS = 9, KEY = 'sql';
+  var milestones = [];
+  function load() {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('il_progress') || '{}'); } catch (e) {}
+    var rec = s[KEY];
+    milestones = [];
+    for (var i = 0; i < STEPS; i++) milestones.push(rec && rec.steps && rec.steps.indexOf(i) >= 0 ? 1 : 0);
+    renderProgress();
+  }
+  function save() {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('il_progress') || '{}'); } catch (e) {}
+    var steps = [];
+    for (var i = 0; i < STEPS; i++) if (milestones[i]) steps.push(i);
+    s[KEY] = { steps: steps, last: Date.now(), done: steps.length >= STEPS };
+    localStorage.setItem('il_progress', JSON.stringify(s));
+  }
+  function renderProgress() {
+    var n = 0;
+    for (var i = 0; i < STEPS; i++) n += milestones[i];
+    var pct = Math.round(n / STEPS * 100);
+    $('progBar').style.width = pct + '%';
+    var label = n >= STEPS ? '✓ 全部完成 ' + n + ' / ' + STEPS : n + ' / ' + STEPS + ' 里程碑';
+    $('progressLabel').textContent = label;
+  }
+  function unlock(n) {
+    if (milestones[n]) return;
+    milestones[n] = 1;
+    save();
+    renderProgress();
+    toast('里程碑 ' + (n + 1) + '/9 解锁');
+  }
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+  function $(id) { return document.getElementById(id); }
+
+  load();
+
+  /* ── section navigation ── */
+  var steps = Array.prototype.slice.call(document.querySelectorAll('.step'));
+  $('prevStep').addEventListener('click', function (e) {
+    e.preventDefault();
+    var cur = document.scrollingElement.scrollTop + 80, idx = -1;
+    for (var i = 0; i < steps.length; i++) if (steps[i].getBoundingClientRect().top < 300) idx = i;
+    if (idx > 0) steps[idx - 1].scrollIntoView({ behavior: 'smooth' });
+    else document.querySelector('.mast').scrollIntoView({ behavior: 'smooth' });
+  });
+  $('nextStep').addEventListener('click', function (e) {
+    e.preventDefault();
+    var cur = document.scrollingElement.scrollTop + 80, idx = -1;
+    for (var i = 0; i < steps.length; i++) if (steps[i].getBoundingClientRect().top < 300) idx = i;
+    if (idx >= 0 && idx < steps.length - 1) steps[idx + 1].scrollIntoView({ behavior: 'smooth' });
+  });
+
+</script></body>
+</html>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS 布局与盒模型 交互式学习 · 迷你布局预测器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --css: #34d399; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast {
+    max-width: 900px; margin: 0 auto; padding: 64px 28px 30px;
+    border-bottom: 1px solid #21262d;
+  }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: #0d1117; background: var(--css); border-radius: 999px; padding: 3px 12px;
+  }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--css); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--css), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--css); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--css); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--css); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(52, 211, 153, 0.07); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--css); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--css); }
+  .opt-row input { margin-top: 5px; accent-color: var(--css); }
+  .opt-row.correct { border-color: var(--css); background: rgba(52, 211, 153, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.3); color: #d1fae5; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #34d399; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"], .clab-body input[type="number"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: var(--css); }
+  .clab-body input[type="number"] { width: 110px; }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn {
+    background: var(--css); color: #0d1117; border: none; border-radius: 7px;
+    font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer;
+  }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--css); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--css); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--css); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn {
+    background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px;
+    font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .nav-btn:hover { border-color: var(--css); color: var(--css); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px);
+    background: #161b22; border: 1px solid var(--css); color: #d1fae5; border-radius: 999px;
+    padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Tools</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>CSS <em>布局与盒模型</em></h1>
+    <p class="subtitle">迷你布局预测器 · 盒模型 · 选择器优先级 · Flexbox / Grid · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 盒模型 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>盒模型：元素实际占多大</h2>
+    <p class="lead">每个元素是一个盒子：<code>content</code>（内容区）+ <code>padding</code>（内边距）+ <code>border</code>（边框）+ <code>margin</code>（外边距）。<code>box-sizing: content-box</code> 时 <strong>width 只指内容区</strong>；<code>border-box</code> 时 width 含 content+padding+border。</p>
+    <div class="insight"><strong>公式：</strong>content-box 渲染宽度 = width + padding×2 + border×2；border-box 下内容区可用宽度 = width − padding×2 − border×2。</div>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">盒模型计算器</span></div>
+      <div class="clab-body">
+        <div class="clab-ctrl">
+          <label style="font-size:12px;color:#8b949e;">width <input type="number" id="boxW" value="300"></label>
+          <label style="font-size:12px;color:#8b949e;">padding <input type="number" id="boxP" value="20"></label>
+          <label style="font-size:12px;color:#8b949e;">border <input type="number" id="boxB" value="2"></label>
+          <label style="font-size:12px;color:#8b949e;">border-box <input type="checkbox" id="boxBB" style="accent-color:var(--css)"></label>
+        </div>
+        <button type="button" class="clab-btn" id="boxBtn">计算</button>
+        <div class="clab-out" id="boxOut">— 输入数值 —</div>
+      </div>
+    </div>
+    <h3>练习：box-sizing 语义</h3>
+    <div class="opts" id="boxOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="box">border-box 下声明 width:300px、padding:20px、border:2px，内容区可用宽度是 300−44=256px</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="box">content-box 下声明 width:300px 后，渲染总宽度仍是 300px（padding/border 不算）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="box">margin 会撑大元素的渲染宽度</label>
+    </div>
+    <div class="result" id="boxResult"></div>
+  </section>
+
+  <!-- ═══ 2 选择器优先级 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>选择器优先级：谁说了算</h2>
+    <p class="lead">优先级按三元组比较：<code>(id 数, class 数, 标签数)</code>，逐位比较。<code>!important</code> 直接压过普通声明。行内 style 优先级高于任何选择器（除非对方带 !important）。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">优先级计算器</span></div>
+      <div class="clab-body">
+        <input type="text" id="specInput" placeholder="如：#main .card p" spellcheck="false">
+        <button type="button" class="clab-btn" id="specBtn">计算优先级</button>
+        <div class="clab-out" id="specOut">— 输入选择器 —</div>
+      </div>
+    </div>
+    <h3>练习：规则对撞</h3>
+    <div class="opts" id="specOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="spec">#header .btn 与 .header .btn.btn-primary 对撞时，前者赢（id 权重碾压 class）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="spec">十个 class 选择器加起来能赢过一个 id 选择器</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="spec">标签选择器 div 的优先级高于类选择器 .box</label>
+    </div>
+    <div class="result" id="specResult"></div>
+  </section>
+
+  <!-- ═══ 3 flexbox 主轴/交叉轴 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>Flexbox：主轴与交叉轴</h2>
+    <p class="lead"><code>flex-direction: row</code> 主轴水平、<code>column</code> 主轴垂直。<code>justify-content</code> 沿主轴分配，<code>align-items</code> 沿交叉轴对齐。</p>
+    <pre>/* 容器 */
+display: flex;
+flex-direction: row;      <span class="cmt"># 主轴水平 → justify 左右，align 上下</span>
+justify-content: center;  <span class="cmt"># 水平居中</span>
+align-items: center;      <span class="cmt"># 垂直居中</span></pre>
+    <h3>练习：预测布局结果</h3>
+    <div class="opts" id="flexOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="flex">flex-direction: column + justify-content: center → 子项在容器垂直方向居中</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="flex">flex-direction: column + justify-content: center → 子项在水平方向居中</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="flex">flex-direction: row 时 align-items 控制水平位置</label>
+    </div>
+    <div class="result" id="flexResult"></div>
+  </section>
+
+  <!-- ═══ 4 flex 伸缩分配 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>flex-grow：剩余空间怎么分</h2>
+    <p class="lead">剩余空间按 <code>flex-grow</code> 比例分配。<code>flex-basis</code> 是基础尺寸（默认 auto=内容宽）。<code>flex-shrink</code> 在空间不足时按比例收缩。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">flex 分配计算器</span></div>
+      <div class="clab-body">
+        <div class="clab-ctrl">
+          <label style="font-size:12px;color:#8b949e;">容器 <input type="number" id="fxW" value="600"></label>
+          <label style="font-size:12px;color:#8b949e;">grow 值（逗号分隔）<input type="text" id="fxG" value="1,1,2" style="width:130px" spellcheck="false"></label>
+        </div>
+        <button type="button" class="clab-btn" id="fxBtn">计算分配</button>
+        <div class="clab-out" id="fxOut">— 输入容器宽度与 grow —</div>
+      </div>
+    </div>
+    <h3>练习：grow 语义</h3>
+    <div class="opts" id="fxOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fx">grow: 1,1,2 且容器 600px、基础尺寸为 0 → 三个子项各得 150 / 150 / 300</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fx">grow 值越大，子项的基础尺寸也自动变大</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fx">flex-shrink 只在有多余空间时生效</label>
+    </div>
+    <div class="result" id="fxResult"></div>
+  </section>
+
+  <!-- ═══ 5 grid ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>Grid：轨道与区域</h2>
+    <p class="lead"><code>grid-template-columns: 1fr 2fr</code> 把行分成两列，第二列宽是第一列 2 倍；<code>repeat(3, 1fr)</code> 等分 3 列；<code>gap</code> 控制间距。<code>grid-area</code> / <code>grid-row</code> / <code>grid-column</code> 把子项放进指定轨道。</p>
+    <pre>display: grid;
+grid-template-columns: repeat(3, 1fr);   <span class="cmt"># 3 等分列</span>
+gap: 10px;</pre>
+    <h3>练习：轨道分配</h3>
+    <div class="opts" id="gridOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="grid">grid-template-columns: 1fr 2fr 时，第 2 列宽度 = 第 1 列的 2 倍（容器扣除 gap 后按比例分）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="grid">1fr 2fr 表示第一列 1px、第二列 2px</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="grid">gap 不会影响 fr 的比例分配</label>
+    </div>
+    <div class="result" id="gridResult"></div>
+  </section>
+
+  <!-- ═══ 6 居中方案 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>居中：三种轴，三种方案</h2>
+    <p class="lead">水平居中：行内元素 <code>text-align:center</code>、块元素 <code>margin:0 auto</code>；垂直居中：flex/grid 的 <code>align-items:center</code> 或绝对定位 + <code>translate(-50%,-50%)</code>。</p>
+    <div class="insight"><strong>万能组合：</strong>父级 <code>display:flex; justify-content:center; align-items:center;</code> → 子项水平垂直双居中。</div>
+    <h3>练习：方案判断</h3>
+    <div class="opts" id="cenOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cen">一个不定宽高的弹窗要水平+垂直居中 → display:flex + justify-content:center + align-items:center 最稳</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cen">margin:0 auto 可以让任意元素垂直居中</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cen">text-align:center 能垂直居中块级子元素</label>
+    </div>
+    <div class="result" id="cenResult"></div>
+  </section>
+
+  <!-- ═══ 7 响应式断点 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>响应式：媒体查询断点</h2>
+    <p class="lead"><code>@media (max-width: 600px)</code> 表示"视口 ≤ 600px 时生效"（移动端优先常用 min-width）；<code>min-width</code> 是"≥ 断点时生效"，<code>max-width</code> 是"≤ 断点时生效"。<code>rem</code> 相对根字号，<code>em</code> 相对父级字号。</p>
+    <h3>练习：断点语义</h3>
+    <div class="opts" id="rspOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="rsp">@media (max-width: 768px) 在视口宽度 800px 时不生效，在 700px 时生效</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="rsp">@media (min-width: 768px) 在 700px 视口下生效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="rsp">max-width 与 min-width 是同一种匹配的两种写法</label>
+    </div>
+    <div class="result" id="rspResult"></div>
+  </section>
+
+  <!-- ═══ 8 BFC 与 z-index ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>层叠：BFC 与 z-index</h2>
+    <p class="lead">BFC（块级格式化上下文）：<code>overflow:hidden</code>、<code>display:flow-root</code>、flex/grid 容器都能创建 BFC，用来包含浮动、避免 margin 折叠。<code>z-index</code> 只在定位元素（relative/absolute/fixed/sticky）或 flex/grid 子项间比较；同级按 z-index 数值，同值按 DOM 顺序。</p>
+    <div class="insight"><strong>层叠判断口诀：</strong>z-index 大的在上面；没有 z-index 时，后面写的元素在上面；创建了层叠上下文（z-index+定位、opacity&lt;1、transform 等）的元素内部自成一层。</div>
+    <h3>练习：层叠判断</h3>
+    <div class="opts" id="zcOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="zc">两个定位元素 z-index:1 与 z-index:2 重叠时，2 在上面；同值则 DOM 靠后的在上</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="zc">z-index 对普通（未定位）元素也完全生效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="zc">opacity:0.5 不会创建新的层叠上下文</label>
+    </div>
+    <div class="result" id="zcResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：盒模型 → 选择器优先级 → Flexbox → 伸缩分配 → Grid → 居中 → 响应式 → 层叠 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 border-box + margin 归一化（如 *{box-sizing:border-box}）统一盒模型；<br>
+      ② 布局优先 Flexbox（一维）或 Grid（二维），用工具实际测量盒子；<br>
+      ③ 写一个组件用 优先级三元组 自查样式冲突；<br>
+      ④ 移动端优先写 min-width 断点，避免 max-width 层层覆盖。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--css)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">CSS 布局与盒模型 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'css';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 盒模型语义
+     1 优先级对撞
+     2 flexbox 轴方向
+     3 flex 分配
+     4 grid 轨道
+     5 居中方案
+     6 响应式断点
+     7 层叠判断
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('boxOpts', 'a', 'boxResult',
+    '正确！border-box 的 width 包含 padding 与 border，内容区 = 300 − 20×2 − 2×2 = 256px。',
+    '不对。content-box 的 width 只算内容区，padding/border 会向外撑大总宽度；margin 不影响渲染宽度（只影响占位）。', 0);
+  bindOpts('specOpts', 'a', 'specResult',
+    '正确！id 选择器权重 (1,0,0) 高于任何 class 组合——十个 class 也只是 (0,10,0)，逐位比较时第一位就输了。',
+    '不对。优先级三元组逐位比较，id 第一位就定胜负；标签选择器权重最低，只算 (0,0,1)。', 1);
+  bindOpts('flexOpts', 'a', 'flexResult',
+    '正确！column 时主轴垂直，justify-content 沿主轴 → 垂直居中；align-items 才管水平。',
+    '不对。column 主轴变为垂直，justify-content 控制的是垂直方向；水平方向由 align-items 控制。', 2);
+  bindOpts('fxOpts', 'a', 'fxResult',
+    '正确！基础 0 + grow 1:1:2 → 600px 按 1/4、1/4、2/4 分：150 / 150 / 300。',
+    '不对。grow 只分配剩余空间，不影响基础尺寸；flex-shrink 在空间不足（flex-basis 总和超容器）时按比例收缩。', 3);
+  bindOpts('gridOpts', 'a', 'gridResult',
+    '正确！fr 是"剩余空间比例单位"，1fr 2fr = 1:2，先扣掉 gap 再按比例分。',
+    '不对。fr 是比例单位不是像素；gap 会先占用空间再参与 fr 分配。', 4);
+  bindOpts('cenOpts', 'a', 'cenResult',
+    '正确！flex 双对齐是不定尺寸元素双居中最稳的方案；margin:0 auto 只水平居中块元素。',
+    '不对。margin:0 auto 只处理水平居中；text-align 只影响行内内容，不能垂直居中块级子元素。', 5);
+  bindOpts('rspOpts', 'a', 'rspResult',
+    '正确！max-width:768px 在视口 ≤768px 时生效：800px 不生效，700px 生效。',
+    '不对。min-width:768px 是"≥768px 生效"，与 max-width 正好相反；700px 视口下 min-width:768px 不生效。', 6);
+  bindOpts('zcOpts', 'a', 'zcResult',
+    '正确！定位元素按 z-index 比大小，同值按 DOM 顺序后者在上；opacity<1 / transform 会创建层叠上下文。',
+    '不对。z-index 只作用于定位元素与 flex/grid 子项；opacity:0.5、transform 都会创建新的层叠上下文。', 7);
+
+  /* ═════════════ 盒模型计算器 ═════════════ */
+  $('boxBtn').addEventListener('click', function () {
+    var w = parseInt($('boxW').value || '0', 10);
+    var p = parseInt($('boxP').value || '0', 10);
+    var b = parseInt($('boxB').value || '0', 10);
+    var bb = $('boxBB').checked;
+    var out = $('boxOut');
+    if ($('boxBB').checked) {
+      var content = Math.max(0, w - p * 2 - b * 2);
+      out.innerHTML = '<span class="c-cmd">box-sizing: border-box</span>\n声明宽度 = <b>' + w + 'px</b>（含 padding 与 border）\n内容区可用宽度 = ' + w + ' − ' + (p * 2 + b * 2) + ' = <span class="c-ok">' + content + 'px</span>';
+    } else {
+      var total = w + p * 2 + b * 2;
+      out.innerHTML = '<span class="c-cmd">box-sizing: content-box</span>\n内容区 = <b>' + w + 'px</b>\n渲染总宽度 = ' + w + ' + ' + (p * 2) + '(padding) + ' + (b * 2) + '(border) = <span class="c-ok">' + total + 'px</span>';
+    }
+  });
+
+  /* ═════════════ 优先级计算器 ═════════════ */
+  $('specBtn').addEventListener('click', function () {
+    var sel = $('specInput').value.trim();
+    var out = $('specOut');
+    if (!sel) { out.innerHTML = '<span class="c-err">请输入选择器</span>'; return; }
+    var ids = (sel.match(/#[-\w]+/g) || []).length;
+    var classes = (sel.match(/\.[-\w]+/g) || []).length;
+    var attrs = (sel.match(/\[[^\]]+\]/g) || []).length;
+    var pseudo = (sel.match(/::?[-\w]+/g) || []).length;
+    var tags = sel.replace(/#[-\w]+/g, ' ').replace(/\.[-\w]+/g, ' ').replace(/\[[^\]]+\]/g, ' ').replace(/::?[-\w]+/g, ' ')
+      .split(/\s+|[>+~*,]/).filter(function (t) { return /^[a-zA-Z][\w-]*$/.test(t); }).length;
+    var cls = classes + attrs + pseudo;
+    out.innerHTML = '<span class="c-cmd">' + esc(sel) + '</span>\n优先级三元组：(<span class="c-ok">' + ids + '</span>, <span class="c-ok">' + cls + '</span>, <span class="c-ok">' + tags + '</span>) — (id, class/属性/伪类, 标签/伪元素)';
+  });
+
+  /* ═════════════ flex 分配计算器 ═════════════ */
+  $('fxBtn').addEventListener('click', function () {
+    var w = parseInt($('fxW').value || '0', 10);
+    var grows = $('fxG').value.split(',').map(function (s) { return parseInt(s.trim(), 10) || 0; });
+    var out = $('fxOut');
+    var sum = grows.reduce(function (a, b) { return a + b; }, 0);
+    if (sum <= 0) { out.innerHTML = '<span class="c-err">grow 值之和必须 &gt; 0</span>'; return; }
+    var parts = grows.map(function (g) { return Math.round(w * g / sum); });
+    out.innerHTML = '<span class="c-cmd">flex-basis:0 + grow ' + esc(grows.join(':')) + '，容器 ' + w + 'px</span>\n分配：' + parts.map(function (p, i) { return 'item' + (i + 1) + ' = <span class="c-ok">' + p + 'px</span>'; }).join('，');
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'content-box 下 width:200px、padding:10px、border:1px，渲染总宽度？', opts: ['200px', '220px', '222px', '210px'], right: 2, expl: '200 + 10×2 + 1×2 = 222px。' },
+    { q: '优先级最高的是？', opts: ['#main .card', '.card .title', 'div p', 'style 内联样式'], right: 3, expl: '内联样式优先级高于所有选择器（除非有 !important）。' },
+    { q: 'flex-direction: row 时，justify-content 控制？', opts: ['水平方向', '垂直方向', '换行', '间距大小'], right: 0, expl: 'row 主轴水平，justify 沿主轴。' },
+    { q: '容器 300px，三个 item basis=0，grow 1:1:1，各多宽？', opts: ['100px', '150px', '300px', '75px'], right: 0, expl: '300 三等分，各 100px。' },
+    { q: 'grid-template-columns: repeat(4, 1fr) 有几列？', opts: ['1 列', '2 列', '4 列', '不固定'], right: 2, expl: 'repeat(4,1fr) = 4 个等宽轨道。' },
+    { q: '不定宽高弹窗水平+垂直居中，最稳方案？', opts: ['margin: 0 auto', 'flex 双 align/justify center', 'text-align: center', 'float: center'], right: 1, expl: 'flex 双对齐对不定尺寸最稳。' },
+    { q: '视口 900px 时，@media (max-width: 768px) 生效吗？', opts: ['生效', '不生效', '取决于设备', '报错'], right: 1, expl: 'max-width:768px 只在 ≤768px 生效。' },
+    { q: '两个定位元素 z-index 同为 5，谁在上面？', opts: ['先写的', 'DOM 靠后的', '类名更短的', '随机'], right: 1, expl: '同 z-index 时 DOM 靠后者在上。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 CSS 布局的核心判断。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

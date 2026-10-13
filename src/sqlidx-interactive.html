@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL 索引与 EXPLAIN 交互式学习 · 迷你判读器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --sqlidx: #2dd4bf; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #21262d; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #0d1117; background: var(--sqlidx); border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--sqlidx); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--sqlidx), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--sqlidx); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--sqlidx); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--sqlidx); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(45, 212, 191, 0.07); border: 1px solid rgba(45, 212, 191, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--sqlidx); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--sqlidx); }
+  .opt-row input { margin-top: 5px; accent-color: var(--sqlidx); }
+  .opt-row.correct { border-color: var(--sqlidx); background: rgba(45, 212, 191, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(45, 212, 191, 0.08); border: 1px solid rgba(45, 212, 191, 0.3); color: #ccfbf1; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #2dd4bf; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body input[type="text"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body input[type="text"]:focus { border-color: var(--sqlidx); }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: var(--sqlidx); color: #0d1117; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--sqlidx); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--sqlidx); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--sqlidx); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: var(--sqlidx); color: var(--sqlidx); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #161b22; border: 1px solid var(--sqlidx); color: #ccfbf1; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>SQL 索引与 <em>EXPLAIN</em></h1>
+    <p class="subtitle">迷你判读器 · 全表扫描 · B+ 树 · 最左前缀 · 覆盖索引 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 为什么慢 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>为什么慢：全表扫描</h2>
+    <p class="lead">没有索引时，查询只能<strong>全表扫描</strong>（type=ALL）：从第一行读到最后一行的数据页，逐行判断 WHERE。百万行表一次扫描要读几十万个数据页，这就是慢查询的第一来源。</p>
+    <pre>EXPLAIN SELECT * FROM orders WHERE user_id = 42;
+-- type: ALL   rows: 1_000_000   <span class="cmt"># 全表扫 100 万行 → 慢</span></pre>
+    <h3>练习：慢查询定位</h3>
+    <div class="opts" id="slowOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="slow">type=ALL、rows 接近全表行数 → 索引缺失，需要加索引</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="slow">type=ALL 是正常且最优的访问方式</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="slow">rows 越小说明查询越慢</label>
+    </div>
+    <div class="result" id="slowResult"></div>
+  </section>
+
+  <!-- ═══ 2 B+ 树 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>索引的底层：B+ 树</h2>
+    <p class="lead">InnoDB 用 <strong>B+ 树</strong>：非叶子节点存键值+指针（扇出高，几层就能覆盖百万行），叶子节点存<strong>有序</strong>的数据行/主键并按链表相连。查找从根往下二分，复杂度 O(log n)，百万行只需 3~4 次磁盘 IO。</p>
+    <div class="insight"><strong>为什么 B+ 树快：</strong>高度矮（层数≈3）、叶子有序（范围查询走链表）、扇出大（一个节点装几百个键）。</div>
+    <h3>练习：B+ 树特性</h3>
+    <div class="opts" id="bOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="b">B+ 树叶子节点有序且相连，天然支持范围查询（BETWEEN、&gt;、ORDER BY）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="b">B+ 树每个数据都要从根节点扫一遍，比全表扫描更慢</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="b">索引越多磁盘占用越少</label>
+    </div>
+    <div class="result" id="bResult"></div>
+  </section>
+
+  <!-- ═══ 3 EXPLAIN 读法 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>EXPLAIN 判读器：type / key / rows</h2>
+    <p class="lead">EXPLAIN 输出最关键三列：<code>type</code>（访问方式，从差到好：ALL → index → range → ref → eq_ref → const）、<code>key</code>（实际用到的索引名）、<code>rows</code>（预估扫描行数，越小越好）、<code>Extra</code>（如 Using index / Using filesort）。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">EXPLAIN 判读器</span></div>
+      <div class="clab-body">
+        <input type="text" id="expInput" placeholder="如：SELECT * FROM orders WHERE user_id = 42" spellcheck="false">
+        <button type="button" class="clab-btn" id="expBtn">判读</button>
+        <div class="clab-out" id="expOut">— 输入 SQL，输出迷你 EXPLAIN —</div>
+      </div>
+    </div>
+    <h3>练习：type 排序</h3>
+    <div class="opts" id="typeOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="type">const（主键命中单行）优于 ref（普通索引），优于 ALL（全表扫描）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="type">ALL 是全表扫描里最快的</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="type">key 列是 NULL 说明索引用得很充分</label>
+    </div>
+    <div class="result" id="typeResult"></div>
+  </section>
+
+  <!-- ═══ 4 单列索引 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>单列索引：一个条件的加速</h2>
+    <p class="lead"><code>CREATE INDEX idx_user ON orders(user_id)</code> 后，<code>WHERE user_id = 42</code> 走索引（type=ref），只扫命中的行。索引是<strong>空间换时间</strong>：额外占用磁盘，写入（INSERT/UPDATE）要同步维护索引。</p>
+    <h3>练习：索引收益判断</h3>
+    <div class="opts" id="colOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="col">高频 WHERE 且区分度高的列值得建索引；写多读少的小表谨慎建</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="col">索引越多写入越快</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="col">对布尔列（只有 0/1）建索引区分度极高、收益最大</label>
+    </div>
+    <div class="result" id="colResult"></div>
+  </section>
+
+  <!-- ═══ 5 复合索引最左前缀 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>复合索引：最左前缀</h2>
+    <p class="lead">复合索引 <code>(a, b, c)</code> 按 a→b→c 排序。只有<strong>从最左列开始连续匹配</strong>的条件才能用上索引：<code>WHERE a=1</code> ✓、<code>WHERE a=1 AND b=2</code> ✓、<code>WHERE b=2</code> ✗（跳过了 a）、<code>WHERE a=1 AND c=3</code> 部分用（只用到 a）。</p>
+    <div class="insight"><strong>设计原则：</strong>把区分度高的列放左边；把等值查询列放前面，范围查询（&gt;、BETWEEN）放后面。</div>
+    <h3>练习：最左前缀判断</h3>
+    <div class="opts" id="lpOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="lp">索引 (city, status, date)：WHERE status=1 AND date='2026-01-01' 无法用到该索引（跳过了最左列 city）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="lp">索引 (city, status, date)：WHERE status=1 能完整用到三列</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="lp">复合索引与列顺序无关，任意条件都能命中</label>
+    </div>
+    <div class="result" id="lpResult"></div>
+  </section>
+
+  <!-- ═══ 6 覆盖索引 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>覆盖索引：不回表</h2>
+    <p class="lead">二级索引的叶子只存"索引列 + 主键"。如果 SELECT 的列全部在索引里（Extra 显示 <code>Using index</code>），就<strong>不需要回表</strong>取整行，少一次 IO。反之 SELECT * 通常要回表。</p>
+    <pre>CREATE INDEX idx_uid_status ON orders(user_id, status);
+SELECT user_id, status FROM orders WHERE user_id = 42;
+-- Extra: Using index   <span class="cmt"># 覆盖索引，不回表 → 更快</span></pre>
+    <h3>练习：覆盖索引判断</h3>
+    <div class="opts" id="covOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cov">索引 (user_id, status) 时，SELECT user_id, status 是覆盖查询（Using index），SELECT * 通常要回表</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cov">Extra 显示 Using index 说明查询走了全表扫描</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cov">覆盖索引能让 UPDATE 也完全免于维护索引</label>
+    </div>
+    <div class="result" id="covResult"></div>
+  </section>
+
+  <!-- ═══ 7 失效场景 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>索引失效：常见坑</h2>
+    <p class="lead">以下写法会让索引<strong>失效</strong>：① <code>LIKE '%xxx'</code>（前导通配符）；② 对列做函数运算 <code>WHERE YEAR(created)=2026</code>；③ 隐式类型转换 <code>WHERE phone=13800000000</code>（phone 是字符串）；④ <code>WHERE name IS NULL</code> 走不了普通索引（可用 IS NULL 索引优化）。</p>
+    <h3>练习：失效场景辨识</h3>
+    <div class="opts" id="invOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="inv">WHERE UPPER(email)='A@B.COM' 对列做了函数 → 索引失效，应改成 UPPER(email)='A@B.COM' 的表达式形式或冗余列</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="inv">LIKE 'abc%' 前导通配符会让索引完全失效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="inv">对索引列做运算不会影响优化器</label>
+    </div>
+    <div class="result" id="invResult"></div>
+  </section>
+
+  <!-- ═══ 8 回表 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>回表与主键选择</h2>
+    <p class="lead">InnoDB 聚簇索引（主键）的叶子就是整行数据；二级索引叶子存主键值。查二级索引 → 再按主键回表取行 = <strong>回表</strong>。主键建议用<strong>自增/紧凑值</strong>：B+ 树插入有序、页分裂少；UUID 随机主键会让叶子频繁分裂。</p>
+    <h3>练习：回表判断</h3>
+    <div class="opts" id="backOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="back">二级索引查到了主键，但 SELECT * 需要整行 → 发生回表，多一次主键索引查询</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="back">二级索引的叶子直接存了整行数据</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="back">UUID 主键比自增主键对 B+ 树更友好</label>
+    </div>
+    <div class="result" id="backResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：全表扫描 → B+ 树 → EXPLAIN → 单列索引 → 最左前缀 → 覆盖索引 → 失效场景 → 回表 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 慢查询日志 + EXPLAIN 双查，先盯 type 与 rows；<br>
+      ② 复合索引按"等值在前、范围在后、区分度高的靠左"设计；<br>
+      ③ 用覆盖索引改写高频 SELECT，减少回表；<br>
+      ④ 定期用 pt-duplicate-key-checker 清理冗余索引。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--sqlidx)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">SQL 索引与 EXPLAIN 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'sqlidx';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 全表扫描
+     1 B+ 树
+     2 EXPLAIN 读法
+     3 单列索引
+     4 最左前缀
+     5 覆盖索引
+     6 失效场景
+     7 回表
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('slowOpts', 'a', 'slowResult',
+    '正确！type=ALL + rows≈全表 → 缺索引，优先为 WHERE 列建索引。',
+    '不对。type=ALL 是最差的访问方式（全表扫描）；rows 越大越慢，不是越小越慢。', 0);
+  bindOpts('bOpts', 'a', 'bResult',
+    '正确！叶子有序+链表让范围查询不用回溯，这是 B+ 树相对哈希/二叉树的核心优势。',
+    '不对。B+ 树查找是 O(log n) 往下走，远快于全表扫描；索引会占用额外磁盘空间。', 1);
+  bindOpts('typeOpts', 'a', 'typeResult',
+    '正确！type 从好到差约：const → eq_ref → ref → range → index → ALL；key 为 NULL 表示没用索引。',
+    '不对。ALL 是最差的；key=NULL 恰恰说明没有索引可用。', 2);
+  bindOpts('colOpts', 'a', 'colResult',
+    '正确！高频+高区分度列收益最大；索引维护有写入成本，写多读少的小表别乱建。',
+    '不对。索引是写放大（每行写入都要维护）；布尔列区分度极低（一半一半），建索引近乎无效。', 3);
+  bindOpts('lpOpts', 'a', 'lpResult',
+    '正确！(city, status, date) 必须从 city 开始连续匹配，跳过最左列 status 就废了整条索引。',
+    '不对。最左前缀要求从最左列连续使用；只查 status 无法用该索引。', 4);
+  bindOpts('covOpts', 'a', 'covResult',
+    '正确！查询列全在索引内 → Using index 免回表；SELECT * 含非索引列就要回表。',
+    '不对。Using index 恰恰是覆盖索引的标志；UPDATE 仍需维护所有索引。', 5);
+  bindOpts('invOpts', 'a', 'invResult',
+    '正确！对列做函数/运算会让优化器无法利用索引顺序，是典型的失效场景。',
+    '不对。LIKE \'abc%\' 是前缀匹配，能用索引；LIKE \'%abc\' 前导通配符才失效。', 6);
+  bindOpts('backOpts', 'a', 'backResult',
+    '正确！二级索引只存主键，SELECT * 需要回表按主键再查一次聚簇索引。',
+    '不对。二级索引叶子存的是主键值而非整行；随机 UUID 主键导致页分裂频繁，自增主键更友好。', 7);
+
+  /* ═════════════ EXPLAIN 判读器 ═════════════ */
+  $('expBtn').addEventListener('click', function () {
+    var sql = $('expInput').value.trim().toLowerCase();
+    var out = $('expOut');
+    if (!sql) { out.innerHTML = '<span class="c-err">请输入 SQL</span>'; return; }
+    var type, key, rows, extra, verdict;
+    if (/^select .* from .* where .*=\s*\d+\s*$/.test(sql)) {
+      type = 'ref'; key = 'idx_' + (sql.match(/where\s+(\w+)/) || ['', 'col'])[1]; rows = '10'; extra = 'Using index condition';
+      verdict = '走索引（type=ref）：等值命中索引列，扫描 10 行左右。良好。';
+    } else if (/^select .* from .* where\s+(\w+)\s*(>=|<=|>|<|between)/.test(sql)) {
+      type = 'range'; key = 'idx_' + (sql.match(/where\s+(\w+)/) || ['', 'col'])[1]; rows = '450'; extra = 'Using index condition';
+      verdict = '范围扫描（type=range）：索引可定位边界，但扫描范围随区间变大。';
+    } else if (/like\s+'%/.test(sql)) {
+      type = 'ALL'; key = 'NULL'; rows = '1_000_000'; extra = 'Using where';
+      verdict = '索引失效（前导通配符）：LIKE \'%xxx\' 无法使用 B+ 树前缀匹配，退化为全表扫描！';
+    } else if (/[a-z_]+\(/.test(sql)) {
+      type = 'ALL'; key = 'NULL'; rows = '1_000_000'; extra = 'Using where';
+      verdict = '索引失效（函数包裹列）：对索引列做函数运算，优化器无法利用索引顺序。';
+    } else if (/^select\s+[\w,\s]+\s+from/.test(sql)) {
+      type = 'index'; key = 'idx_covering'; rows = '520'; extra = 'Using index';
+      verdict = '覆盖索引（Using index）：查询列全在索引内，免回表，但扫的是索引树。';
+    } else {
+      type = 'ALL'; key = 'NULL'; rows = '1_000_000'; extra = 'Using where';
+      verdict = '全表扫描（type=ALL）：无可用索引，逐行扫描整表。';
+    }
+    out.innerHTML = '<span class="c-cmd">EXPLAIN ' + esc(sql) + '</span>\n type: <span class="c-ok">' + type + '</span>   key: <span class="c-ok">' + esc(key) + '</span>   rows: <span class="c-ok">' + rows + '</span>   Extra: <span class="c-ok">' + esc(extra) + '</span>\n→ ' + verdict;
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'type=ALL 表示？', opts: ['主键等值命中', '全表扫描', '范围扫描', '覆盖索引'], right: 1, expl: 'ALL = 全表扫描，最差访问方式。' },
+    { q: 'B+ 树查找复杂度约？', opts: ['O(1)', 'O(n)', 'O(log n)', 'O(n²)'], right: 2, expl: '树高 ≈ 3~4，百万行只需几次 IO。' },
+    { q: 'EXPLAIN 中 rows 的含义？', opts: ['返回的行数', '预估扫描行数', '索引高度', '表总行数'], right: 1, expl: 'rows 是优化器预估的扫描行数，越小越好。' },
+    { q: '复合索引 (a,b,c)，哪个查询能用完整索引？', opts: ['WHERE b=2 AND c=3', 'WHERE a=1 AND c=3', 'WHERE a=1 AND b=2', 'WHERE c=3'], right: 2, expl: '最左前缀：a→b→c 连续匹配才能用完整索引。' },
+    { q: 'Extra 显示 Using index 表示？', opts: ['覆盖索引免回表', '全表扫描', '索引失效', '使用了临时表'], right: 0, expl: 'Using index = 查询列全在索引内。' },
+    { q: '哪个写法会让索引失效？', opts: ['WHERE id=42', 'WHERE name LIKE \'abc%\'', 'WHERE UPPER(email)=\'A@B.COM\'', 'WHERE age&gt;18'], right: 2, expl: '对列做函数包裹会让索引失效。' },
+    { q: '二级索引的叶子节点存什么？', opts: ['整行数据', '主键值', '所有列的副本', '表结构'], right: 1, expl: '二级索引叶子存索引列+主键，查整行需回表。' },
+    { q: 'InnoDB 主键更推荐？', opts: ['UUID 随机串', '自增整数', '长文本', '时间戳+随机数'], right: 1, expl: '自增主键插入有序，页分裂少。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经能读懂 EXPLAIN 并设计索引了。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

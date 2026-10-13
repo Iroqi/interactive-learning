@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>网络安全基础 交互式学习 · 漏洞雷达</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --netsec: #f43f5e;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(244,63,94,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--netsec); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--netsec), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--netsec); font-size: 17px;
+    border: 1px solid rgba(244,63,94,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #fbbfbb;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #fbbfbb; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+  pre .bad { color: #ff8fa3; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(244,63,94,0.07); border: 1px solid rgba(244,63,94,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--netsec); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--netsec); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--netsec);
+    border: 1px solid rgba(244,63,94,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--netsec); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--netsec); color: var(--netsec); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Security</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>网络安全 <em>基础</em></h1>
+    <p class="subtitle">迷你漏洞雷达 · 识别漏洞 → 理解危害 → 选择修复 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 威胁模型 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>威胁模型：CIA 三元组与信任边界</h2>
+    <p class="lead">安全的目标是保护数据的 <strong>CIA</strong>：机密性（Confidentiality）、完整性（Integrity）、可用性（Availability）。威胁模型从"谁是攻击者、什么资产、什么入口"出发，画出<strong>信任边界</strong>——边界两侧的输入都不可信。</p>
+    <pre><span class="cmt"># 安全第一原则</span>
+1. 永远不要信任用户输入（前端传来的、URL 里的、表单里的）
+2. 永远不要信任任何"看不见"的请求来源
+3. 输出到不同上下文（HTML/JS/SQL/URL）必须分别转义
+4. 最小权限：只给完成工作所需的最少权限</pre>
+    <h3>练习：威胁模型</h3>
+    <div class="opts" id="tmOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="tm">用户输入只要在前端做过校验，后端就可以直接信任</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="tm">信任边界之外的输入都不可信：用户输入、请求头、外部回调都要校验</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="tm">HTTPS 加密传输后，应用层就不需要任何防护</label>
+    </div>
+    <div class="result" id="tmResult"></div>
+  </section>
+
+  <!-- ═══ 2 XSS ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>XSS 跨站脚本</h2>
+    <p class="lead">当攻击者输入被当作 <strong>HTML/JS 代码</strong>渲染，就能在受害者浏览器里执行任意脚本：偷 Cookie、篡改页面、钓鱼。下面的代码哪里有问题？</p>
+    <pre><span class="cmt">// 前端：把用户提交的评论直接拼进 DOM</span>
+const box = <span class="key">document</span>.getElementById('comments');
+box.<span class="bad">innerHTML</span> = '&lt;div&gt;' + userComment + '&lt;/div&gt;';</pre>
+    <h3>识别：这是什么漏洞？</h3>
+    <div class="opts" id="xssOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="xss">跨站脚本（XSS）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="xss">SQL 注入</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="xss">跨站请求伪造（CSRF）</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="xss">服务端请求伪造（SSRF）</label>
+    </div>
+    <div class="result" id="xssResult"></div>
+    <h3 class="hidden" id="xssFixTitle">修复：哪个做法能消除该漏洞？</h3>
+    <div class="opts hidden" id="xssFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="xssfix">用 textContent 写入纯文本，或对内容做 HTML 转义后再插入</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="xssfix">把 innerHTML 改成 insertAdjacentHTML，漏洞就消失了</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="xssfix">在评论前加一个随机字符串前缀</label>
+    </div>
+    <div class="result" id="xssFixResult"></div>
+  </section>
+
+  <!-- ═══ 3 SQL 注入 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>SQL 注入</h2>
+    <p class="lead">把用户输入<strong>拼进 SQL 语句</strong>，攻击者就能改写查询语义：绕过登录、拖库、删表。下面代码有什么问题？</p>
+    <pre><span class="cmt"># 后端：按用户名查用户</span>
+query = <span class="bad">"SELECT * FROM users WHERE name = '" + username + "'"</span>
+db.execute(query)</pre>
+    <h3>识别：这是什么漏洞？</h3>
+    <div class="opts" id="sqliOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sqli">XSS</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sqli">SQL 注入</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sqli">CSRF</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="sqli">SSRF</label>
+    </div>
+    <div class="result" id="sqliResult"></div>
+    <h3 class="hidden" id="sqliFixTitle">修复：哪个做法能消除该漏洞？</h3>
+    <div class="opts hidden" id="sqliFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sqlifix">用参数化查询 / 预编译语句，把数据与 SQL 结构分离</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sqlifix">把单引号替换成两个单引号就绝对安全</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sqlifix">给表名加前缀混淆</label>
+    </div>
+    <div class="result" id="sqliFixResult"></div>
+  </section>
+
+  <!-- ═══ 4 CSRF ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>CSRF 跨站请求伪造</h2>
+    <p class="lead">攻击者在恶意页面里诱导浏览器<strong>自动携带你的 Cookie</strong> 向目标站发请求。由于 Cookie 会自动带上，"看起来是你本人"的操作其实是伪造的。下面哪里危险？</p>
+    <pre><span class="cmt"># 恶意站点上的图片标签 —— 浏览器会自动带 Cookie 去 GET</span>
+&lt;img src="https://bank.example.com/api/<span class="bad">transfer?to=attacker&amount=10000</span>"&gt;</pre>
+    <h3>识别：这是什么漏洞？</h3>
+    <div class="opts" id="csrfOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="csrf">XSS</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="csrf">SQL 注入</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="csrf">CSRF 跨站请求伪造</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="csrf">SSRF</label>
+    </div>
+    <div class="result" id="csrfResult"></div>
+    <h3 class="hidden" id="csrfFixTitle">修复：哪个做法最有效？</h3>
+    <div class="opts hidden" id="csrfFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="csrffix">状态变更请求只用 POST，且带不可预测的 CSRF Token 校验来源</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="csrffix">把金额改成用 GET 参数传递</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="csrffix">给站点加一个好看的图标</label>
+    </div>
+    <div class="result" id="csrfFixResult"></div>
+  </section>
+
+  <!-- ═══ 5 SSRF ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>SSRF 服务端请求伪造</h2>
+    <p class="lead">服务端拿着<strong>用户提供的 URL</strong> 去发请求。攻击者可借此访问内网（metadata 服务、内部管理口）——因为请求来自"受信任的服务端"。下面哪里危险？</p>
+    <pre><span class="cmt"># 后端：把用户填的 URL 抓下来做预览</span>
+url = request.form['url']          <span class="cmt"># 用户可控</span>
+content = requests.get(<span class="bad">url</span>).text   <span class="cmt"># 服务端发起请求</span>
+save_preview(content)</pre>
+    <h3>识别：这是什么漏洞？</h3>
+    <div class="opts" id="ssrfOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ssrf">XSS</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ssrf">CSRF</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ssrf">SSRF 服务端请求伪造</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="ssrf">弱口令</label>
+    </div>
+    <div class="result" id="ssrfResult"></div>
+    <h3 class="hidden" id="ssrfFixTitle">修复：哪个做法能消除该漏洞？</h3>
+    <div class="opts hidden" id="ssrfFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ssrffix">校验 URL 协议/域名，解析后核对 IP 并禁止访问内网/云 metadata 地址</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ssrffix">把 URL 转成大写再请求</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ssrffix">只允许 https 协议就绝对安全</label>
+    </div>
+    <div class="result" id="ssrfFixResult"></div>
+  </section>
+
+  <!-- ═══ 6 认证与授权 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>认证与授权缺陷</h2>
+    <p class="lead"><strong>认证</strong>是"你是谁"（登录），<strong>授权</strong>是"你能干什么"（权限）。常见缺陷：只在客户端隐藏按钮、接口不做权限校验、弱会话/可预测 Cookie、密码明文存储。下面哪里危险？</p>
+    <pre><span class="cmt"># 后端：管理员接口 —— 只靠前端"隐藏"来保护</span>
+@app.route('/admin/delete_user')
+def delete_user():
+    uid = request.args['uid']
+    <span class="bad">db.execute("DELETE FROM users WHERE id=?", uid)</span>  <span class="cmt"># 无任何权限检查</span></pre>
+    <h3>识别：这是什么缺陷？</h3>
+    <div class="opts" id="authOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="auth">XSS</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="auth">认证/授权缺陷（缺少服务端权限校验）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="auth">CSRF</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="auth">SSRF</label>
+    </div>
+    <div class="result" id="authResult"></div>
+    <h3 class="hidden" id="authFixTitle">修复：哪个做法正确？</h3>
+    <div class="opts hidden" id="authFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="authfix">在服务端对每个敏感接口做身份认证 + 权限校验（RBAC/ABAC）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="authfix">把管理按钮改成灰色不可点击</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="authfix">给接口路径加个难以猜到的前缀</label>
+    </div>
+    <div class="result" id="authFixResult"></div>
+  </section>
+
+  <!-- ═══ 7 敏感信息泄露 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>敏感信息泄露</h2>
+    <p class="lead">密钥、令牌、个人数据出现在<strong>不该出现的地方</strong>：前端代码、日志、错误信息、公开仓库。下面哪些是泄露？</p>
+    <pre><span class="cmt">// 前端 JS：硬编码密钥</span>
+const API_KEY = <span class="bad">"sk-live-9f2a..."</span>;   <span class="cmt"># 生产密钥写进前端 → 任何人可提取</span>
+fetch('/api', { headers: { 'X-Key': API_KEY } })</pre>
+    <h3>识别：这是什么问题？</h3>
+    <div class="opts" id="leakOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="leak">SQL 注入</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="leak">敏感信息泄露（生产密钥硬编码前端）</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="leak">XSS</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="leak">CSRF</label>
+    </div>
+    <div class="result" id="leakResult"></div>
+    <h3 class="hidden" id="leakFixTitle">修复：哪个做法正确？</h3>
+    <div class="opts hidden" id="leakFixOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="leakfix">密钥只放服务端/密钥管理服务，前端只持有短期令牌；立即轮换已泄露密钥</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="leakfix">把密钥改成小写就安全</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="leakfix">给密钥加注释说明"别外传"</label>
+    </div>
+    <div class="result" id="leakFixResult"></div>
+  </section>
+
+  <!-- ═══ 8 修复工作台 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>修复工作台：三个案例</h2>
+    <p class="lead">实战演练：为下面三个场景各选一个正确修复。三题全对解锁本里程碑。</p>
+    <h3>案例 A：搜索页把用户输入拼进 HTML</h3>
+    <div class="opts" id="fixAOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fixa">innerHTML 直接拼接用户输入</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fixa">textContent 写入 + 所有渲染前做上下文转义</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fixa">把输入存到 localStorage 里</label>
+    </div>
+    <div class="result" id="fixAResult"></div>
+    <h3>案例 B：登录查询拼 SQL 字符串</h3>
+    <div class="opts" id="fixBOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fixb">参数化查询/预编译语句</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fixb">给密码加盐混淆</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fixb">限制用户名长度</label>
+    </div>
+    <div class="result" id="fixBResult"></div>
+    <h3>案例 C：改邮箱的 POST 接口无 CSRF 防护</h3>
+    <div class="opts" id="fixCOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fixc">改用 GET 请求</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fixc">加 CSRF Token 校验 + SameSite Cookie</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fixc">前端按钮加 confirm 弹窗</label>
+    </div>
+    <div class="result" id="fixCResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：威胁模型 → XSS → SQL 注入 → CSRF → SSRF → 认证授权 → 敏感信息 → 修复工作台 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 读 OWASP Top 10（2021 版），对照你手头的项目逐条自查；<br>
+      ② 给项目接依赖漏洞扫描（npm audit / pip-audit / Trivy）；<br>
+      ③ 从"输入校验 + 输出转义 + 最小权限 + 服务端校验"四条铁律开始加固；<br>
+      ④ 配置安全头（CSP、HSTS、X-Frame-Options）与审计日志。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">网络安全 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'netsec';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 威胁模型正确
+     1 XSS 识别正确
+     2 SQLi 识别正确
+     3 CSRF 识别正确
+     4 SSRF 识别正确
+     5 认证/授权识别正确
+     6 敏感信息识别正确
+     7 修复工作台三题全对
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定（识别 + 修复两段式） ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  /* 两段式：识别正确后显示修复题 */
+  function bindCase(identId, identRight, identResult, identMsg, fixTitleId, fixOptsId, fixRight, fixResult, fixMsg, milestoneIdx) {
+    bindOpts(identId, identRight, identResult, identMsg + ' <strong>→ 已解锁。</strong>现在选修复方案。',
+      '不对。再读一遍代码：问题出在"把不可信输入当作代码/命令处理"。', milestoneIdx);
+    /* 识别正确后展示修复区 */
+    var showFix = function () {
+      var rows = $(identId).querySelectorAll('.opt-row');
+      var anyCorrect = false;
+      rows.forEach(function (r) { if (r.classList.contains('correct')) anyCorrect = true; });
+      if (anyCorrect) {
+        $(fixTitleId).classList.remove('hidden');
+        $(fixOptsId).classList.remove('hidden');
+      }
+    };
+    rowsFor(identId).forEach(function (r) { r.addEventListener('click', showFix); });
+    bindOpts(fixOptsId, fixRight, fixResult, fixMsg, '不对。修复要落在"根因"上，而不是表面。');
+  }
+  function rowsFor(id) { return Array.prototype.slice.call($(id).querySelectorAll('.opt-row')); }
+
+  bindOpts('tmOpts', 'b', 'tmResult',
+    '正确！信任边界之外的输入都不可信；前端校验只是体验优化，后端必须独立校验。',
+    '不对。前端校验可被绕过；HTTPS 只防窃听，不防应用层漏洞。', 0);
+
+  bindCase('xssOpts', 'a', 'xssResult', '识别正确：这是存储型 XSS——用户评论被当作 HTML 执行，可窃取会话/篡改页面。',
+    'xssFixTitle', 'xssFixOpts', 'a', 'xssFixResult',
+    '修复正确！用 textContent 写入纯文本或做上下文转义，用户输入永远不被当作代码渲染。', 1);
+  bindCase('sqliOpts', 'b', 'sqliResult', '识别正确：这是 SQL 注入——用户输入拼进 SQL 结构，可改写查询语义。',
+    'sqliFixTitle', 'sqliFixOpts', 'a', 'sqliFixResult',
+    '修复正确！参数化查询把数据与 SQL 结构分离，是最彻底的防线。', 2);
+  bindCase('csrfOpts', 'c', 'csrfResult', '识别正确：这是 CSRF——浏览器自动携带 Cookie，使伪造请求"看起来是本人"。',
+    'csrfFixTitle', 'csrfFixOpts', 'a', 'csrfFixResult',
+    '修复正确！状态变更用 POST + 不可预测 Token + SameSite Cookie；GET 绝不该改状态。', 3);
+  bindCase('ssrfOpts', 'c', 'ssrfResult', '识别正确：这是 SSRF——服务端用用户可控 URL 发请求，可访问内网与云 metadata。',
+    'ssrfFixTitle', 'ssrfFixOpts', 'a', 'ssrfFixResult',
+    '修复正确！协议白名单 + 解析后核对 IP + 禁止内网/metadata 地址。', 4);
+  bindCase('authOpts', 'b', 'authResult', '识别正确：这是认证/授权缺陷——敏感接口没有任何服务端权限校验。',
+    'authFixTitle', 'authFixOpts', 'a', 'authFixResult',
+    '修复正确！服务端对每个敏感操作做认证 + 授权；前端隐藏按钮只是 UI，不是安全。', 5);
+  bindCase('leakOpts', 'b', 'leakResult', '识别正确：这是敏感信息泄露——生产密钥出现在前端，任何访客都能提取。',
+    'leakFixTitle', 'leakFixOpts', 'a', 'leakFixResult',
+    '修复正确！密钥只存在于服务端/密钥管理，前端只持有短期令牌，泄露后立即轮换。', 6);
+
+  /* ═══════════════ 修复工作台（三题全对解锁里程碑 7） ═══════════════ */
+  var fixCorrect = 0;
+  [['fixAOpts', 'b', 'fixAResult'], ['fixBOpts', 'a', 'fixBResult'], ['fixCOpts', 'b', 'fixCResult']].forEach(function (cfg) {
+    var elId = cfg[0], right = cfg[1], resId = cfg[2];
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        row.querySelector('input').checked = true;
+        if (row.dataset.id === right) {
+          row.classList.add('correct');
+          $(resId).className = 'result show ok';
+          $(resId).innerHTML = '✓ 修复正确。';
+          fixCorrect++;
+        } else {
+          row.classList.add('wrong');
+          $(resId).className = 'result show err';
+          $(resId).innerHTML = '✗ 再看一遍：修复要落在根因上。';
+        }
+        if (fixCorrect === 3) completeMilestone(7);
+      });
+    });
+  });
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '把用户输入用 innerHTML 直接拼进页面，属于？', opts: ['SQL 注入', 'XSS 跨站脚本', 'CSRF', 'SSRF'], right: 1, expl: '输入被当作 HTML/JS 渲染即 XSS；用 textContent 或转义。' },
+    { q: '防御 SQL 注入最彻底的手段是？', opts: ['过滤单引号', '限制输入长度', '参数化查询/预编译语句', '给表名加前缀'], right: 2, expl: '参数化把数据与 SQL 结构分离。' },
+    { q: 'CSRF 攻击能成立的根本原因是？', opts: ['服务器没有防火墙', '浏览器会自动携带 Cookie，伪造请求无法与本人请求区分', 'Cookie 明文存储', '密码太短'], right: 1, expl: '自动携带凭据 + 状态变更无校验 = CSRF。' },
+    { q: '服务端用用户提供的 URL 发请求，可能导致的漏洞是？', opts: ['XSS', 'SSRF——可访问内网与云 metadata', 'CSRF', '弱口令'], right: 1, expl: 'SSRF：请求来自受信任的服务端，可触达内网。' },
+    { q: '只在客户端隐藏"管理员按钮"，正确的安全做法是？', opts: ['这就够了', '服务端对敏感接口做认证+授权校验', '把按钮改成透明', '加 CSS 动画'], right: 1, expl: '前端隐藏是 UI，不是安全；服务端必须独立校验。' },
+    { q: '生产 API 密钥出现在前端 JS 里，问题属于？', opts: ['敏感信息泄露', 'XSS', 'CSRF', '无问题，前端很常见'], right: 0, expl: '前端密钥可被任何人提取；密钥应在服务端，泄露即轮换。' },
+    { q: '状态变更请求（如改邮箱）的防护重点是？', opts: ['用 GET 传递参数', 'POST + CSRF Token 校验 + SameSite Cookie', '前端弹窗确认', '缩短 URL'], right: 1, expl: '不可预测 Token 校验来源，GET 绝不用于改状态。' },
+    { q: '输出到不同上下文（HTML/JS/SQL/URL）时应当？', opts: ['统一用一种转义', '分别做对应上下文的转义/编码', '不转义，靠运气', '只用 HTTPS'], right: 1, expl: '上下文相关转义是防注入的核心原则。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握常见 Web 漏洞的识别与修复。' : '继续加油！回看上面的案例，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

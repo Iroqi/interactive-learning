@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redis 交互式学习 · 迷你命令台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --redis: #ff5c5c;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(255,92,92,0.06), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--redis); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--redis), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--redis); font-size: 17px;
+    border: 1px solid rgba(255,92,92,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #f3c9c9;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #f3c9c9; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(255,92,92,0.07); border: 1px solid rgba(255,92,92,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--redis); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--redis); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .term {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .term-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .term-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .term-head .dot:nth-child(1) { background: #ef476f; }
+  .term-head .dot:nth-child(2) { background: #f0a04b; }
+  .term-head .dot:nth-child(3) { background: #34d399; }
+  .term-head span.txt { margin-left: 6px; }
+  .term-body {
+    height: 300px; overflow-y: auto; padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.65;
+  }
+  .term-body .t-line { white-space: pre-wrap; word-break: break-all; }
+  .term-body .t-out { color: #a8b3cf; }
+  .term-body .t-ok { color: #34d399; }
+  .term-body .t-err { color: #ef476f; }
+  .term-body .t-cmd { color: #e6e9ef; }
+  .term-input-wrap { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); background: #0b0e14; }
+  .term-prompt { font-family: var(--mono); font-size: 13px; color: #ff5c5c; }
+  .term-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: var(--mono); font-size: 12.5px; color: var(--text);
+  }
+  .term-input::placeholder { color: #3a4256; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--redis);
+    border: 1px solid rgba(255,92,92,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(255,92,92,0.08); border: 1px solid rgba(255,92,92,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num { font-family: var(--display); font-size: 40px; color: var(--redis); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--redis); color: var(--redis); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Redis</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Redis <em>交互式学习</em></h1>
+    <p class="subtitle">迷你 redis-cli 命令台 · 9 个里程碑 · 进度自动保存在本浏览器</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 数据结构总览 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>五种数据结构：选对工具做对事</h2>
+    <p class="lead">Redis 是内存键值数据库，键是 String，值可以是五种核心类型：<strong>String</strong>（字符串/计数）、<strong>Hash</strong>（对象/字段）、<strong>List</strong>（队列/栈）、<strong>Set</strong>（去重集合）、<strong>ZSet</strong>（带分数的有序集合）。</p>
+    <table>
+      <thead><tr><th>类型</th><th>典型命令</th><th>典型场景</th></tr></thead>
+      <tbody>
+        <tr><td>String</td><td>SET / GET / INCR / EXPIRE</td><td>缓存、计数器、限流</td></tr>
+        <tr><td>Hash</td><td>HSET / HGET / HGETALL</td><td>用户资料、对象存储</td></tr>
+        <tr><td>List</td><td>LPUSH / RPUSH / LPOP / LRANGE</td><td>消息队列、时间线</td></tr>
+        <tr><td>Set</td><td>SADD / SMEMBERS / SINTER</td><td>去重、共同好友、标签</td></tr>
+        <tr><td>ZSet</td><td>ZADD / ZRANGE / ZRANGEBYSCORE</td><td>排行榜、优先级队列</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：场景 → 数据结构</h3>
+    <div class="opts" id="dsOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ds">"统计今天 UV，用户去重" → List</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ds">"统计今天 UV，用户去重" → Set</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ds">"按分数排行的游戏榜单" → Set</label>
+      <label class="opt-row" data-id="d"><input type="radio" name="ds">"按分数排行的游戏榜单" → ZSet</label>
+      <label class="opt-row" data-id="e"><input type="radio" name="ds">"电商秒杀计数器 +1" → Hash</label>
+    </div>
+    <div class="result" id="dsResult"></div>
+  </section>
+
+  <!-- ═══ 2 迷你命令台 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>迷你 redis-cli：亲手敲命令</h2>
+    <p class="lead">下面是一个模拟的 Redis 命令行。试试这些基础操作：</p>
+    <table>
+      <thead><tr><th style="width:44%">命令</th><th>预期输出</th></tr></thead>
+      <tbody>
+        <tr><td><code>SET name "alice"</code></td><td>OK</td></tr>
+        <tr><td><code>GET name</code></td><td>"alice"</td></tr>
+        <tr><td><code>INCR views</code></td><td>(integer) 1</td></tr>
+        <tr><td><code>EXPIRE name 60</code></td><td>(integer) 1（设置成功）</td></tr>
+        <tr><td><code>TTL name</code></td><td>剩余秒数</td></tr>
+      </tbody>
+    </table>
+    <div class="insight"><strong>任务：</strong>至少执行 3 条有效命令（如 SET + GET + INCR），解锁本里程碑。输入 <code>help</code> 查看支持的命令清单。</div>
+    <div class="term">
+      <div class="term-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">redis-cli · 迷你模拟器</span></div>
+      <div class="term-body" id="rout"></div>
+      <div class="term-input-wrap">
+        <span class="term-prompt">&gt;</span>
+        <input type="text" class="term-input" id="rcmd" placeholder="输入 Redis 命令，如 SET name alice（help 查看支持命令）" autocomplete="off" spellcheck="false">
+      </div>
+    </div>
+    <div class="result" id="cliResult"></div>
+  </section>
+
+  <!-- ═══ 3 String ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>String：缓存与计数器</h2>
+    <p class="lead">String 是最基础的 KV。几个要点：<code>INCR</code> 是<strong>原子操作</strong>（并发安全，适合计数器）；<code>EXPIRE</code> 设置过期时间，<code>TTL</code> 查询剩余秒数（-1 永不过期，-2 键不存在）；可用 <code>SET key value EX 60</code> 一步完成"设置+过期"。</p>
+    <pre><span class="key">SET</span> page:home <span class="val">"<html>...</html>"</span> EX 300
+<span class="cmt"># 缓存首页 5 分钟；TTL 归零后自动失效，重新回源</span>
+<span class="key">INCR</span> login:fail:user:7     <span class="cmt"># 登录失败次数 +1（原子）</span>
+<span class="key">EXPIRE</span> login:fail:user:7 3600   <span class="cmt"># 1 小时后重置</span></pre>
+    <h3>练习：String 语义</h3>
+    <div class="opts" id="strOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="str">两个客户端同时 INCR，结果可能丢更新 → 需要用分布式锁保护</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="str">INCR 是原子操作，并发下也不会丢计数</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="str">TTL 返回 -1 表示键不存在</label>
+    </div>
+    <div class="result" id="strResult"></div>
+  </section>
+
+  <!-- ═══ 4 Hash ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>Hash：对象的一等公民</h2>
+    <p class="lead">Hash 存"字段 → 值"映射，适合表示一个对象：一个 key = 一个用户/商品，内部字段可单独读写，不必每次取整条。</p>
+    <pre><span class="key">HSET</span> user:1001 name "alice" age 28
+<span class="key">HGET</span> user:1001 name        <span class="cmt"># "alice"</span>
+<span class="key">HGETALL</span> user:1001           <span class="cmt"># 所有字段</span>
+<span class="key">HINCRBY</span> user:1001 score 5   <span class="cmt"># 字段级原子自增</span></pre>
+    <h3>练习：Hash 语义</h3>
+    <div class="opts" id="hashOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="hash">HSET user:1001 age 28 会把整个 user:1001 替换为 age 字段</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="hash">HSET user:1001 age 28 只新增/更新 age 字段，其他字段不受影响</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="hash">HGETALL 返回的字段是无序的，因此 Hash 不适合存排行榜</label>
+    </div>
+    <div class="result" id="hashResult"></div>
+  </section>
+
+  <!-- ═══ 5 List ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>List：队列与栈</h2>
+    <p class="lead">List 是双向链表：<code>LPUSH/RPUSH</code> 从头/尾压入，<code>LPOP/RPOP</code> 从头/尾弹出。<strong>LPUSH + RPOP</strong> 组成队列（FIFO），<strong>LPUSH + LPOP</strong> 组成栈（LIFO）。<code>BRPOP</code> 是阻塞版：队列空时等待，是简单消息队列的核心。</p>
+    <pre><span class="key">LPUSH</span> tasks task-a task-b
+<span class="key">RPOP</span> tasks          <span class="cmt"># "task-a"（先进先出 → 队列）</span>
+<span class="key">BRPOP</span> tasks 0      <span class="cmt"># 阻塞直到有新任务</span></pre>
+    <h3>练习：List 语义</h3>
+    <div class="opts" id="listOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="list">LPUSH + LPOP 实现先进先出（FIFO）队列</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="list">LPUSH + RPOP 实现先进先出（FIFO）队列</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="list">BRPOP 在列表为空时会立即报错</label>
+    </div>
+    <div class="result" id="listResult"></div>
+  </section>
+
+  <!-- ═══ 6 Set ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>Set：去重与集合运算</h2>
+    <p class="lead">Set 自动去重，支持集合运算：<code>SADD</code> 添加成员（重复忽略）、<code>SMEMBERS</code> 列出、<code>SINTER</code> 交集、<code>SUNION</code> 并集、<code>SDIFF</code> 差集。UV 去重、共同好友、标签过滤都是它的主场。</p>
+    <pre><span class="key">SADD</span> online:20261010 user:1 user:2 user:1   <span class="cmt"># (integer) 2，user:1 只算一次</span>
+<span class="key">SINTER</span> friends:a friends:b                  <span class="cmt"># 共同好友</span>
+<span class="key">SCARD</span> online:20261010                        <span class="cmt"># 集合大小（UV）</span></pre>
+    <h3>练习：Set 语义</h3>
+    <div class="opts" id="setOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="set">SADD 重复添加同一成员会覆盖原成员的值</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="set">SADD 重复添加同一成员被忽略，Set 天然去重</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="set">SINTER 返回两个集合的并集</label>
+    </div>
+    <div class="result" id="setResult"></div>
+  </section>
+
+  <!-- ═══ 7 ZSet ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>ZSet：会排序的集合</h2>
+    <p class="lead">ZSet = Set + 分数（score）：成员唯一，按分数排序。排行榜、延迟队列（把执行时间当分数）、Top-N 都靠它。<code>ZADD key 分数 成员</code>，<code>ZRANGE</code> 按排名取，<code>ZRANGEBYSCORE</code> 按分数区间取。</p>
+    <pre><span class="key">ZADD</span> leaderboard 900 alice 850 bob 990 carol
+<span class="key">ZREVRANGE</span> leaderboard 0 2 WITHSCORES   <span class="cmt"># 前三名（降序）</span>
+<span class="key">ZRANGEBYSCORE</span> leaderboard 900 +inf    <span class="cmt"># 900 分以上</span></pre>
+    <h3>练习：ZSet 语义</h3>
+    <div class="opts" id="zsetOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="zset">ZADD leaderboard 900 alice 之后再次 ZADD 850 alice，会出现两个 alice</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="zset">ZADD leaderboard 900 alice 之后再次 ZADD 850 alice，alice 的分数更新为 850</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="zset">ZSet 的成员天然有序，无需分数即可排序</label>
+    </div>
+    <div class="result" id="zsetResult"></div>
+  </section>
+
+  <!-- ═══ 8 过期与持久化 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>过期与持久化：缓存 vs 可靠存储</h2>
+    <p class="lead">过期：<code>EXPIRE</code> 让键到期自动删除（惰性删除 + 定期删除）。持久化：<strong>RDB</strong>（定时全量快照，恢复快、可能丢最后一次数据）与 <strong>AOF</strong>（追加写命令日志，更可靠、文件更大）；生产常两者结合。Redis 是"带持久化能力的缓存"——别把它当唯一数据源。</p>
+    <pre><span class="key">SET</span> session:abc123 user:1001 EX 1800
+<span class="key">CONFIG</span> GET save          <span class="cmt"># RDB 快照策略</span>
+<span class="key">CONFIG</span> GET appendonly    <span class="cmt"># AOF 开关</span></pre>
+    <h3>练习：选择正确说法</h3>
+    <div class="opts" id="persistOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="persist">RDB 快照比 AOF 更不容易丢数据</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="persist">AOF 逐条记录写命令，通常比 RDB 更可靠但文件更大</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="persist">Redis 的键到期后立即从内存物理删除，不存在延迟</label>
+    </div>
+    <div class="result" id="persistResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：数据结构总览 → 亲手敲命令 → String → Hash → List → Set → ZSet → 过期与持久化 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 本地 <code>docker run -p 6379:6379 redis</code> 起一个真实实例，把本页命令全部敲一遍；<br>
+      ② 给接口加一层 String 缓存（SET EX + 回源），观察命中率；<br>
+      ③ 用 LPUSH + BRPOP 实现一个任务队列，体验阻塞消费；<br>
+      ④ 用 ZSet 实现一个实时排行榜，注意 ZINCRBY 更新分数。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">REDIS 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'redis';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 数据结构配对正确
+     1 命令台 ≥3 条有效命令
+     2 String 正确
+     3 Hash 正确
+     4 List 正确
+     5 Set 正确
+     6 ZSet 正确
+     7 持久化正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('dsOpts', 'b', 'dsResult',
+    '正确！UV 去重用 Set（自动去重）；排行榜用 ZSet（分数排序）；计数器用 String 的 INCR。',
+    '不对。去重用 Set；带分数排序用 ZSet；计数器用 String 的 INCR。', 0);
+  bindOpts('strOpts', 'b', 'strResult',
+    '正确！INCR 是单命令原子操作，并发下不会丢计数，无需额外锁。',
+    '不对。INCR 是原子命令，天然并发安全；TTL 返回 -1 表示永不过期，-2 才是键不存在。', 2);
+  bindOpts('hashOpts', 'b', 'hashResult',
+    '正确！HSET 只增改单个字段，不影响其他字段——这正是 Hash 存对象的优势。',
+    '不对。HSET 只更新指定字段；HGETALL 无序也不影响它存对象；排行榜应选 ZSet。', 3);
+  bindOpts('listOpts', 'b', 'listResult',
+    '正确！LPUSH（左进）+ RPOP（右出）= 先进先出队列；LPUSH + LPOP 才是栈。',
+    '不对。LPUSH + RPOP 是队列（FIFO）；BRPOP 在列表为空时是阻塞等待，不是报错。', 4);
+  bindOpts('setOpts', 'b', 'setResult',
+    '正确！Set 成员唯一，重复 SADD 被忽略；SINTER 是交集（不是并集）。',
+    '不对。Set 天然去重；SINTER 求交集，SUNION 才是并集。', 5);
+  bindOpts('zsetOpts', 'b', 'zsetResult',
+    '正确！ZSet 成员唯一，重复 ZADD 会更新该成员的分数并重新排序。',
+    '不对。ZSet 成员唯一，重复 ZADD 更新分数；排序完全由 score 决定。', 6);
+  bindOpts('persistOpts', 'b', 'persistResult',
+    '正确！AOF 逐条记录写命令，比 RDB 定时快照更可靠（可配置每秒 fsync）；过期删除是惰性+定期，不是立即物理删。',
+    '不对。AOF 通常比 RDB 更可靠但文件更大；键到期是惰性删除+定期删除的机制。', 7);
+
+  /* ═══════════════ 迷你 redis-cli 引擎 ═══════════════ */
+  var db = {};   /* key -> { t, v/d, expireAt } */
+  var cmdCount = 0;
+  var validRun = {};
+
+  function now() { return Date.now(); }
+  function purgeExpired() {
+    Object.keys(db).forEach(function (k) {
+      var e = db[k].expireAt;
+      if (e && now() >= e) delete db[k];
+    });
+  }
+  function getKey(k) { purgeExpired(); return db[k] || null; }
+  function delKey(k) { purgeExpired(); return delete db[k]; }
+
+  function fmtVal(v) {
+    if (typeof v === 'string') return '"' + v + '"';
+    return String(v);
+  }
+
+  function runRedis(rawCmd) {
+    var cmd = rawCmd.trim();
+    if (!cmd) return '';
+    if (cmd === 'help') {
+      return [
+        '支持的迷你命令：',
+        '  String: SET key value [EX sec] · GET key · DEL key · INCR key · INCRBY key n · DECR key',
+        '  TTL:    EXPIRE key sec · TTL key · TYPE key',
+        '  Hash:   HSET key field value · HGET key field · HGETALL key · HDEL key field · HEXISTS key field',
+        '  List:   LPUSH key v [v...] · RPUSH key v [v...] · LPOP key · RPOP key · LLEN key · LRANGE key start stop',
+        '  Set:    SADD key m [m...] · SMEMBERS key · SCARD key · SREM key m · SINTER key1 key2',
+        '  ZSet:   ZADD key score member [score member...] · ZSCORE key member · ZCARD key · ZRANGE key 0 -1 [WITHSCORES]',
+        '  Other:  KEYS pattern · FLUSHALL · INFO'
+      ].join('\n');
+    }
+    var parts = cmd.split(/\s+/);
+    var verb = parts[0].toUpperCase();
+    var ok = true;
+    var out = '';
+
+    function err(msg) { ok = false; out = '(error) ' + msg; }
+
+    function argStr(key, def) { return db[key] ? db[key].v : (def === undefined ? null : def); }
+
+    if (verb === 'SET') {
+      if (parts.length < 3) { err('wrong number of arguments for SET'); }
+      else {
+        var sk = parts[1], sv = parts.slice(2).join(' ').trim();
+        var expireSec = null;
+        var m = sv.match(/^(.+?)\s+EX\s+(\d+)$/);
+        if (m) { sv = m[1]; expireSec = parseInt(m[2], 10); }
+        db[sk] = { t: 'string', v: sv.replace(/^"(.*)"$/, '$1'), expireAt: expireSec ? now() + expireSec * 1000 : null };
+        out = 'OK';
+      }
+    } else if (verb === 'GET') {
+      var gk = parts[1];
+      if (!gk) { err('wrong number of arguments for GET'); }
+      else {
+        var entry = getKey(gk);
+        out = entry && entry.t === 'string' ? fmtVal(entry.v) : '(nil)';
+      }
+    } else if (verb === 'DEL') {
+      if (parts.length < 2) { err('wrong number of arguments for DEL'); }
+      else {
+        var n = 0;
+        parts.slice(1).forEach(function (k) { if (getKey(k)) { delKey(k); n++; } });
+        out = '(integer) ' + n;
+      }
+    } else if (verb === 'INCR' || verb === 'INCRBY' || verb === 'DECR') {
+      var ik = parts[1];
+      if (!ik) { err('wrong number of arguments for ' + verb); }
+      else {
+        var step = verb === 'INCR' ? 1 : (verb === 'DECR' ? -1 : parseInt(parts[2] || 1, 10));
+        var cur = getKey(ik);
+        var val = cur && cur.t === 'string' && /^-?\d+$/.test(cur.v) ? parseInt(cur.v, 10) : 0;
+        val += step;
+        db[ik] = { t: 'string', v: String(val), expireAt: cur ? cur.expireAt : null };
+        out = '(integer) ' + val;
+      }
+    } else if (verb === 'EXPIRE') {
+      var ek = parts[1], esec = parseInt(parts[2], 10);
+      var eentry = getKey(ek);
+      if (!eentry) { out = '(integer) 0'; }
+      else if (!isFinite(esec)) { err('value is not an integer or out of range'); }
+      else { eentry.expireAt = now() + esec * 1000; out = '(integer) 1'; }
+    } else if (verb === 'TTL') {
+      var tk = parts[1];
+      var tentry = getKey(tk);
+      if (!tentry) out = '(integer) -2';
+      else if (!tentry.expireAt) out = '(integer) -1';
+      else out = '(integer) ' + Math.max(0, Math.round((tentry.expireAt - now()) / 1000));
+    } else if (verb === 'TYPE') {
+      var yk = parts[1];
+      var yentry = getKey(yk);
+      out = yentry ? yentry.t : 'none';
+    } else if (verb === 'HSET') {
+      if (parts.length < 4) { err('wrong number of arguments for HSET'); }
+      else {
+        var hk = parts[1], hf = parts[2], hv = parts[3];
+        var hentry = getKey(hk);
+        if (!hentry || hentry.t !== 'hash') { db[hk] = { t: 'hash', d: {}, expireAt: null }; hentry = db[hk]; }
+        var existed = Object.prototype.hasOwnProperty.call(hentry.d, hf) ? 1 : 0;
+        hentry.d[hf] = hv;
+        out = '(integer) ' + (1 - existed);
+      }
+    } else if (verb === 'HGET') {
+      var hgk = parts[1], hgf = parts[2];
+      var hgentry = getKey(hgk);
+      out = hgentry && hgentry.t === 'hash' && hgentry.d[hgf] !== undefined ? fmtVal(hgentry.d[hgf]) : '(nil)';
+    } else if (verb === 'HGETALL') {
+      var hgk2 = parts[1];
+      var hg2 = getKey(hgk2);
+      if (!hg2 || hg2.t !== 'hash') out = '(empty array)';
+      else {
+        var lines = [];
+        Object.keys(hg2.d).forEach(function (f) { lines.push(String(f), fmtVal(hg2.d[f])); });
+        out = lines.join('\n');
+      }
+    } else if (verb === 'HDEL') {
+      var hdk = parts[1], hdf = parts[2];
+      var hde = getKey(hdk);
+      var removed = hde && hde.t === 'hash' && Object.prototype.hasOwnProperty.call(hde.d, hdf) ? 1 : 0;
+      if (removed) delete hde.d[hdf];
+      out = '(integer) ' + removed;
+    } else if (verb === 'HEXISTS') {
+      var hxk = parts[1], hxf = parts[2];
+      var hxe = getKey(hxk);
+      out = '(integer) ' + (hxe && hxe.t === 'hash' && hxe.d[hxf] !== undefined ? 1 : 0);
+    } else if (verb === 'LPUSH' || verb === 'RPUSH') {
+      if (parts.length < 3) { err('wrong number of arguments for ' + verb); }
+      else {
+        var lk = parts[1];
+        var lentry = getKey(lk);
+        if (!lentry || lentry.t !== 'list') { db[lk] = { t: 'list', d: [], expireAt: null }; lentry = db[lk]; }
+        var items = parts.slice(2);
+        if (verb === 'LPUSH') lentry.d = items.reverse().concat(lentry.d);
+        else lentry.d = lentry.d.concat(items);
+        out = '(integer) ' + lentry.d.length;
+      }
+    } else if (verb === 'LPOP' || verb === 'RPOP') {
+      var pk = parts[1];
+      var pentry = getKey(pk);
+      if (!pentry || pentry.t !== 'list' || !pentry.d.length) out = '(nil)';
+      else out = fmtVal(verb === 'LPOP' ? pentry.d.shift() : pentry.d.pop());
+    } else if (verb === 'LLEN') {
+      var lk2 = parts[1];
+      var le2 = getKey(lk2);
+      out = '(integer) ' + (le2 && le2.t === 'list' ? le2.d.length : 0);
+    } else if (verb === 'LRANGE') {
+      var rk = parts[1], rs = parseInt(parts[2] || 0, 10), re = parseInt(parts[3] === '-1' ? '1e9' : parts[3], 10);
+      var rentry = getKey(rk);
+      if (!rentry || rentry.t !== 'list') out = '(empty array)';
+      else {
+        var start = rs < 0 ? Math.max(0, rentry.d.length + rs) : rs;
+        var end = re > 1e8 ? rentry.d.length - 1 : re;
+        if (end < 0) end = rentry.d.length + end;
+        var sliced = rentry.d.slice(start, end + 1);
+        out = sliced.length ? sliced.map(function (v) { return '1) ' + fmtVal(v); }).join('\n') : '(empty array)';
+      }
+    } else if (verb === 'SADD') {
+      if (parts.length < 3) { err('wrong number of arguments for SADD'); }
+      else {
+        var skey = parts[1];
+        var sentry = getKey(skey);
+        if (!sentry || sentry.t !== 'set') { db[skey] = { t: 'set', d: {}, expireAt: null }; sentry = db[skey]; }
+        var added = 0;
+        parts.slice(2).forEach(function (m) { if (!Object.prototype.hasOwnProperty.call(sentry.d, m)) { sentry.d[m] = 1; added++; } });
+        out = '(integer) ' + added;
+      }
+    } else if (verb === 'SMEMBERS') {
+      var smk = parts[1];
+      var sme = getKey(smk);
+      if (!sme || sme.t !== 'set' || !Object.keys(sme.d).length) out = '(empty array)';
+      else out = Object.keys(sme.d).map(function (m) { return '1) "' + m + '"'; }).join('\n');
+    } else if (verb === 'SCARD') {
+      var sck = parts[1];
+      var sce = getKey(sck);
+      out = '(integer) ' + (sce && sce.t === 'set' ? Object.keys(sce.d).length : 0);
+    } else if (verb === 'SREM') {
+      var srk = parts[1];
+      var sre = getKey(srk);
+      var srn = 0;
+      if (sre && sre.t === 'set') parts.slice(2).forEach(function (m) { if (Object.prototype.hasOwnProperty.call(sre.d, m)) { delete sre.d[m]; srn++; } });
+      out = '(integer) ' + srn;
+    } else if (verb === 'SINTER') {
+      var i1 = getKey(parts[1]), i2 = getKey(parts[2]);
+      var s1 = i1 && i1.t === 'set' ? Object.keys(i1.d) : [];
+      var s2 = i2 && i2.t === 'set' ? Object.keys(i2.d) : [];
+      var inter = s1.filter(function (m) { return s2.indexOf(m) !== -1; });
+      out = inter.length ? inter.map(function (m) { return '1) "' + m + '"'; }).join('\n') : '(empty array)';
+    } else if (verb === 'ZADD') {
+      if (parts.length < 4 || parts.length % 2 !== 0) { err('wrong number of arguments for ZADD'); }
+      else {
+        var zk = parts[1];
+        var zentry = getKey(zk);
+        if (!zentry || zentry.t !== 'zset') { db[zk] = { t: 'zset', d: [], expireAt: null }; zentry = db[zk]; }
+        var added = 0;
+        for (var i = 2; i + 1 < parts.length; i += 2) {
+          var score = parseFloat(parts[i]), member = parts[i + 1];
+          var found = false;
+          zentry.d.forEach(function (row) { if (row[1] === member) { row[0] = score; found = true; } });
+          if (!found) { zentry.d.push([score, member]); added++; }
+        }
+        zentry.d.sort(function (a, b) { return a[0] - b[0]; });
+        out = '(integer) ' + added;
+      }
+    } else if (verb === 'ZSCORE') {
+      var zsk = parts[1], zsm = parts[2];
+      var zse = getKey(zsk);
+      var sc = null;
+      if (zse && zse.t === 'zset') zse.d.forEach(function (row) { if (row[1] === zsm) sc = row[0]; });
+      out = sc === null ? '(nil)' : String(sc);
+    } else if (verb === 'ZCARD') {
+      var zck = parts[1];
+      var zce = getKey(zck);
+      out = '(integer) ' + (zce && zce.t === 'zset' ? zce.d.length : 0);
+    } else if (verb === 'ZRANGE') {
+      var zrk = parts[1], zs = parseInt(parts[2] || 0, 10), ze = parts[3] === '-1' ? 1e9 : parseInt(parts[3] || -1, 10);
+      var withScores = parts.indexOf('WITHSCORES') > -1;
+      var zre = getKey(zrk);
+      if (!zre || zre.t !== 'zset') out = '(empty array)';
+      else {
+        var start2 = zs < 0 ? Math.max(0, zre.d.length + zs) : zs;
+        var end2 = ze > 1e8 ? zre.d.length - 1 : (ze < 0 ? zre.d.length + ze : ze);
+        var sliced = zre.d.slice(start2, end2 + 1);
+        out = sliced.length ? sliced.map(function (row, idx) {
+          return (idx + 1) + ') "' + row[1] + '"' + (withScores ? '\n    ' + row[0] : '');
+        }).join('\n') : '(empty array)';
+      }
+    } else if (verb === 'KEYS') {
+      var pat = parts[1] || '*';
+      var re = new RegExp('^' + pat.replace(/\*/g, '.*') + '$');
+      var keys = Object.keys(db).filter(function (k) { return re.test(k); });
+      out = keys.length ? keys.map(function (k) { return '1) "' + k + '"'; }).join('\n') : '(empty array)';
+    } else if (verb === 'FLUSHALL') {
+      Object.keys(db).forEach(function (k) { delete db[k]; });
+      out = 'OK';
+    } else if (verb === 'INFO') {
+      out = '# Server\nredis_version:7.2.0-sim\n# Keyspace\ndb0:keys=' + Object.keys(db).length + ',expires=' + Object.keys(db).filter(function (k) { return !!db[k].expireAt; }).length;
+    } else {
+      ok = false;
+      out = '(error) ERR unknown command "' + verb + '"（输入 help 查看支持命令）';
+    }
+
+    if (ok) {
+      validRun[cmd] = true;
+      cmdCount = Object.keys(validRun).length;
+    }
+    return ok ? out : out;
+  }
+
+  var input = $('rcmd'), rout = $('rout');
+  function printLine(cls, text) {
+    var div = document.createElement('div');
+    div.className = 't-line ' + cls;
+    div.textContent = text;
+    rout.appendChild(div);
+    rout.scrollTop = rout.scrollHeight;
+  }
+  function execute() {
+    var raw = input.value;
+    if (!raw.trim()) return;
+    printLine('t-cmd', '> ' + raw);
+    var res = runRedis(raw);
+    printLine(/^\(error\)/.test(res) ? 't-err' : 't-out', res);
+    if (!/^\(error\)/.test(res) && cmdCount >= 3 && !milestones[1]) {
+      completeMilestone(1);
+      $('cliResult').className = 'result show ok';
+      $('cliResult').innerHTML = '漂亮！你已经执行 ' + cmdCount + ' 条有效命令。Redis 的入门就是从"多敲命令"开始的。';
+    }
+    input.value = '';
+    input.focus();
+  }
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); execute(); } });
+  printLine('t-out', 'Welcome to the mini redis-cli. Type "help" for available commands.');
+  printLine('t-out', '示例：SET name alice · GET name · INCR views · EXPIRE name 60');
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '统计当天独立访客（UV，要去重），最合适的数据结构是？', opts: ['List', 'Set', 'ZSet', 'String'], right: 1, expl: 'Set 成员唯一、自动去重，配合 SADD 即可统计 UV。' },
+    { q: 'INCR 命令的特点是？', opts: ['非原子，并发下会丢更新', '原子操作，并发安全，适合计数器', '只能加 1 且不可用于缓存', '会把键的过期时间清空'], right: 1, expl: 'INCR 是单命令原子操作，是计数器/限流的首选。' },
+    { q: 'HSET user:1001 age 28 对已有 age 字段的影响是？', opts: ['覆盖整个 user:1001', '把 age 更新为 28，其他字段不受影响', '报错，Hash 不可更新', '新增一个 user:1001 副本'], right: 1, expl: 'Hash 字段级读写：HSET 只更新指定字段。' },
+    { q: '用 List 实现 FIFO 队列的组合是？', opts: ['LPUSH + LPOP', 'LPUSH + RPOP', 'RPUSH + LPOP', 'LPUSH + LLEN'], right: 1, expl: '左进右出 = 先进先出；LPUSH+LPOP 是栈（LIFO）。' },
+    { q: 'SINTER tag:java tag:backend 返回的是？', opts: ['两个集合的并集', '两个集合的交集（同时含两个标签的成员）', '两个集合的差集', '两个集合的元素总数'], right: 1, expl: 'SINTER 求交集，常用于"同时满足多个标签"的筛选。' },
+    { q: 'ZADD leaderboard 900 alice 后再执行 ZADD leaderboard 850 alice，结果是？', opts: ['出现两个 alice', 'alice 分数更新为 850', '报错，成员已存在', 'alice 分数不变'], right: 1, expl: 'ZSet 成员唯一，重复 ZADD 更新分数并重新排序。' },
+    { q: 'TTL 返回 -1 表示？', opts: ['键不存在', '键存在但永不过期', '键 1 秒后过期', '键已被删除'], right: 1, expl: '-1 = 永不过期；-2 = 键不存在。' },
+    { q: '关于 Redis 持久化的正确说法是？', opts: ['RDB 比 AOF 更可靠', 'AOF 逐条记录写命令，通常比 RDB 更可靠但文件更大', 'Redis 关闭持久化后数据永远安全', 'AOF 只存快照不存命令'], right: 1, expl: 'AOF 记录每个写命令（可每秒 fsync），可靠性高于定时快照的 RDB，代价是文件更大。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Redis 的核心数据结构。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

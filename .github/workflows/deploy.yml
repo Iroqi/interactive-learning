@@ -15,8 +15,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    name: Check (modules in sync with src)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify src/ packs to modules/ unchanged
+        run: node tools/verify-pack.js
+
   github-pages:
     name: GitHub Pages
+    needs: check
     runs-on: ubuntu-latest
     environment:
       name: github-pages

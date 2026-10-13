@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prometheus 监控 交互式学习 · 迷你 PromQL 查询台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --prom: #f59e0b; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #21262d; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #0d1117; background: var(--prom); border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--prom); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--prom), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--prom); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--prom); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--prom); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(245, 158, 11, 0.07); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--prom); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--prom); }
+  .opt-row input { margin-top: 5px; accent-color: var(--prom); }
+  .opt-row.correct { border-color: var(--prom); background: rgba(245, 158, 11, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); color: #fef3c7; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #f59e0b; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body input[type="text"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body input[type="text"]:focus { border-color: var(--prom); }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: var(--prom); color: #0d1117; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--prom); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--prom); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--prom); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: var(--prom); color: var(--prom); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #161b22; border: 1px solid var(--prom); color: #fef3c7; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Prometheus <em>监控</em></h1>
+    <p class="subtitle">迷你 PromQL 查询台 · 指标类型 · 告警规则 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 抓取配置 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>抓取：Prometheus 怎么拿数据</h2>
+    <p class="lead">Prometheus 主动拉取（pull）：<code>scrape_configs</code> 定义 job 与 targets，默认每 <code>scrape_interval</code>（如 15s）访问 <code>/metrics</code>。被监控服务只需暴露指标端点。四个黄金指标：延迟（histogram）、流量（counter）、错误率、饱和度。</p>
+    <pre>scrape_configs:
+  - job_name: "api"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["api:8080"]   <span class="cmt"># 拉取 http://api:8080/metrics</span></pre>
+    <h3>练习：抓取模型</h3>
+    <div class="opts" id="scOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sc">Prometheus 定期主动拉取 /metrics；服务端只需暴露端点，不用主动上报</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sc">被监控服务必须自己把数据推送到 Prometheus</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sc">scrape_interval 越大数据越实时</label>
+    </div>
+    <div class="result" id="scResult"></div>
+  </section>
+
+  <!-- ═══ 2 指标类型 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>指标类型：counter / gauge / histogram / summary</h2>
+    <p class="lead"><code>counter</code>：只增不减（请求数、错误数）；<code>gauge</code>：可增可减（当前连接数、温度）；<code>histogram</code>：桶分布（延迟分位，可聚合）；<code>summary</code>：客户端算分位（不可跨实例聚合）。</p>
+    <h3>练习：类型辨识</h3>
+    <div class="opts" id="mtOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="mt">http_requests_total 是 counter（累计请求数）；current_connections 是 gauge（当前值可上下浮动）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="mt">counter 可以用于查询当前速率但本身会回落</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="mt">gauge 适合统计累计错误总数</label>
+    </div>
+    <div class="result" id="mtResult"></div>
+  </section>
+
+  <!-- ═══ 3 即时/区间向量 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>向量：即时 vs 区间</h2>
+    <p class="lead"><code>http_requests_total</code> 是<strong>即时向量</strong>（每个序列一个当前值）；<code>http_requests_total[5m]</code> 是<strong>区间向量</strong>（每个序列最近 5 分钟的所有样本），配合 rate() 计算速率。花括号 <code>{method="GET"}</code> 做标签选择。</p>
+    <h3>练习：向量选择</h3>
+    <div class="opts" id="vecOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="vec">x[5m] 返回每个序列最近 5 分钟的样本序列；x 返回当前即时值</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="vec">x[5m] 只返回 5 个样本</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="vec">标签选择器只能用于直方图</label>
+    </div>
+    <div class="result" id="vecResult"></div>
+  </section>
+
+  <!-- ═══ 4 rate / increase ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>rate() 与 increase()</h2>
+    <p class="lead"><code>rate(http_requests_total[5m])</code>：每秒平均增长率（适合告警与绘图）；<code>increase(x[1h])</code>：区间内总增量。二者都只作用于 counter，且自动处理重启/重置。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">PromQL 查询台</span></div>
+      <div class="clab-body">
+        <input type="text" id="promqlInput" spellcheck="false" placeholder="rate(http_requests_total[5m])">
+        <button type="button" class="clab-btn" id="promqlBtn">执行</button>
+        <div class="clab-out" id="promqlOut">— 输入 PromQL —</div>
+      </div>
+    </div>
+    <h3>练习：rate 语义</h3>
+    <div class="opts" id="rateOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="rate">rate(x[5m]) = 5 分钟内每秒平均增量，单位"次/秒"，适合画图与告警</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="rate">rate 可以直接作用于 gauge</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="rate">increase 与 rate 的语义相同，只是单位不同</label>
+    </div>
+    <div class="result" id="rateResult"></div>
+  </section>
+
+  <!-- ═══ 5 聚合 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>聚合：sum by</h2>
+    <p class="lead"><code>sum by (job) (rate(http_requests_total[5m]))</code>：按 job 分组求和；<code>by</code> 保留指定标签，<code>without</code> 去除指定标签。还有 avg / max / min / count / topk。</p>
+    <pre># 按实例聚合每秒请求数
+sum by (instance) (rate(http_requests_total[5m]))</pre>
+    <h3>练习：聚合语义</h3>
+    <div class="opts" id="aggOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="agg">sum by (job) 按 job 分组求和，每组输出一个值；by 保留列出的标签</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="agg">sum by 会把所有标签都保留在结果里</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="agg">rate 的结果不能参与 sum 聚合</label>
+    </div>
+    <div class="result" id="aggResult"></div>
+  </section>
+
+  <!-- ═══ 6 标签匹配 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>标签匹配：= =~ != !~</h2>
+    <p class="lead"><code>{method="GET"}</code> 精确匹配；<code>{job=~"api.*"}</code> 正则匹配；<code>!=</code> 不等于；<code>!~</code> 正则否定。<code>__name__</code> 是特殊标签，可直接按指标名匹配。</p>
+    <h3>练习：选择器判读</h3>
+    <div class="opts" id="lbOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="lb">{status=~"5.."} 匹配 status 以 5 开头的三位数（500/501…），正则用 =~</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="lb">=~ 是"不等于"操作符</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="lb">标签匹配只能匹配一个固定值</label>
+    </div>
+    <div class="result" id="lbResult"></div>
+  </section>
+
+  <!-- ═══ 7 告警规则 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>告警规则：expr + for + severity</h2>
+    <p class="lead">告警规则：<code>expr</code>（触发条件）、<code>for</code>（持续多久才告警，防抖动）、<code>labels.severity</code>（严重级别）。Alertmanager 负责去重、分组、路由到钉钉/邮件等。</p>
+    <pre>groups:
+  - name: api
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) &gt; 0.05
+        for: 10m
+        labels: { severity: critical }</pre>
+    <h3>练习：告警语义</h3>
+    <div class="opts" id="ruleOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="rule">for: 10m 表示条件持续 10 分钟才进入告警（Firing），避免瞬时抖动误报</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="rule">expr 一成立立即永远告警，for 只是备注</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="rule">Alertmanager 负责执行查询</label>
+    </div>
+    <div class="result" id="ruleResult"></div>
+  </section>
+
+  <!-- ═══ 8 可用性 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>可用性：up 与 SLO</h2>
+    <p class="lead"><code>up{job="api"}</code>：目标在线为 1、抓取失败为 0。<code>sum(rate(up{job="api"}[1h])) / count(up{job="api"})</code> 可得近 1 小时可用率。<code>100 - (错误样本占比)</code> 是常见 SLO 计算方式。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">可用性计算器</span></div>
+      <div class="clab-body">
+        <div class="clab-ctrl">
+          <label style="font-size:12px;color:#8b949e;">up 样本数 <input type="number" id="upN" value="100"></label>
+          <label style="font-size:12px;color:#8b949e;">在线样本数 <input type="number" id="upOk" value="99"></label>
+        </div>
+        <button type="button" class="clab-btn" id="upBtn">计算可用率</button>
+        <div class="clab-out" id="upOut">— 输入样本 —</div>
+      </div>
+    </div>
+    <h3>练习：可用率判读</h3>
+    <div class="opts" id="sloOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="slo">30 天 99.9% SLO 允许宕机约 43 分钟；可用率 = 在线时间 / 总时间</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="slo">SLO 99.9% 表示每月可以宕机任意长时间</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="slo">up=0 表示指标值很大</label>
+    </div>
+    <div class="result" id="sloResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：抓取 → 指标类型 → 向量 → rate → 聚合 → 标签 → 告警 → 可用性 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 从四个黄金指标（延迟/流量/错误/饱和度）入手定义观测面；<br>
+      ② 用 rate + sum by 画面板，所有计数器先 rate 再聚合；<br>
+      ③ 告警条件加 for 防抖动，先 warning 后 critical；<br>
+      ④ 用 up 与错误率定义 SLO，定期复盘预算消耗。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--prom)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Prometheus 监控 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'prometheus';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 抓取模型
+     1 指标类型
+     2 向量
+     3 rate/increase
+     4 聚合
+     5 标签匹配
+     6 告警规则
+     7 可用性
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('scOpts', 'a', 'scResult',
+    '正确！Pull 模型：Prometheus 主动拉取 /metrics，服务端只暴露端点。',
+    '不对。Prometheus 是拉取模型；scrape_interval 越小数据越实时（代价是更多资源）。', 0);
+  bindOpts('mtOpts', 'a', 'mtResult',
+    '正确！counter 只增（累计量）、gauge 可上下（当前量）。',
+    '不对。counter 是累计量不回落的；gauge 不能统计累计错误总数（那是 counter 的活）。', 1);
+  bindOpts('vecOpts', 'a', 'vecResult',
+    '正确！x 是即时值，x[5m] 是区间样本序列；花括号做标签选择。',
+    '不对。x[5m] 返回区间内所有样本（数量取决于抓取间隔）；标签选择器适用于所有指标。', 2);
+  bindOpts('rateOpts', 'a', 'rateResult',
+    '正确！rate 输出每秒平均增量（counter 专用）；increase 输出区间总增量。',
+    '不对。rate 只作用于 counter；increase 与 rate 都是 counter 专用但输出不同（增量 vs 速率）。', 3);
+  bindOpts('aggOpts', 'a', 'aggResult',
+    '正确！sum by (job) 按 job 分组求和，只保留 by 列出的标签。',
+    '不对。by 明确只保留列出的标签；rate 的结果是标量序列可以参与聚合。', 4);
+  bindOpts('lbOpts', 'a', 'lbResult',
+    '正确！=~ 是正则匹配，5.. 匹配 500-599；!= 与 !~ 是否定匹配。',
+    '不对。=~ 是正则匹配（"不等于"是 !=）；标签匹配支持 = =~ != !~ 四种。', 5);
+  bindOpts('ruleOpts', 'a', 'ruleResult',
+    '正确！for 持续期过滤瞬时抖动，条件持续满足才进入 Firing。',
+    '不对。expr 成立后要持续 for 时长才告警；Alertmanager 负责告警路由/去重，不执行查询。', 6);
+  bindOpts('sloOpts', 'a', 'sloResult',
+    '正确！99.9% 月度宕机预算 ≈ 43 分钟；可用率 = 在线时间/总时间。',
+    '不对。99.9% SLO 有严格预算；up=0 表示目标不可达（抓取失败），不是指标值。', 7);
+
+  /* ═════════════ PromQL 查询台 ═════════════ */
+  $('promqlBtn').addEventListener('click', function () {
+    var q = $('promqlInput').value.trim();
+    var out = $('promqlOut');
+    if (!q) { out.innerHTML = '<span class="c-err">请输入 PromQL</span>'; return; }
+    var lines = [], known = true;
+    lines.push('<span class="c-cmd">$ ' + esc(q) + '</span>');
+    if (/^up(\{|$)/.test(q)) {
+      lines.push('up{instance="api:8080",job="api"} = <span class="c-ok">1</span>');
+      lines.push('up{instance="db:9100",job="db"}  = <span class="c-ok">1</span>');
+      lines.push('→ 目标在线状态：1=在线，0=抓取失败');
+    } else if (/^rate\(http_requests_total(\{[^)]*\})?\[(\d+)m\]\)$/.test(q)) {
+      var m = q.match(/\[(\d+)m\]/);
+      lines.push('http_requests_total{method="GET",status="200"} → ' + (parseInt(m[1], 10) || 5) + ' 分钟累计 4800 → rate = <span class="c-ok">16 req/s</span>');
+      lines.push('http_requests_total{method="GET",status="500"} → ' + (parseInt(m[1], 10) || 5) + ' 分钟累计 60 → rate = <span class="c-ok">0.2 req/s</span>');
+      lines.push('→ rate()：每秒平均增量，counter 专用');
+    } else if (/^increase\(.*\[(\d+)m\]\)$/.test(q)) {
+      var m2 = q.match(/\[(\d+)m\]/);
+      lines.push('http_requests_total[5m] 起止 120000 → 132000 → increase = <span class="c-ok">12000</span>');
+      lines.push('→ increase()：区间总增量（' + (parseInt(m2[1], 10) || 5) + ' 分钟内累计新增）');
+    } else if (/^sum by \(([\w, ]+)\)/.test(q)) {
+      var grp = q.match(/^sum by \(([\w, ]+)\)/)[1].split(',').map(function (s) { return s.trim(); });
+      lines.push('按 ' + esc(grp.join(',')) + ' 分组求和：');
+      lines.push('  job="api"      → <span class="c-ok">98 req/s</span>');
+      lines.push('  job="web"      → <span class="c-ok">210 req/s</span>');
+      lines.push('→ sum by 只保留列出的标签');
+    } else if (/^avg\(/.test(q)) {
+      lines.push('node_cpu_seconds_total 各核均值 → <span class="c-ok">0.42</span>');
+      lines.push('→ avg()：聚合平均值');
+    } else if (/^topk\(/.test(q)) {
+      lines.push('topk(3, ...) → <span class="c-ok">CPU 使用率最高的 3 个实例</span>');
+    } else {
+      known = false;
+      lines.push('http_requests_total{method="GET",status="200"} = <span class="c-ok">132000</span>');
+      lines.push('→ 即时向量：每个序列一个当前值');
+    }
+    if (!known && !/\[|rate|increase|sum|avg|topk|up/.test(q)) {
+      lines[0] = '<span class="c-warn">未识别聚合/函数，按即时向量解读：</span>\n<span class="c-cmd">$ ' + esc(q) + '</span>';
+    }
+    out.innerHTML = lines.join('\n');
+  });
+
+  /* ═════════════ 可用性计算器 ═════════════ */
+  $('upBtn').addEventListener('click', function () {
+    var n = parseInt($('upN').value || '0', 10);
+    var ok = parseInt($('upOk').value || '0', 10);
+    var out = $('upOut');
+    if (n <= 0) { out.innerHTML = '<span class="c-err">样本数需 &gt; 0</span>'; return; }
+    var pct = Math.round(ok / n * 10000) / 100;
+    var nines = pct >= 99.999 ? '5 个 9' : (pct >= 99.99 ? '4 个 9' : (pct >= 99.9 ? '3 个 9' : (pct >= 99 ? '2 个 9' : '低于 99%')));
+    out.innerHTML = '在线 ' + ok + ' / 总 ' + n + '\n可用率 = <span class="c-ok">' + pct + '%</span>（' + nines + '）\n<span class="c-warn">月度宕机预算 ≈ ' + Math.round(43200 * (1 - ok / n)) + ' 分钟</span>';
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'Prometheus 采集模型是？', opts: ['服务端主动拉取 /metrics', '客户端推送到服务端', '双向实时推送', '定时抄表'], right: 0, expl: 'Pull 模型：主动拉取指标端点。' },
+    { q: '当前连接数应该用？', opts: ['counter', 'gauge', 'histogram 专用', 'summary 专用'], right: 1, expl: 'gauge 表示可增可减的当前量。' },
+    { q: 'http_requests_total[5m] 是？', opts: ['即时向量', '区间向量', '标量', '布尔量'], right: 1, expl: '带时间范围的就是区间向量。' },
+    { q: 'rate(x[5m]) 输出单位是？', opts: ['累计总量', '每秒增量', '5 分钟增量', '百分比'], right: 1, expl: 'rate = 每秒平均增长率。' },
+    { q: 'sum by (job) 的作用？', opts: ['按 job 分组求和', '去掉所有标签', '求最大值', '排序'], right: 0, expl: '按 job 聚合，保留 job 标签。' },
+    { q: '{status=~"5.."} 匹配？', opts: ['status 恰好等于 5', 'status 以 5 开头', 'status 不等于 5', 'status 大于 5'], right: 1, expl: '=~ 正则匹配，5.. 匹配三位数以 5 开头。' },
+    { q: '告警规则中 for: 10m 表示？', opts: ['每 10 分钟执行一次', '条件持续 10 分钟才告警', '告警保留 10 分钟', '10 分钟后自动恢复'], right: 1, expl: 'for 持续期防抖动。' },
+    { q: 'up=1 表示？', opts: ['指标值极大', '目标在线', '目标已删除', '告警触发'], right: 1, expl: 'up=1 目标在线可抓取。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经能读懂 PromQL 与告警规则。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

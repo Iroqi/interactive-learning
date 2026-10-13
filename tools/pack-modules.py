@@ -57,6 +57,15 @@ KEYS = {  # explicit mapping to avoid surprises
 
 os.makedirs('modules', exist_ok=True)
 
+def find_source(src):
+    """Authoring sources live in src/; the repo root stays a fallback so
+    one-off files dropped next to the script still pack."""
+    for base in ('src', '.'):
+        p = os.path.join(base, src)
+        if os.path.exists(p):
+            return p
+    return None
+
 def extract_body(html):
     m = re.search(r'<body[^>]*>(.*)</body>', html, re.S)
     if not m:
@@ -115,8 +124,9 @@ def emit(key, data):
     return path
 
 for src, key in KEYS.items():
-    if os.path.exists(src):
-        emit(key, pack(src))
+    path = find_source(src)
+    if path:
+        emit(key, pack(path))
     else:
         print('MISSING:', src)
 

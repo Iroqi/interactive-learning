@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JWT 认证令牌 交互式学习 · 迷你解码器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --jwt: #c084fc; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #21262d; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #0d1117; background: var(--jwt); border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--jwt); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--jwt), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--jwt); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--jwt); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--jwt); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(192, 132, 252, 0.07); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--jwt); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--jwt); }
+  .opt-row input { margin-top: 5px; accent-color: var(--jwt); }
+  .opt-row.correct { border-color: var(--jwt); background: rgba(192, 132, 252, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(192, 132, 252, 0.08); border: 1px solid rgba(192, 132, 252, 0.3); color: #f3e8ff; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #c084fc; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 60px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: var(--jwt); }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: var(--jwt); color: #0d1117; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--jwt); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--jwt); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--jwt); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: var(--jwt); color: var(--jwt); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #161b22; border: 1px solid var(--jwt); color: #f3e8ff; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>JWT <em>认证令牌</em></h1>
+    <p class="subtitle">迷你解码器 · 三段式 · Base64Url · 验签与过期 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 三段式 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>JWT 结构：三段式</h2>
+    <p class="lead">JWT = <code>header.payload.signature</code>，三段都是 <strong>Base64Url</strong> 编码后用点号连接。header 描述算法与类型，payload 放声明，signature 防篡改。它本身<strong>不是加密</strong>——任何人可解码读取，但改不了内容（改了就验签失败）。</p>
+    <pre>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0IiwibmFtZSI6IkFsaWNlIn0.sflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</pre>
+    <h3>练习：结构辨识</h3>
+    <div class="opts" id="segOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="seg">三段分别对应 header（算法/类型）、payload（声明）、signature（防篡改签名）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="seg">JWT 只有两段：内容 + 校验</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="seg">JWT 是加密的，没有密钥的人无法读取内容</label>
+    </div>
+    <div class="result" id="segResult"></div>
+  </section>
+
+  <!-- ═══ 2 Header ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>Header：算法与类型</h2>
+    <p class="lead"><code>{"alg":"HS256","typ":"JWT"}</code>：alg 声明签名算法（HS256/RS256/ES256…），typ 固定 JWT。服务端必须<strong>按白名单校验 alg</strong>，不能盲信 header——攻击者可把 alg 改成 none。</p>
+    <h3>练习：Header 判读</h3>
+    <div class="opts" id="hdOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="hd">alg 是签名算法、typ 是类型；服务端要校验 alg 是否在白名单内</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="hd">alg 是加密密钥，不能给客户端看到</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="hd">typ 表示 token 的过期时间</label>
+    </div>
+    <div class="result" id="hdResult"></div>
+  </section>
+
+  <!-- ═══ 3 Payload 声明 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>Payload：标准声明</h2>
+    <p class="lead">标准声明（claims）：<code>sub</code>（主题=用户 ID）、<code>exp</code>（过期时间戳）、<code>iat</code>（签发时间）、<code>iss</code>（签发者）、<code>aud</code>（受众）、<code>nbf</code>（生效时间）。自定义声明如 <code>role</code>、<code>admin</code> 也可放入。</p>
+    <pre>{"sub": "1234", "name": "Alice", "role": "admin", "exp": 1730000000, "iat": 1729900000}</pre>
+    <h3>练习：声明语义</h3>
+    <div class="opts" id="plOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="pl">sub=用户标识、exp=过期时间、iat=签发时间、iss=签发者</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="pl">exp 表示 token 的签发日期</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="pl">payload 里的内容是经过加密的</label>
+    </div>
+    <div class="result" id="plResult"></div>
+  </section>
+
+  <!-- ═══ 4 Base64Url ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>Base64Url：URL 安全的编码</h2>
+    <p class="lead">Base64Url 是标准 Base64 的变体：<code>+</code> 换 <code>-</code>、<code>/</code> 换 <code>_</code>、去掉尾部 <code>=</code>，保证 token 能在 URL/Header 里安全传输。解码后是 UTF-8 JSON。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">Base64Url 编解码器</span></div>
+      <div class="clab-body">
+        <input type="text" id="b64Input" spellcheck="false" placeholder='如：{"alg":"HS256"}'>
+        <div class="clab-ctrl">
+          <button type="button" class="clab-btn" id="b64Enc">编码</button>
+          <button type="button" class="clab-btn" id="b64Dec">解码</button>
+        </div>
+        <div class="clab-out" id="b64Out">— 输入文本 —</div>
+      </div>
+    </div>
+    <h3>练习：编码判读</h3>
+    <div class="opts" id="b64Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="b64">Base64Url 用 - 和 _ 替代 + 和 /，去掉 =，适合放 URL；解码后就是明文 JSON</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="b64">Base64Url 是加密算法，解码需要密钥</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="b64">Base64Url 只支持数字，不支持中文</label>
+    </div>
+    <div class="result" id="b64Result"></div>
+  </section>
+
+  <!-- ═══ 5 签名作用 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>签名：防篡改</h2>
+    <p class="lead">signature = <code>HMAC(header + "." + payload, secret)</code>（HS256 对称）或私钥签名（RS256 非对称）。服务端重算签名比对：<strong>一致 → 内容未被改过</strong>。签名不加密内容，只保证完整性。</p>
+    <h3>练习：签名语义</h3>
+    <div class="opts" id="sigOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sig">改 payload 后签名必然不匹配 → 服务端拒绝；签名保证完整性而非机密性</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sig">签名的作用是把 payload 加密成密文</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sig">客户端可以自己重新生成签名</label>
+    </div>
+    <div class="result" id="sigResult"></div>
+  </section>
+
+  <!-- ═══ 6 HS256 验签 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>HS256：对称验签流程</h2>
+    <p class="lead">HS256 用同一个 secret 签与验（对称）。流程：取 header.payload → HMAC-SHA256(secret) → Base64Url → 与第三段比对。<strong>secret 必须保密且足够强</strong>——弱密钥可被离线爆破（如 "secret"/"123456"）。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">验签判读器</span></div>
+      <div class="clab-body">
+        <textarea id="jwtInput" spellcheck="false" placeholder="粘贴 JWT 解码">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0IiwibmFtZSI6IkFsaWNlIiwicm9sZSI6ImFkbWluIn0.0</textarea>
+        <button type="button" class="clab-btn" id="jwtBtn">解码</button>
+        <div class="clab-out" id="jwtOut">— 粘贴 JWT —</div>
+      </div>
+    </div>
+    <h3>练习：验签理解</h3>
+    <div class="opts" id="hsOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="hs">HS256 用同一密钥签与验；secret 泄露或过弱 = 任何人都能伪造合法 token</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="hs">HS256 不需要密钥，签名自包含</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="hs">验签时只比对 header，不看 payload</label>
+    </div>
+    <div class="result" id="hsResult"></div>
+  </section>
+
+  <!-- ═══ 7 过期判断 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>过期与生效：exp / nbf / iat</h2>
+    <p class="lead"><code>exp</code>（过期）：当前时间 &gt; exp 拒绝；<code>nbf</code>（生效）：当前时间 &lt; nbf 拒绝；<code>iat</code> 记录签发时间供审计。校验顺序：签名 → exp/nbf → 业务声明（sub/role）。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">过期判断器</span></div>
+      <div class="clab-body">
+        <div class="clab-ctrl">
+          <label style="font-size:12px;color:#8b949e;">exp（Unix 秒）<input type="number" id="expVal" value="0"></label>
+          <label style="font-size:12px;color:#8b949e;">当前时间（Unix 秒）<input type="number" id="nowVal" value="0"></label>
+        </div>
+        <button type="button" class="clab-btn" id="expBtn">判断</button>
+        <div class="clab-out" id="expOut">— 输入时间戳 —</div>
+      </div>
+    </div>
+    <h3>练习：时间判读</h3>
+    <div class="opts" id="tmOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="tm">当前时间 &gt; exp 时 token 过期，服务端必须拒绝（哪怕签名合法）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="tm">签名合法就可以一直用，exp 只是提示</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="tm">nbf 表示"已过期"</label>
+    </div>
+    <div class="result" id="tmResult"></div>
+  </section>
+
+  <!-- ═══ 8 常见漏洞 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>JWT 常见漏洞与防护</h2>
+    <p class="lead">① <code>alg=none</code>：把算法改成 none 去掉签名——服务端必须白名单校验 alg；② 弱密钥：HS256 弱 secret 可离线爆破；③ 算法混淆：把 RS256（公钥验）降级成 HS256（用公钥当 secret 伪造）；④ token 泄露：偷 token 即冒充，需 HTTPS + 短过期 + 刷新机制。</p>
+    <div class="insight"><strong>防护清单：</strong>服务端白名单校验 alg；secret 用 32+ 字节随机；RS256 验签只验签名不信任 header；token 不放 URL/日志；设置合理 exp。</div>
+    <h3>练习：漏洞辨识</h3>
+    <div class="opts" id="vulOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="vul">服务端盲信 header 的 alg=none 会让攻击者伪造无签名 token——必须白名单校验算法</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="vul">alg=none 是合法的标准用法，服务端应支持</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="vul">弱密钥只影响签发速度，不影响安全</label>
+    </div>
+    <div class="result" id="vulResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：三段式 → Header → Payload → Base64Url → 签名 → HS256 → 过期 → 漏洞 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 jwt.io 或解码器亲手拆一个真实 token，辨认每段；<br>
+      ② 服务端务必白名单校验 alg，禁止 alg=none 与算法混淆；<br>
+      ③ HS256 用强随机密钥，RS256 用私钥签发/公钥验证；<br>
+      ④ 设置短 exp + 刷新机制，token 绝不进 URL/日志。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--jwt)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">JWT 认证令牌 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'jwt';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 三段式
+     1 Header
+     2 Payload
+     3 Base64Url
+     4 签名
+     5 HS256 验签
+     6 过期/生效
+     7 漏洞防护
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('segOpts', 'a', 'segResult',
+    '正确！header.payload.signature 三段：算法/声明/签名；内容是明文可读但不可篡改。',
+    '不对。JWT 是标准三段式；它只是编码不是加密，任何人可解码读取内容。', 0);
+  bindOpts('hdOpts', 'a', 'hdResult',
+    '正确！alg 是算法声明，typ 是类型；服务端必须白名单校验 alg（防 alg=none）。',
+    '不对。alg 是算法名不是密钥；typ 表示 token 类型（JWT）。', 1);
+  bindOpts('plOpts', 'a', 'plResult',
+    '正确！sub/exp/iat/iss 等是标准声明，payload 明文可读。',
+    '不对。exp 是过期时间戳；payload 只是 Base64Url 编码，不是加密。', 2);
+  bindOpts('b64Opts', 'a', 'b64Result',
+    '正确！Base64Url 只是编码（-/_ 替代 +//、去 =），不是加密。',
+    '不对。Base64Url 无需密钥即可解码；支持任意 UTF-8 文本。', 3);
+  bindOpts('sigOpts', 'a', 'sigResult',
+    '正确！签名保证完整性（防篡改），不提供机密性（内容是明文）。',
+    '不对。签名是 HMAC/私钥签名，客户端没有密钥无法重签；签名不加密内容。', 4);
+  bindOpts('hsOpts', 'a', 'hsResult',
+    '正确！HS256 对称：同一密钥签与验；密钥泄露 = 可伪造任意 token。',
+    '不对。HS256 必须有共享密钥；验签校验 header+payload+signature 整体。', 5);
+  bindOpts('tmOpts', 'a', 'tmResult',
+    '正确！exp 过期必须拒绝，校验顺序：签名 → exp/nbf → 业务声明。',
+    '不对。签名合法也必须在 exp 之后拒绝；nbf 是"生效时间"（之前拒绝）。', 6);
+  bindOpts('vulOpts', 'a', 'vulResult',
+    '正确！alg=none 是最经典的 JWT 漏洞，服务端必须白名单校验算法。',
+    '不对。alg=none 是被禁止的降级攻击；弱密钥可被离线爆破，直接威胁伪造能力。', 7);
+
+  /* ═════════════ Base64Url 编解码器 ═════════════ */
+  function b64uEncode(str) {
+    var b64 = btoa(unescape(encodeURIComponent(str)));
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64uDecode(str) {
+    var b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) b64 += '=';
+    return decodeURIComponent(escape(atob(b64)));
+  }
+  $('b64Enc').addEventListener('click', function () {
+    var v = $('b64Input').value;
+    try { $('b64Out').innerHTML = '编码结果：<span class="c-ok">' + esc(b64uEncode(v)) + '</span>'; }
+    catch (e) { $('b64Out').innerHTML = '<span class="c-err">编码失败</span>'; }
+  });
+  $('b64Dec').addEventListener('click', function () {
+    var v = $('b64Input').value.trim();
+    try { $('b64Out').innerHTML = '解码结果：<span class="c-ok">' + esc(b64uDecode(v)) + '</span>'; }
+    catch (e) { $('b64Out').innerHTML = '<span class="c-err">非法 Base64Url</span>'; }
+  });
+
+  /* ═════════════ JWT 解码器 ═════════════ */
+  $('jwtBtn').addEventListener('click', function () {
+    var token = $('jwtInput').value.trim();
+    var out = $('jwtOut');
+    var parts = token.split('.');
+    if (parts.length !== 3) { out.innerHTML = '<span class="c-err">不是合法 JWT：应恰好 3 段（header.payload.signature）</span>'; return; }
+    try {
+      var header = JSON.parse(b64uDecode(parts[0]));
+      var payload = JSON.parse(b64uDecode(parts[1]));
+      var sig = parts[2];
+      var rows = Object.keys(payload).map(function (k) { return '  <span class="c-ok">' + esc(k) + '</span>: ' + esc(JSON.stringify(payload[k])); });
+      var warn = '';
+      if (header.alg === 'none' || !header.alg) warn = '\n<span class="c-warn">⚠ alg 为 none/缺失——服务端必须拒绝！</span>';
+      if (header.alg && /HS/.test(header.alg) && (sig === '' || sig.length < 8)) warn = '\n<span class="c-warn">⚠ 签名段过短/为空——可能被篡改，验签会失败。</span>';
+      out.innerHTML = '<span class="c-cmd">header</span>\n' + esc(JSON.stringify(header, null, 1)) +
+        '\n<span class="c-cmd">payload</span>\n' + rows.join('\n') +
+        '\n<span class="c-cmd">signature</span>\n  ' + esc(sig.slice(0, 40)) + (sig.length > 40 ? '…' : '') + warn +
+        '\n<span class="c-warn">内容可读（Base64Url 非加密）；是否可信取决于服务端验签。</span>';
+    } catch (e) { out.innerHTML = '<span class="c-err">解码失败：' + esc(e.message) + '</span>'; }
+  });
+
+  /* ═════════════ 过期判断器 ═════════════ */
+  $('expBtn').addEventListener('click', function () {
+    var exp = parseInt($('expVal').value || '0', 10);
+    var now = parseInt($('nowVal').value || '0', 10);
+    var out = $('expOut');
+    if (!now) {
+      out.innerHTML = '<span class="c-cmd">提示：</span>在两个输入框填 Unix 秒时间戳（如当前 ' + Math.round(Date.now() / 1000) + '）';
+      return;
+    }
+    if (exp > 0 && now > exp) out.innerHTML = '当前 ' + now + ' &gt; exp ' + exp + '\n→ <span class="c-err">已过期：拒绝</span>（即便签名合法）';
+    else if (exp > 0) out.innerHTML = '当前 ' + now + ' ≤ exp ' + exp + '\n→ <span class="c-ok">未过期：接受</span>（还需验签通过）';
+    else out.innerHTML = '<span class="c-warn">无 exp 声明：依赖签发端策略，强烈建议设置 exp</span>';
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'JWT 由几段组成？', opts: ['1 段', '2 段', '3 段', '4 段'], right: 2, expl: 'header.payload.signature 三段。' },
+    { q: 'alg 字段表示？', opts: ['加密密钥', '签名算法', '过期时间', '用户 ID'], right: 1, expl: 'alg 声明签名算法（HS256 等）。' },
+    { q: 'sub 声明表示？', opts: ['签发者', '受众', '主题/用户标识', '过期时间'], right: 2, expl: 'sub=subject 主题。' },
+    { q: 'Base64Url 与标准 Base64 的区别？', opts: ['+/ 换 -_、去 =', '加了密码', '只支持英文', '长度固定'], right: 0, expl: 'URL 安全变体。' },
+    { q: '签名的作用是？', opts: ['加密 payload', '保证内容未被篡改', '压缩 token', '隐藏 header'], right: 1, expl: '签名=完整性校验。' },
+    { q: 'HS256 的密钥泄露会？', opts: ['无影响', '攻击者能伪造任意 token', '只影响签发速度', 'token 会自动失效'], right: 1, expl: '对称密钥泄露=可伪造。' },
+    { q: '当前时间大于 exp 时？', opts: ['照常使用', '必须拒绝', '自动续期', '降级为 http'], right: 1, expl: '过期 token 必须拒绝。' },
+    { q: 'alg=none 攻击属于？', opts: ['正常功能', '去掉签名的伪造攻击', '加密增强', '性能优化'], right: 1, expl: '盲信 alg=none 可伪造无签名 token。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 JWT 的结构与安全要点。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

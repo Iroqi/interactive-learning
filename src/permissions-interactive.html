@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux 文件权限 交互式学习 · 迷你 chmod 计算器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --perm: #facc15;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(250,204,21,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--perm); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--perm), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--perm); font-size: 17px;
+    border: 1px solid rgba(250,204,21,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #fef3c7;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #fef3c7; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+  pre .perm { color: #facc15; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(250,204,21,0.06); border: 1px solid rgba(250,204,21,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--perm); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--perm); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .lab {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .lab-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .lab-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .lab-head .dot:nth-child(1) { background: #ef476f; }
+  .lab-head .dot:nth-child(2) { background: #f0a04b; }
+  .lab-head .dot:nth-child(3) { background: #34d399; }
+  .lab-head span.txt { margin-left: 6px; }
+  .lab-body { padding: 12px 14px; }
+  .lab-body .lab-desc { font-size: 12.5px; color: var(--dim); margin-bottom: 10px; }
+  .lab-body input {
+    width: 100%; background: var(--raise); border: 1px solid var(--border); border-radius: 10px;
+    color: #fef3c7; font-family: var(--mono); font-size: 14px; letter-spacing: 2px;
+    padding: 10px 12px; outline: none;
+  }
+  .lab-body input:focus { border-color: rgba(250,204,21,0.5); }
+  .lab-ctrl { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .lab-ctrl button {
+    background: var(--perm); border: 1px solid var(--perm); border-radius: 8px;
+    color: #1c1917; font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s;
+  }
+  .lab-ctrl button:hover { opacity: 0.88; }
+  .lab-ctrl .lab-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .lab-out {
+    border-top: 1px solid var(--border); padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.8;
+    max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    color: #b8c2dd;
+  }
+  .lab-out .l-ok { color: #34d399; }
+  .lab-out .l-err { color: #ef476f; }
+  .lab-out .l-info { color: #facc15; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--perm);
+    border: 1px solid rgba(250,204,21,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(250,204,21,0.06); border: 1px solid rgba(250,204,21,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--perm); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--perm); color: var(--perm); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">Linux</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>文件权限 <em>交互式学习</em></h1>
+    <p class="subtitle">迷你 chmod 计算器 · rwx↔数字换算 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 权限模型 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>权限模型：属主 / 属组 / 其他</h2>
+    <p class="lead">每个文件有三种角色：<strong>属主 u</strong>（owner）、<strong>属组 g</strong>（group）、<strong>其他 o</strong>（others）。每种角色有三个权限位：<strong>读 r</strong>、<strong>写 w</strong>、<strong>执行 x</strong>。<code>ls -l</code> 第一列就是权限：<code>rwxr-xr--</code>（10 字符：类型 + 3×3 权限）。</p>
+    <pre>$ ls -l notes.txt
+<span class="perm">-rw-r--r--</span> 1 alice dev 2048 Oct 11 09:00 notes.txt
+<span class="cmt"> ↑ 类型    属主  属组  其他</span>
+<span class="cmt"> rw-      r--   r--</span></pre>
+    <h3>练习：权限模型</h3>
+    <div class="opts" id="modelOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="model">rwxr-xr-- 中，属主可读可写可执行，属组可读可执行，其他只读</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="model">rwxr-xr-- 表示所有人都可读可写可执行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="model">权限只有读和写两种，没有执行</label>
+    </div>
+    <div class="result" id="modelResult"></div>
+  </section>
+
+  <!-- ═══ 2 数字权限 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>数字权限：r=4 w=2 x=1</h2>
+    <p class="lead">每个角色三位二进制 → 一个八进制数字：读=4、写=2、执行=1，相加即得。<code>rwx</code>=7、<code>r-x</code>=5、<code>r--</code>=4、<code>rw-</code>=6。<code>chmod 754</code> = 属主 rwx、属组 r-x、其他 r--。</p>
+    <table>
+      <tr><th>符号</th><th>二进制</th><th>数字</th></tr>
+      <tr><td><code>rwx</code></td><td>111</td><td>7</td></tr>
+      <tr><td><code>rw-</code></td><td>110</td><td>6</td></tr>
+      <tr><td><code>r-x</code></td><td>101</td><td>5</td></tr>
+      <tr><td><code>r--</code></td><td>100</td><td>4</td></tr>
+      <tr><td><code>---</code></td><td>000</td><td>0</td></tr>
+    </table>
+    <h3>练习：数字权限</h3>
+    <div class="opts" id="numOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="num">chmod 754 = 属主 rwx(7)、属组 r-x(5)、其他 r--(4)</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="num">chmod 754 = 所有人都是 rwx</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="num">rw- 对应的数字是 5</label>
+    </div>
+    <div class="result" id="numResult"></div>
+  </section>
+
+  <!-- ═══ 3 实验室 A ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>实验室：数字 → 符号</h2>
+    <p class="lead">输入三位数字权限，引擎换算成符号表示。数字正确性由引擎校验（0-7，恰好三位）。</p>
+    <div class="insight"><strong>任务：</strong>输入 <code>754</code> 得到 <code>rwxr-xr--</code>；再自己试几个数字（如 644 / 700 / 666）。<strong>答对 754 解锁里程碑。</strong></div>
+    <div class="lab">
+      <div class="lab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">chmod 计算器 · 数字 → 符号</span></div>
+      <div class="lab-body">
+        <div class="lab-desc">请输入 3 位数字权限（如 <code>754</code>）：</div>
+        <input type="text" id="labAInput" placeholder="754" maxlength="3">
+      </div>
+      <div class="lab-ctrl">
+        <button type="button" id="labABtn">换算</button>
+        <span class="lab-hint">每位取值 0-7</span>
+      </div>
+      <div class="lab-out" id="labAOut">— 等待输入 —</div>
+    </div>
+    <div class="result" id="labAResult"></div>
+  </section>
+
+  <!-- ═══ 4 umask ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>umask：默认权限的"减法"</h2>
+    <p class="lead">新建文件/目录的默认权限 = 基础权限（文件 666、目录 777）<strong>减去 umask</strong>。<code>umask 022</code> → 文件 644、目录 755。umask 只"扣掉"权限，不会加。</p>
+    <pre>$ umask 022
+$ touch a.txt   <span class="cmt"># 666 - 022 = 644 → -rw-r--r--</span>
+$ mkdir d       <span class="cmt"># 777 - 022 = 755 → drwxr-xr-x</span></pre>
+    <h3>练习：umask</h3>
+    <div class="opts" id="umaskOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="umask">umask 022 时，新文件是 644、新目录是 755</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="umask">umask 会"加"权限，值越大权限越多</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="umask">umask 只影响目录，不影响文件</label>
+    </div>
+    <div class="result" id="umaskResult"></div>
+  </section>
+
+  <!-- ═══ 5 实验室 B ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>实验室：符号 → 数字</h2>
+    <p class="lead">反向换算：输入 9 个权限位（rwx 组合），引擎给出数字权限。</p>
+    <div class="insight"><strong>任务：</strong>输入 <code>rw-r--r--</code> 得到 <code>644</code>；再试 <code>rwxr-xr-x</code> 得到 755。<strong>答对 rw-r--r-- 解锁里程碑。</strong></div>
+    <div class="lab">
+      <div class="lab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">chmod 计算器 · 符号 → 数字</span></div>
+      <div class="lab-body">
+        <div class="lab-desc">请输入 9 位符号权限（如 <code>rwxr-xr--</code>）：</div>
+        <input type="text" id="labBInput" placeholder="rw-r--r--" maxlength="9">
+      </div>
+      <div class="lab-ctrl">
+        <button type="button" id="labBBtn">换算</button>
+        <span class="lab-hint">9 位：rwxrwxrwx</span>
+      </div>
+      <div class="lab-out" id="labBOut">— 等待输入 —</div>
+    </div>
+    <div class="result" id="labBResult"></div>
+  </section>
+
+  <!-- ═══ 6 文件 vs 目录 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>文件 vs 目录：x 的含义不同</h2>
+    <p class="lead">对<strong>文件</strong>：x = 能否执行。对<strong>目录</strong>：x = 能否进入并遍历（cd / ls 其中的文件名）；r = 能否列出目录内容。目录没有 x 时，即使有 r 也进不去、列不出。</p>
+    <pre>$ chmod 644 /srv/data   <span class="cmt"># drw-r--r--：属主可读可写，但不能 cd 进去！</span>
+$ cd /srv/data
+bash: cd: /srv/data: Permission denied</pre>
+    <h3>练习：目录权限</h3>
+    <div class="opts" id="dirOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="dir">目录的 x 位控制能否进入；644 的目录属主也进不去</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="dir">目录的 x 位没有意义</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="dir">目录只要有 r 就能随意进入</label>
+    </div>
+    <div class="result" id="dirResult"></div>
+  </section>
+
+  <!-- ═══ 7 实验室 C ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>实验室：组合题（加减权限）</h2>
+    <p class="lead">实战题：文件当前 <code>rw-rw-r--</code>，执行 <code>chmod u+x</code> 给属主加执行位后，数字权限是多少？</p>
+    <div class="insight"><strong>任务：</strong>rw-rw-r-- 的属主 rw-(6) 加 x → rwx(7) → 结果 <code>764</code>（或符号 rwxrw-r--）。<strong>答对解锁里程碑。</strong></div>
+    <div class="lab">
+      <div class="lab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">chmod 计算器 · 组合题</span></div>
+      <div class="lab-body">
+        <div class="lab-desc">rw-rw-r-- 加属主执行位后，请输出数字（如 764）或符号（rwxrw-r--）：</div>
+        <input type="text" id="labCInput" placeholder="764 或 rwxrw-r--">
+      </div>
+      <div class="lab-ctrl">
+        <button type="button" id="labCBtn">核对</button>
+        <span class="lab-hint">两种格式均可</span>
+      </div>
+      <div class="lab-out" id="labCOut">— 等待输入 —</div>
+    </div>
+    <div class="result" id="labCResult"></div>
+  </section>
+
+  <!-- ═══ 8 特殊位与所有权 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>特殊位与所有权</h2>
+    <p class="lead">四位数字权限的第 1 位是特殊位：<strong>setuid(4)</strong>——程序以属主身份运行；<strong>setgid(2)</strong>——继承属组（也用于目录）；<strong>sticky(1)</strong>——只有文件属主/root 能删除（如 /tmp 的 <code>drwxrwxrwt</code>）。所有权用 <code>chown alice:dev file</code> 修改。</p>
+    <pre>$ ls -ld /tmp
+drwxrwxrwt 1 root root 4096 ...   <span class="cmt"># t = sticky</span>
+$ chmod 4755 helper        <span class="cmt"># setuid + rwxr-xr-x</span>
+$ chown alice:dev notes.txt</pre>
+    <h3>练习：特殊位</h3>
+    <div class="opts" id="specOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="spec">setuid 让程序以属主身份运行；/tmp 的 t 表示 sticky（仅属主可删）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="spec">sticky 位表示"任何人都能删除任何文件"</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="spec">特殊位只对 root 生效</label>
+    </div>
+    <div class="result" id="specResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：权限模型 → 数字权限 → rwx 换算 → umask → 目录权限 → 组合题 → 特殊位 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 <code>ls -l</code> 读你系统里每个文件的权限，练习"秒读"rwx；<br>
+      ② 部署服务时用最小权限：可执行文件 755、配置文件 644、含密钥的文件 600；<br>
+      ③ 共享目录用 setgid + 适当 umask，理解组协作；<br>
+      ④ 检查 /tmp、setuid 二进制（<code>find / -perm -4000</code>），理解攻击面。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">LINUX 文件权限 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'permissions';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 权限模型正确
+     1 数字权限正确
+     2 实验室 A（754）正确
+     3 umask 正确
+     4 实验室 B（rw-r--r--）正确
+     5 目录权限正确
+     6 实验室 C（764）正确
+     7 特殊位正确
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('modelOpts', 'a', 'modelResult',
+    '正确！rwxr-xr-- = 属主 rwx、属组 r-x、其他 r--，顺序永远是 u/g/o。',
+    '不对。10 个字符按"类型 + 属主 + 属组 + 其他"排列，各自独立。', 0);
+  bindOpts('numOpts', 'a', 'numResult',
+    '正确！7=rwx、5=r-x、4=r--，chmod 754 三组权限互不影响。',
+    '不对。rw- 是 6（4+2）；数字从高位到低位依次是属主/属组/其他。', 1);
+  bindOpts('umaskOpts', 'a', 'umaskResult',
+    '正确！文件 666−022=644、目录 777−022=755；umask 只减不加。',
+    '不对。umask 是"减去"的掩码：文件基础 666、目录基础 777。', 3);
+  bindOpts('dirOpts', 'a', 'dirResult',
+    '正确！目录 x = 能否进入/遍历；644 目录即使属主也只有读，进不去。',
+    '不对。目录 x 是进入与遍历的前提，r 只控制能否列出内容。', 5);
+  bindOpts('specOpts', 'a', 'specResult',
+    '正确！setuid 以属主身份运行、sticky 只有属主/root 可删；/tmp 的 t 就是 sticky。',
+    '不对。sticky 恰恰相反——防止别人删你的文件。', 7);
+
+  /* ═══════════════ 迷你 chmod 计算器 ═══════════════ */
+  var SYM_MAP = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
+  var VALID_SYM = /^[rwx-]{9}$/;
+
+  function numToSym(numStr) {
+    if (!/^[0-7]{3}$/.test(numStr)) return null;
+    return SYM_MAP[parseInt(numStr[0], 10)] + SYM_MAP[parseInt(numStr[1], 10)] + SYM_MAP[parseInt(numStr[2], 10)];
+  }
+  function symToNum(symStr) {
+    if (!VALID_SYM.test(symStr)) return null;
+    var out = '';
+    for (var i = 0; i < 9; i += 3) {
+      var ch = symStr.slice(i, i + 3);
+      var n = (ch.indexOf('r') !== -1 ? 4 : 0) + (ch.indexOf('w') !== -1 ? 2 : 0) + (ch.indexOf('x') !== -1 ? 1 : 0);
+      out += n;
+    }
+    return out;
+  }
+  function symFromNum(numStr) { var s = numToSym(numStr); return s ? s : null; }
+
+  /* 实验室 A：数字 → 符号 */
+  $('labABtn').addEventListener('click', function () {
+    var v = $('labAInput').value.trim();
+    var out = $('labAOut');
+    var sym = numToSym(v);
+    if (sym === null) {
+      out.innerHTML = '<div class="l-err">$ chmod ' + esc(v) + ' &nbsp;→ 无效：需要恰好 3 位、每位 0-7。</div>';
+      return;
+    }
+    out.innerHTML = '<div class="l-info">$ chmod ' + esc(v) + ' file</div>' +
+      '<div class="l-ok">$ ls -l file → -' + esc(sym) + ' &nbsp;✓</div>';
+    if (v === '754' && !milestones[2]) {
+      completeMilestone(2);
+      $('labAResult').className = 'result show ok';
+      $('labAResult').innerHTML = '换算正确：754 = rwxr-xr--。再做几次 644 / 700 / 666 巩固手感。';
+    }
+  });
+
+  /* 实验室 B：符号 → 数字 */
+  $('labBBtn').addEventListener('click', function () {
+    var v = $('labBInput').value.trim();
+    var out = $('labBOut');
+    var num = symToNum(v);
+    if (num === null) {
+      out.innerHTML = '<div class="l-err">$ chmod ' + esc(v) + ' &nbsp;→ 无效：需要恰好 9 位，只含 r/w/x/-。</div>';
+      return;
+    }
+    out.innerHTML = '<div class="l-info">$ ls -l file → -' + esc(v) + '</div>' +
+      '<div class="l-ok">$ chmod ' + esc(num) + ' file &nbsp;✓</div>';
+    if (v === 'rw-r--r--' && !milestones[4]) {
+      completeMilestone(4);
+      $('labBResult').className = 'result show ok';
+      $('labBResult').innerHTML = '换算正确：rw-r--r-- = 644。再试试 rwxr-xr-x → 755。';
+    }
+  });
+
+  /* 实验室 C：rw-rw-r-- 加属主执行位 */
+  $('labCBtn').addEventListener('click', function () {
+    var v = $('labCInput').value.trim();
+    var out = $('labCOut');
+    var num = /^[0-7]{3}$/.test(v) ? v : symToNum(v);
+    var sym = numToSym(num || '');
+    var right = num === '764' && sym === 'rwxrw-r--';
+    if (right) {
+      out.innerHTML = '<div class="l-ok">✓ rw-rw-r-- → 加属主执行位 → rwxrw-r-- = 764</div>';
+      if (!milestones[6]) {
+        completeMilestone(6);
+        $('labCResult').className = 'result show ok';
+        $('labCResult').innerHTML = '正确！属主 6→7、属组 6 不变、其他 4 不变 → 764。';
+      }
+    } else {
+      var hint = '';
+      if (num === null || sym === null) hint = ' 输入需为数字（764）或符号（rwxrw-r--）格式。';
+      else hint = ' 再算一遍：rw- = 6，加 x 后 = 7。';
+      out.innerHTML = '<div class="l-err">✗ 不对：' + esc(v) + (hint) + '</div>';
+    }
+  });
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: 'rwxr-xr-- 中"其他"（others）的权限是？', opts: ['rwx', 'r-x', 'r--', '---'], right: 2, expl: '第 3 组是其他：r--。' },
+    { q: 'chmod 754 中属组权限是？', opts: ['rwx', 'r-x', 'r--', 'rw-'], right: 1, expl: '5 = r-x。' },
+    { q: 'rw- 对应的数字是？', opts: ['4', '6', '7', '5'], right: 1, expl: 'r(4)+w(2)=6。' },
+    { q: 'umask 022 时新建目录的权限是？', opts: ['644', '755', '777', '600'], right: 1, expl: '目录基础 777 − 022 = 755。' },
+    { q: '目录的 x 位控制？', opts: ['能否执行文件', '能否进入并遍历', '能否改名', '无意义'], right: 1, expl: '目录 x = 进入/遍历的前提。' },
+    { q: 'rw-r--r-- 的数字权限是？', opts: ['644', '664', '640', '666'], right: 0, expl: '6-4-4 = 644，最常见的配置文件权限。' },
+    { q: '/tmp 权限 drwxrwxrwt 最后的 t 表示？', opts: ['setuid', 'sticky——仅文件属主/root 可删', 'setgid', '加密'], right: 1, expl: 't = sticky bit。' },
+    { q: '含密钥的配置文件最合适的权限是？', opts: ['777', '644', '600', '666'], right: 2, expl: '600：仅属主可读写，其他人不可见。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Linux 文件权限的核心机制。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

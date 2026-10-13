@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Systemd 服务管理 交互式学习 · 迷你 systemctl 命令台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --sd: #a3e635;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(163,230,53,0.05), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--sd); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--sd), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--sd); font-size: 17px;
+    border: 1px solid rgba(163,230,53,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #ecfccb;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #ecfccb; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(163,230,53,0.06); border: 1px solid rgba(163,230,53,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--sd); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--sd); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .clab {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .clab-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .clab-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .clab-head .dot:nth-child(1) { background: #ef476f; }
+  .clab-head .dot:nth-child(2) { background: #f0a04b; }
+  .clab-head .dot:nth-child(3) { background: #34d399; }
+  .clab-head span.txt { margin-left: 6px; }
+  .clab-body { padding: 12px 14px; }
+  .clab-body input {
+    width: 100%;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 10px;
+    color: #ecfccb; font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    padding: 12px; outline: none;
+  }
+  .clab-body input:focus { border-color: rgba(163,230,53,0.5); }
+  .clab-ctrl { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; align-items: center; }
+  .clab-ctrl button {
+    background: var(--sd); border: 1px solid var(--sd); border-radius: 8px;
+    color: #101a05; font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s;
+  }
+  .clab-ctrl button:hover { opacity: 0.88; }
+  .clab-ctrl .clab-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .clab-out {
+    border-top: 1px solid var(--border); padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.7;
+    max-height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    color: #b8c2dd;
+  }
+  .clab-out .c-ok { color: #34d399; }
+  .clab-out .c-err { color: #ef476f; }
+  .clab-out .c-warn { color: #f0a04b; }
+  .clab-out .c-cmd { color: #a3e635; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--sd);
+    border: 1px solid rgba(163,230,53,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(163,230,53,0.06); border: 1px solid rgba(163,230,53,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--sd); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--sd); color: var(--sd); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+
+  </style>
+</head>
+<body>
+
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Systemd <em>服务管理</em></h1>
+    <p class="subtitle">迷你 systemctl 命令台 · unit 文件 · 故障排查 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 systemd 是什么 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>systemd：现代 Linux 的服务管家</h2>
+    <p class="lead">systemd 是 PID 1（第一个进程），负责启动/监督/停止服务。<strong>unit</strong> 是管理对象（.service / .socket / .timer 等），<code>systemctl</code> 是与它对话的命令。服务定义在 <code>/etc/systemd/system/</code> 或 <code>/usr/lib/systemd/system/</code>。</p>
+    <pre>$ systemctl status nginx     <span class="cmt"># 查看服务状态</span>
+$ systemctl start nginx      <span class="cmt"># 启动</span>
+$ systemctl enable nginx     <span class="cmt"># 开机自启</span>
+$ journalctl -u nginx        <span class="cmt"># 查看服务日志</span></pre>
+    <h3>练习：systemd 概念</h3>
+    <div class="opts" id="sdOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="sd">systemd 是 PID 1；unit 是管理对象；systemctl 是管理命令</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="sd">systemd 只是一个日志工具</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="sd">systemctl 只能查看，不能启停服务</label>
+    </div>
+    <div class="result" id="sdResult"></div>
+  </section>
+
+  <!-- ═══ 2 命令台 1 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>命令台：启动服务并确认状态</h2>
+    <p class="lead">在输入框敲入 systemctl 命令（一行一条），回车后点「执行」。目标服务：<code>nginx</code>。</p>
+    <div class="insight"><strong>任务：</strong>① 启动 nginx；② 查看它的状态确认 <code>active (running)</code>。<strong>两条命令都执行正确后解锁里程碑。</strong></div>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">root@host:~# 迷你 systemctl</span></div>
+      <div class="clab-body">
+        <textarea id="s1Input" rows="2" placeholder="systemctl start nginx&#10;systemctl status nginx" spellcheck="false"></textarea>
+      </div>
+      <div class="clab-ctrl">
+        <button type="button" id="s1Btn">执行</button>
+        <span class="clab-hint">支持 start / stop / restart / status / enable / disable / daemon-reload / journalctl</span>
+      </div>
+      <div class="clab-out" id="s1Out">— 输入命令 —</div>
+    </div>
+    <div class="result" id="s1Result"></div>
+  </section>
+
+  <!-- ═══ 3 unit 文件 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>unit 文件：服务长什么样</h2>
+    <p class="lead">三个 section：<code>[Unit]</code>（描述与依赖）、<code>[Service]</code>（怎么跑）、<code>[Install]</code>（怎么开机自启）。关键字段：<code>ExecStart</code>（启动命令）、<code>Restart</code>（退出后是否重启）。</p>
+    <pre>[Unit]
+Description=My web service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/app --port 8080
+Restart=on-failure        <span class="cmt"># 失败自动拉起</span>
+EnvironmentFile=/etc/app.env
+
+[Install]
+WantedBy=multi-user.target   <span class="cmt"># 多用户启动级别</span></pre>
+    <h3>练习：unit 文件</h3>
+    <div class="opts" id="unitOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="unit">[Unit] 描述/依赖；[Service] 的 ExecStart 是启动命令、Restart=on-failure 失败重启</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="unit">ExecStart 写在哪里都可以</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="unit">Restart=always 表示从不重启</label>
+    </div>
+    <div class="result" id="unitResult"></div>
+  </section>
+
+  <!-- ═══ 4 命令台 2 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>命令台：重新加载并设自启</h2>
+    <p class="lead">改了 unit 文件后必须 <code>daemon-reload</code> 让 systemd 重新读取；<code>enable</code> 设开机自启。</p>
+    <div class="insight"><strong>任务：</strong>① 重新加载 systemd 配置；② 把 nginx 设为开机自启。<strong>全部正确后解锁里程碑。</strong></div>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">root@host:~# 迷你 systemctl</span></div>
+      <div class="clab-body">
+        <textarea id="s2Input" rows="2" placeholder="systemctl daemon-reload&#10;systemctl enable nginx" spellcheck="false"></textarea>
+      </div>
+      <div class="clab-ctrl">
+        <button type="button" id="s2Btn">执行</button>
+        <span class="clab-hint">daemon-reload 无服务名</span>
+      </div>
+      <div class="clab-out" id="s2Out">— 输入命令 —</div>
+    </div>
+    <div class="result" id="s2Result"></div>
+  </section>
+
+  <!-- ═══ 5 状态判读 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>状态判读：active / inactive / failed</h2>
+    <p class="lead"><code>Active: active (running)</code> = 正常运行；<code>active (exited)</code> = 一次性任务已完成；<code>inactive</code> = 已停止；<code>failed</code> = 启动/运行失败。<code>Loaded: not-found</code> = 没有这个 unit。用 <code>is-active</code> / <code>is-enabled</code> 在脚本里取状态。</p>
+    <pre>$ systemctl is-active nginx
+active
+$ systemctl is-enabled nginx
+enabled</pre>
+    <h3>练习：状态判读</h3>
+    <div class="opts" id="stOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="st">failed 表示启动/运行失败，要查日志定位原因</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="st">active (exited) 表示还在前台运行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="st">is-enabled 与开机自启无关</label>
+    </div>
+    <div class="result" id="stResult"></div>
+  </section>
+
+  <!-- ═══ 6 命令台 3 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>命令台：查看服务日志</h2>
+    <p class="lead"><code>journalctl</code> 是日志中心：<code>-u nginx</code> 只看 nginx、<code>-f</code> 跟随输出、<code>-xe</code> 显示最近错误与系统提示。</p>
+    <div class="insight"><strong>任务：</strong>查看 nginx 的日志（用 <code>-u</code> 指定服务）。<strong>正确后解锁里程碑。</strong></div>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">root@host:~# 迷你 systemctl</span></div>
+      <div class="clab-body">
+        <textarea id="s3Input" rows="2" placeholder="journalctl -u nginx&#10;journalctl -xe" spellcheck="false"></textarea>
+      </div>
+      <div class="clab-ctrl">
+        <button type="button" id="s3Btn">执行</button>
+        <span class="clab-hint">journalctl -u 服务名 / -f / -xe</span>
+      </div>
+      <div class="clab-out" id="s3Out">— 输入命令 —</div>
+    </div>
+    <div class="result" id="s3Result"></div>
+  </section>
+
+  <!-- ═══ 7 进阶配置 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>进阶配置</h2>
+    <p class="lead">生产常用：<code>Restart=on-failure</code>（非零退出自动重启）、<code>EnvironmentFile</code>（外置环境变量，便于部署）、<code>LimitNOFILE</code>（进程文件句柄上限）、<code>User/Group</code>（降权运行）、<code>TimeoutStartSec</code>（启动超时）。</p>
+    <pre>[Service]
+ExecStart=/usr/bin/node /srv/app/server.js
+User=www-data                 <span class="cmt"># 不用 root 跑服务</span>
+Restart=on-failure
+RestartSec=3
+EnvironmentFile=/srv/app/.env
+LimitNOFILE=65535</pre>
+    <h3>练习：进阶配置</h3>
+    <div class="opts" id="advOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="adv">User=www-data 降权运行；EnvironmentFile 外置环境变量；LimitNOFILE 提高句柄上限</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="adv">环境变量只能写死在 unit 文件里</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="adv">RestartSec 与自动重启无关</label>
+    </div>
+    <div class="result" id="advResult"></div>
+  </section>
+
+  <!-- ═══ 8 命令台 4 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>命令台：故障排查</h2>
+    <p class="lead">服务 failed 时的标准排查：先 <code>status</code> 看状态与退出码，再 <code>journalctl -xe</code> 看错误日志。</p>
+    <div class="insight"><strong>任务：</strong>nginx 启动失败了。① 查看它的状态（确认 failed）；② 用 journalctl 查看最近错误详情。<strong>全部正确后解锁里程碑。</strong></div>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">root@host:~# 迷你 systemctl</span></div>
+      <div class="clab-body">
+        <textarea id="s4Input" rows="2" placeholder="systemctl status nginx&#10;journalctl -xe" spellcheck="false"></textarea>
+      </div>
+      <div class="clab-ctrl">
+        <button type="button" id="s4Btn">执行</button>
+        <span class="clab-hint">status / journalctl -xe</span>
+      </div>
+      <div class="clab-out" id="s4Out">— 输入命令 —</div>
+    </div>
+    <div class="result" id="s4Result"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：概念 → 启停与状态 → unit 文件 → 重载与自启 → 状态判读 → 日志 → 进阶配置 → 故障排查 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 为自己写的脚本写一个 .service 放到 <code>/etc/systemd/system/</code>，<code>daemon-reload</code> 后启用；<br>
+      ② 给关键服务配 <code>Restart=on-failure</code> + <code>LimitNOFILE</code>，模拟崩溃观察自动拉起；<br>
+      ③ 出问题先 <code>status</code> 再 <code>journalctl -xe</code>，养成排查习惯；<br>
+      ④ 用 <code>systemctl list-units --type=service --state=failed</code> 巡检全机失败服务。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">SYSTEMD 服务管理 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+
+  
+<script>
+
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'systemd';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 systemd 概念正确
+     1 命令台 1（start + status）通过
+     2 unit 文件正确
+     3 命令台 2（daemon-reload + enable）通过
+     4 状态判读正确
+     5 命令台 3（journalctl -u）通过
+     6 进阶配置正确
+     7 命令台 4（status + journalctl -xe）通过
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定（label→input 冒泡防重入） ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('sdOpts', 'a', 'sdResult',
+    '正确！systemd 是 PID 1；unit 是管理对象（.service 等）；systemctl 是管理命令。',
+    '不对。systemd 是初始化系统与服务管理器，systemctl 能启停、查看、配置服务。', 0);
+  bindOpts('unitOpts', 'a', 'unitResult',
+    '正确！[Unit] 描述/依赖，[Service] 的 ExecStart 定义启动命令，Restart=on-failure 失败自动重启。',
+    '不对。ExecStart 必须在 [Service] 段；Restart=always 是总是重启。', 2);
+  bindOpts('stOpts', 'a', 'stResult',
+    '正确！failed = 启动/运行失败，用 status + journalctl 定位；active (exited) 是一次性任务已完成。',
+    '不对。active (exited) 表示已完成；is-enabled 正表示开机自启状态。', 4);
+  bindOpts('advOpts', 'a', 'advResult',
+    '正确！User 降权、EnvironmentFile 外置变量、LimitNOFILE 提高句柄上限、RestartSec 控制重启间隔。',
+    '不对。环境变量可以外置（EnvironmentFile）；RestartSec 是自动重启的间隔。', 6);
+
+  /* ═══════════════ 迷你 systemctl 命令台 ═══════════════ */
+  var SV = 'nginx';
+
+  function runSingle(line) {
+    line = line.trim();
+    if (!line) return { ok: true, html: '' };
+    if (/^journalctl/.test(line)) {
+      var parts = line.split(/\s+/);
+      var hasU = parts.indexOf('-u') !== -1 || parts.indexOf('-f') !== -1 || parts.indexOf('-xe') !== -1 || parts.indexOf('--unit') !== -1;
+      if (!hasU) return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">请用 -u 指定服务（如 journalctl -u ' + SV + '）或 -xe / -f</span>' };
+      if (parts.indexOf('-u') !== -1 && parts[parts.indexOf('-u') + 1] !== SV && parts.indexOf('-xe') === -1) {
+        return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">No journal files for unit ' + esc(parts[parts.indexOf('-u') + 1] || '') + '.service</span>' };
+      }
+      return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n' + (parts.indexOf('-xe') !== -1 ? '-- Journal begins at ... --\nOct 11 11:30:00 host systemd[1]: nginx.service: Failed with result exit-code.\n<span class="c-err">Oct 11 11:30:00 host nginx[456]: bind() to 0.0.0.0:80 failed (98: Address already in use)</span>\nOct 11 11:30:00 host systemd[1]: nginx.service: Failed to start.\n-- Defined-By: systemd --\n-- A unit ... failed ... see systemctl status nginx.service --' : '-- Logs begin at ... --\nOct 11 11:29:50 host systemd[1]: Starting nginx.service...\nOct 11 11:29:50 host nginx[100]: nginx: configuration file /etc/nginx/nginx.conf test is successful\nOct 11 11:29:50 host systemd[1]: Started nginx.service.\n<span class="c-ok">Oct 11 11:30:01 host nginx[101]: 10.0.0.1 GET / 200</span>') };
+    }
+    var m = line.match(/^systemctl\s+([a-zA-Z-]+)\s*(.*)$/) || line.match(/^([a-zA-Z-]+)\s+(.+)$/);
+    if (m) {
+      var act = m[1], rest = (m[2] || '').trim();
+      var svc = rest.split(/\s+/)[0] || '';
+      if (act === 'daemon-reload') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\nReloading systemd manager configuration...\n（成功，无输出）' };
+      }
+      if (act === 'start') {
+        if (svc !== SV) return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">Failed to start ' + esc(svc) + '.service: Unit not found.</span>' };
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n● ' + SV + '.service - A high performance web server and a reverse proxy server\n   Loaded: loaded (/usr/lib/systemd/system/' + SV + '.service; disabled; preset: disabled)\n   Active: active (running) since 2026-10-11 11:30:01\n Main PID: 123 (' + SV + ')' };
+      }
+      if (act === 'stop') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n● ' + SV + '.service - A high performance web server and a reverse proxy server\n   Active: inactive (dead)' };
+      }
+      if (act === 'restart') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n● ' + SV + '.service - A high performance web server and a reverse proxy server\n   Active: active (running) since 2026-10-11 11:31:02' };
+      }
+      if (act === 'status') {
+        if (svc !== SV) return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">Unit ' + esc(svc) + '.service could not be found.</span>' };
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n● ' + SV + '.service - A high performance web server and a reverse proxy server\n   Loaded: loaded (/usr/lib/systemd/system/' + SV + '.service; enabled; preset: disabled)\n   Active: <span class="c-ok">active (running)</span> since 2026-10-11 11:30:01\n Main PID: 123 (' + SV + ')\n   Tasks: 3 (limit: 19095)' };
+      }
+      if (act === 'is-active') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-ok">active</span>' };
+      }
+      if (act === 'is-enabled') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-ok">enabled</span>' };
+      }
+      if (act === 'enable') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\nCreated symlink /etc/systemd/system/multi-user.target.wants/' + SV + '.service → /usr/lib/systemd/system/' + SV + '.service.' };
+      }
+      if (act === 'disable') {
+        return { ok: true, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\nRemoved "/etc/systemd/system/multi-user.target.wants/' + SV + '.service".' };
+      }
+      return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">Unknown systemctl action: ' + esc(act) + '</span>' };
+    }
+    return { ok: false, html: '<span class="c-cmd">$ ' + esc(line) + '</span>\n<span class="c-err">Unknown command. 试试 systemctl start ' + SV + ' / status ' + SV + ' / journalctl -u ' + SV + '</span>' };
+  }
+
+  function runLab(inputId, btnId, outId, resultId, accepted, milestoneIdx, taskName) {
+    $(btnId).addEventListener('click', function () {
+      var raw = $(inputId).value;
+      var lines = raw.split(/\n/).filter(function (l) { return l.trim(); });
+      var out = $(outId);
+      var results = lines.map(runSingle);
+      var allOk = results.every(function (r) { return r.ok; });
+      out.innerHTML = results.map(function (r) { return r.html; }).join('\n\n');
+
+      /* 规范化用户命令集 */
+      var got = [];
+      lines.forEach(function (l) {
+        l = l.trim();
+        if (/^systemctl/.test(l)) {
+          var p = l.split(/\s+/);
+          var a = p[1] || '';
+          if (a === 'daemon-reload') got.push('daemon-reload');
+          else if (a && p[2]) got.push(a + ' ' + p[2]);
+        } else if (/^journalctl/.test(l)) {
+          var parts = l.split(/\s+/);
+          var flag = parts.indexOf('-xe') !== -1 ? '-xe' : (parts.indexOf('-f') !== -1 ? '-f' : '-u');
+          var svc = parts[parts.indexOf('-u') + 1];
+          got.push(flag === '-u' ? 'journalctl ' + svc : 'journalctl ' + flag);
+        }
+      });
+      var missing = accepted.filter(function (a) {
+        return !got.some(function (g) {
+          if (a === 'status' || a === 'start' || a === 'enable' || a === 'disable' || a === 'restart' || a === 'stop') return g === a + ' ' + SV || g === a;
+          if (a === 'daemon-reload') return g === 'daemon-reload';
+          if (a === 'journal-u') return g.indexOf('journalctl') === 0 && g.indexOf(SV) !== -1;
+          if (a === 'journal-xe') return g === 'journalctl -xe';
+          return false;
+        });
+      });
+
+      if (!allOk) {
+        if (missing.length) out.innerHTML += '\n\n<span class="c-warn">仍有命令缺失：' + esc(missing.join(' / ')) + '，请补全后重新执行。</span>';
+        return;
+      }
+      if (missing.length === 0) {
+        completeMilestone(milestoneIdx);
+        $(resultId).className = 'result show ok';
+        $(resultId).innerHTML = taskName + '完成！';
+        out.innerHTML += '\n\n<span class="c-ok">✓ ' + esc(taskName) + '全部执行正确，里程碑解锁。</span>';
+      } else {
+        out.innerHTML += '\n\n<span class="c-warn">还差：' + esc(missing.join(' / ')) + '，补全后重新执行。</span>';
+      }
+    });
+  }
+
+  runLab('s1Input', 's1Btn', 's1Out', 's1Result', ['start', 'status'], 1, '启动并确认状态');
+  runLab('s2Input', 's2Btn', 's2Out', 's2Result', ['daemon-reload', 'enable'], 3, '重载配置并设自启');
+  runLab('s3Input', 's3Btn', 's3Out', 's3Result', ['journal-u'], 5, '查看日志');
+  runLab('s4Input', 's4Btn', 's4Out', 's4Result', ['status', 'journal-xe'], 7, '故障排查');
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: 'systemd 的 PID 是？', opts: ['0', '1', '100', '1000'], right: 1, expl: 'systemd 是 PID 1，Linux 第一个用户进程。' },
+    { q: '启动服务的命令是？', opts: ['systemctl enable', 'systemctl start', 'systemctl stop', 'systemctl reload'], right: 1, expl: 'start 启动，enable 设开机自启。' },
+    { q: '设置开机自启用？', opts: ['systemctl start', 'systemctl status', 'systemctl enable', 'journalctl'], right: 2, expl: 'enable 创建自启符号链接。' },
+    { q: '改了 unit 文件后必须先？', opts: ['systemctl daemon-reload', 'reboot', 'systemctl disable', 'systemctl is-active'], right: 0, expl: 'daemon-reload 让 systemd 重新读取配置。' },
+    { q: '服务启动/运行失败，状态显示？', opts: ['active', 'failed', 'inactive', 'not-found'], right: 1, expl: 'failed = 启动或运行失败。' },
+    { q: '查看服务日志用？', opts: ['systemctl status', 'journalctl -u nginx', 'dmesg', 'top'], right: 1, expl: 'journalctl 是日志中心，-u 指定服务。' },
+    { q: 'ExecStart 在 unit 文件的哪个段？', opts: ['[Unit]', '[Install]', '[Service]', '[Timer]'], right: 2, expl: '[Service] 定义如何运行服务。' },
+    { q: '服务崩溃后自动拉起，配置？', opts: ['Restart=on-failure', 'Restart=never', 'Type=oneshot', 'WantedBy=multi-user.target'], right: 0, expl: 'on-failure：非零退出自动重启。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Systemd 服务管理的核心操作。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+
+  </script></body>
+</html>

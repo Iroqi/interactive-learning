@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 提示词工程 · 交互式学习</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --card: #151a24;
+    --raise: #1b2230;
+    --border: #242c3c;
+    --line: #2f394d;
+    --text: #e6e9ef;
+    --dim: #99a3b5;
+    --muted: #5c6578;
+    --accent: #d4a853;
+    --prompt: #b48cff;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --orange: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --display: 'Cormorant Garamond', Georgia, 'Noto Serif SC', 'Source Han Serif SC', serif;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 45% at 15% -5%, rgba(180,140,255,0.07), transparent),
+      radial-gradient(ellipse 55% 40% at 85% 8%, rgba(212,168,83,0.05), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  .mast {
+    position: relative; z-index: 1;
+    max-width: 940px; margin: 0 auto; padding: 40px 24px 8px; text-align: center;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent); padding: 4px 10px; border: 1px solid rgba(212,168,83,0.35);
+    border-radius: 999px; background: rgba(212,168,83,0.08);
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--display); font-size: clamp(34px, 5.5vw, 52px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 6px;
+  }
+  .mast h1 em { font-style: italic; color: var(--prompt); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 15px; margin-bottom: 22px; }
+
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: linear-gradient(90deg, var(--prompt), var(--accent));
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: center; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .hidden { display: none !important; }
+
+  main { max-width: 940px; margin: 0 auto; padding: 24px 24px 120px; position: relative; z-index: 1; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 30px 32px; margin-bottom: 24px;
+    opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+
+  .step h2 { font-size: 22px; margin-bottom: 10px; letter-spacing: -0.01em; }
+  .step h2 .num {
+    font-family: var(--display); color: var(--prompt); font-size: 17px;
+    border: 1px solid rgba(180,140,255,0.35); border-radius: 8px; padding: 1px 8px; margin-right: 10px;
+  }
+  .step h3 { font-size: 15px; margin: 18px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+
+  code, .mono {
+    font-family: var(--mono); font-size: 0.92em;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; color: #d9c6ff;
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.6;
+    background: #0b0e14; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: #d9c6ff; margin: 12px 0;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: #f0a04b; }
+  pre .val { color: #34d399; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; }
+
+  .insight {
+    background: rgba(180,140,255,0.07); border: 1px solid rgba(180,140,255,0.25);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--prompt); }
+
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--prompt); }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+
+  .result { display: none; margin-top: 12px; font-size: 13px; border-radius: 10px; padding: 12px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  .lab {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 14px 0;
+    background: #0b0e14;
+  }
+  .lab-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .lab-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .lab-head .dot:nth-child(1) { background: #ef476f; }
+  .lab-head .dot:nth-child(2) { background: #f0a04b; }
+  .lab-head .dot:nth-child(3) { background: #34d399; }
+  .lab-head span.txt { margin-left: 6px; }
+  .lab-body { padding: 12px 14px; }
+  .lab-body textarea {
+    width: 100%; min-height: 130px; resize: vertical;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: var(--body); font-size: 13.5px; line-height: 1.7;
+    padding: 12px; outline: none;
+  }
+  .lab-body textarea:focus { border-color: rgba(180,140,255,0.5); }
+  .lab-ctrl { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .lab-ctrl button {
+    background: var(--prompt); border: none; border-radius: 8px; color: #1b0f33;
+    font-family: var(--body); font-size: 12.5px; font-weight: 700; padding: 8px 18px; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .lab-ctrl button:hover { opacity: 0.85; }
+  .lab-ctrl .lab-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .score-panel {
+    border-top: 1px solid var(--border); padding: 12px 14px; font-size: 13px;
+  }
+  .score-line { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .score-num { font-family: var(--display); font-size: 34px; font-weight: 600; }
+  .score-grade { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid; }
+  .score-fb { font-family: var(--mono); font-size: 12px; line-height: 1.8; }
+  .score-fb .fb-ok { color: #34d399; }
+  .score-fb .fb-bad { color: #f0a04b; }
+
+  .quiz-box { margin-top: 8px; }
+  .quiz-q { margin-bottom: 20px; }
+  .q-title { font-size: 14.5px; margin-bottom: 8px; }
+  .q-title .q-num {
+    font-family: var(--mono); font-size: 11px; color: var(--prompt);
+    border: 1px solid rgba(180,140,255,0.4); border-radius: 6px; padding: 1px 7px; margin-right: 8px;
+  }
+  .quiz-score {
+    background: rgba(180,140,255,0.08); border: 1px solid rgba(180,140,255,0.35);
+    border-radius: 12px; padding: 18px; text-align: center; margin-top: 8px;
+  }
+  .score-num-big { font-family: var(--display); font-size: 40px; color: var(--prompt); }
+  .quiz-score p { color: var(--dim); font-size: 13px; margin-top: 4px; }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,14,18,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 940px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-family: var(--body); font-size: 13px; font-weight: 600;
+    padding: 9px 18px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { border-color: var(--prompt); color: var(--prompt); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(52,211,153,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+
+  @media (max-width: 640px) {
+    .step { padding: 22px 18px; }
+    main { padding-left: 14px; padding-right: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">AI Prompting</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>AI 提示词 <em>交互式学习</em></h1>
+    <p class="subtitle">提示词评分引擎 · 9 个里程碑 · 进度自动保存在本浏览器</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 提示词是什么 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>提示词工程：给 AI 的"需求文档"</h2>
+    <p class="lead">提示词（Prompt）是你给大模型的输入。提示词工程 = 用结构化的方式把<strong>任务、上下文、约束、格式</strong>说清楚，让输出更可控。差的提示词像含糊的口头禅，好的提示词像清晰的工单。</p>
+    <pre><span class="key">模糊：</span>帮我写点东西
+<span class="key">清晰：</span>你是资深产品经理，请为"团队待办 App"写一篇 200 字的新功能介绍文案，
+面向中小企业管理者，语气专业简洁，用三段式：痛点 → 方案 → 价值。</pre>
+    <h3>练习：提示词的本质</h3>
+    <div class="opts" id="essOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="ess">提示词越长越好，模型会自动提取关键信息</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="ess">提示词是给模型的可执行说明：任务、上下文、约束、格式越清晰，输出越可控</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="ess">提示词的作用是让模型搜索网络</label>
+    </div>
+    <div class="result" id="essResult"></div>
+  </section>
+
+  <!-- ═══ 2 四要素 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>提示词四要素</h2>
+    <table>
+      <thead><tr><th style="width:20%">要素</th><th>要问自己</th><th>示例</th></tr></thead>
+      <tbody>
+        <tr><td>任务</td><td>让它做什么？</td><td>"把下面这段话总结成 3 条要点"</td></tr>
+        <tr><td>上下文</td><td>给什么输入/背景？</td><td>"以下是一位用户的投诉邮件：…"</td></tr>
+        <tr><td>约束</td><td>不要什么/风格如何？</td><td>"不要客套话，500 字以内"</td></tr>
+        <tr><td>格式</td><td>输出长什么样？</td><td>"用 Markdown 表格输出"</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：哪个提示词更完整？</h3>
+    <div class="opts" id="elemOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="elem">"总结一下"</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="elem">"你是会议纪要助手。请把下面的会议记录总结为 3 条行动项，每条不超过 30 字，用编号列表输出"</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="elem">"写得好一点"</label>
+    </div>
+    <div class="result" id="elemResult"></div>
+  </section>
+
+  <!-- ═══ 3 评分台 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>提示词评分台：边写边得分</h2>
+    <p class="lead">下面是一个启发式评分引擎，按 任务 / 上下文 / 约束 / 格式 / 角色 / 示例 六项打分（满分 100）。<strong>拿到 60 分以上解锁本里程碑。</strong></p>
+    <div class="lab">
+      <div class="lab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">Prompt Lab · 评分引擎</span></div>
+      <div class="lab-body">
+        <textarea id="pInput" placeholder='在这里写一个提示词，例如：&#10;你是资深前端工程师，请帮我写一个 debounce 函数，要求支持取消与最大等待时间，用 TypeScript，附带注释和用法示例。'></textarea>
+      </div>
+      <div class="lab-ctrl">
+        <button type="button" id="pScore">评分</button>
+        <span class="lab-hint">任务 / 上下文 / 约束 / 格式 / 角色 / 示例</span>
+      </div>
+      <div class="score-panel" id="pPanel">— 点击「评分」查看得分与逐项反馈 —</div>
+    </div>
+    <div class="result" id="labResult"></div>
+  </section>
+
+  <!-- ═══ 4 Few-shot ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>Few-shot：用示例教模型</h2>
+    <p class="lead">Few-shot 指在提示词里给出 1 到几个"输入 → 输出"示例，模型会模仿示例的模式作答。它特别适合格式要求明确的任务。</p>
+    <pre>判断用户评价的情感（正面/负面/中性）。示例：
+"快递太慢了" → 负面
+"包装很精致" → 正面
+"一般般吧"   → 中性
+现在判断："客服态度特别好，处理也快" →</pre>
+    <h3>练习：few-shot 的作用</h3>
+    <div class="opts" id="fsOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="fs">示例越多越好，最好把整个训练集都塞进去</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="fs">2-5 个高质量示例即可显著提升格式与判断的稳定性</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="fs">few-shot 只对翻译任务有效</label>
+    </div>
+    <div class="result" id="fsResult"></div>
+  </section>
+
+  <!-- ═══ 5 思维链 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>思维链（Chain-of-Thought）：让模型"先想再说"</h2>
+    <p class="lead">对推理类任务（数学、逻辑、规划），让模型<strong>先展示推理步骤再给结论</strong>，能显著提高正确率。你可以显式要求"请逐步思考"，或给出带推理过程的示例。</p>
+    <pre>Q: 商店有 12 个苹果，卖出 5 个，又进货 3 个，还剩几个？
+A: 12 - 5 = 7，7 + 3 = 10。所以还剩 10 个。
+Q: 一列火车 8 节车厢，每节 45 座，已售出 300 张票，还有多少空座？
+A:</pre>
+    <h3>练习：何时用思维链</h3>
+    <div class="opts" id="cotOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cot">任何任务都必须要求逐步思考，否则就是劣质提示词</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cot">推理/计算/多步骤任务适合思维链；简单输出型任务不必强求</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cot">思维链会让输出永远变慢，应该禁用</label>
+    </div>
+    <div class="result" id="cotResult"></div>
+  </section>
+
+  <!-- ═══ 6 角色与约束 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>角色设定与硬约束</h2>
+    <p class="lead">给模型一个<strong>角色</strong>（专家、老师、审稿人）会改变它的语言风格与视角；<strong>硬约束</strong>（字数、禁用词、输出格式）把自由度收窄。注意：约束要可执行、不互相矛盾。</p>
+    <pre>你是一位初中数学老师。请用 12 岁学生能听懂的语言，
+解释什么是质数。要求：举一个生活例子，不超过 150 字，
+不要使用"因数"以外的新术语。</pre>
+    <h3>练习：好的约束</h3>
+    <div class="opts" id="roleOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="role">"写一篇关于 AI 的文章，要非常详细，但又不能太长，风格随意，还要专业"</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="role">"面向产品经理写 300 字内的 AI 趋势摘要，用 3 个要点 + 每个要点 1 句话解释，避免技术黑话"</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="role">"随便写写就行"</label>
+    </div>
+    <div class="result" id="roleResult"></div>
+  </section>
+
+  <!-- ═══ 7 反模式 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>常见反模式：为什么输出总不对</h2>
+    <table>
+      <thead><tr><th>反模式</th><th>例子</th><th>后果</th></tr></thead>
+      <tbody>
+        <tr><td>指令模糊</td><td>"优化一下"</td><td>模型自由发挥</td></tr>
+        <tr><td>约束自相矛盾</td><td>"写详细点但别超过 20 字"</td><td>两头都做不好</td></tr>
+        <tr><td>一次塞太多任务</td><td>"总结+翻译+写诗+给建议"</td><td>每个都敷衍</td></tr>
+        <tr><td>缺少输入边界</td><td>"根据以下内容…（未给出内容）"</td><td>模型只能瞎编</td></tr>
+      </tbody>
+    </table>
+    <h3>练习：识别反模式</h3>
+    <div class="opts" id="antiOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="anti">"帮我写邮件"是完整可执行的提示词</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="anti">"帮我写一封给客户的致歉邮件，说明延迟发货原因，语气诚恳，200 字内，附 1 个补偿方案" 是清晰提示词</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="anti">"总结这段，顺便翻译成英文，再写首诗" 是聚焦的好提示词</label>
+    </div>
+    <div class="result" id="antiResult"></div>
+  </section>
+
+  <!-- ═══ 8 改进实战 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>改进实战：从 30 分到 90 分</h2>
+    <p class="lead">下面是真实的高频烂提示词：<code>"帮我写个报告"</code>。在评分台里把它改写成一版 80 分以上的完整提示词。</p>
+    <div class="insight"><strong>任务：</strong>补全 任务（写什么报告）+ 上下文（素材/场景）+ 约束（字数/语气/不要什么）+ 格式（结构）。<strong>评分 ≥ 80 解锁里程碑。</strong></div>
+    <div class="lab">
+      <div class="lab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">Prompt Lab · 改进版</span></div>
+      <div class="lab-body">
+        <textarea id="pInput2" placeholder='示例起点：&#10;帮我写个报告&#10;（把它改写成 80 分以上的完整提示词）'></textarea>
+      </div>
+      <div class="lab-ctrl">
+        <button type="button" id="pScore2">评分</button>
+        <span class="lab-hint">目标 ≥ 80 分</span>
+      </div>
+      <div class="score-panel" id="pPanel2">— 点击「评分」查看改进得分 —</div>
+    </div>
+    <div class="result" id="labResult2"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：提示词本质 → 四要素 → 评分台 → few-shot → 思维链 → 角色与约束 → 反模式 → 改进实战 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 把你最近用过的最差提示词，用四要素框架重写一遍并对比输出；<br>
+      ② 为你的日常工作沉淀 3 个"模板型提示词"（写周报、写邮件、分析数据）；<br>
+      ③ 遇到推理任务时显式要求"逐步思考"，观察正确率变化；<br>
+      ④ 记住一句话：<strong>输出不可控，先检查提示词，而不是换模型。</strong>
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">AI PROMPTING 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ progress + localStorage ═══════════════ */
+  var MODULE_KEY = 'prompt';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 提示词本质正确
+     1 四要素选择正确
+     2 评分台 ≥ 60
+     3 few-shot 正确
+     4 思维链正确
+     5 角色约束正确
+     6 反模式正确
+     7 改进实战 ≥ 80
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('essOpts', 'b', 'essResult',
+    '正确！提示词就是给模型的可执行说明；不是越长越好，而是信息密度与结构要好。',
+    '不对。提示词是结构化的任务说明：任务/上下文/约束/格式越清晰，输出越可控。', 0);
+  bindOpts('elemOpts', 'b', 'elemResult',
+    '正确！任务（总结为行动项）+ 角色（会议纪要助手）+ 约束（每条约 30 字）+ 格式（编号列表）都齐全。',
+    '不对。选项 a/c 都太模糊，缺少任务细节、约束与格式。', 1);
+  bindOpts('fsOpts', 'b', 'fsResult',
+    '正确！2-5 个高质量示例就能显著提升稳定性；示例过多反而消耗上下文窗口。',
+    '不对。少量高质量示例即可；few-shot 适用于任何格式敏感任务，不止翻译。', 3);
+  bindOpts('cotOpts', 'b', 'cotResult',
+    '正确！思维链用于推理/计算/多步骤任务；简单输出任务要求逐步思考反而浪费。',
+    '不对。思维链按任务类型按需使用，不是万能药也不是禁用项。', 4);
+  bindOpts('roleOpts', 'b', 'roleResult',
+    '正确！受众（产品经理）+ 字数（300 内）+ 结构（3 要点）+ 禁区（避免黑话），约束清晰不矛盾。',
+    '不对。a 选项约束互相矛盾；c 选项没有任何约束。', 5);
+  bindOpts('antiOpts', 'b', 'antiResult',
+    '正确！任务、背景、字数、语气、附带物都明确；a 太模糊，c 塞了多个互不相关的任务。',
+    '不对。"帮我写邮件"缺任务细节；"总结+翻译+写诗"是典型的多任务贪多反模式。', 6);
+
+  /* ═══════════════ 提示词评分引擎（启发式） ═══════════════ */
+  var TASK_RE = /(请|帮|写|生成|总结|翻译|解释|列出|分析|创建|设计|输出|给出|提炼|扩写|改写|整理|规划|制定|优化|改进|起草|回复|判断|计算|回答|介绍|讲解)/;
+  var FORMAT_RE = /(格式|表格|列表|JSON|markdown|要点|编号|段落|标题|摘要|提纲|字数|\d+\s*字|字以内|条行动|条要点)/;
+  var CONTEXT_RE = /(背景|场景|面向|受众|用户|读者|对象|上下文|语境|资料|输入|根据|以下|素材|基于|来自|针对)/;
+  var CONSTRAINT_RE = /(不要|避免|禁止|只|仅|限制|不超过|必须|要求|风格|语气|专业|通俗|严谨|轻松|正式|口语化|拒绝|严禁|至少|最多)/;
+  var ROLE_RE = /(扮演|角色|作为|你是|你是一位|你是一个|专家|资深|老师|助手|顾问|审稿|教练|律师)/;
+  var EXAMPLE_RE = /(例如|示例|例子|比如|参考|如下|few[- ]shot|样例)/;
+
+  function scorePrompt(text) {
+    var t = String(text || '').trim();
+    var s = 0;
+    var fb = [];
+
+    if (t.length < 20) { s -= 15; fb.push('✗ 太短（<20 字）：缺少可执行信息'); }
+    if (TASK_RE.test(t)) { s += 20; fb.push('✓ 明确的任务指令'); }
+    else fb.push('✗ 缺任务指令（写/生成/总结/翻译…）');
+    if (FORMAT_RE.test(t)) { s += 20; fb.push('✓ 指定了输出格式 / 长度'); }
+    else fb.push('✗ 未指定输出格式（建议：列表 / 表格 / 字数）');
+    if (CONTEXT_RE.test(t)) { s += 20; fb.push('✓ 提供了上下文 / 素材边界'); }
+    else fb.push('✗ 缺上下文（面向谁、基于什么输入）');
+    if (CONSTRAINT_RE.test(t)) { s += 20; fb.push('✓ 有约束 / 风格 / 禁区'); }
+    else fb.push('✗ 缺约束（不要什么、风格语气）');
+    if (ROLE_RE.test(t)) { s += 10; fb.push('✓ 设定了角色'); }
+    if (EXAMPLE_RE.test(t)) { s += 10; fb.push('✓ 包含示例 / few-shot'); }
+
+    s = Math.max(0, Math.min(100, s));
+    var grade = s >= 80 ? '优秀' : s >= 60 ? '良好' : s >= 40 ? '及格' : '待改进';
+    var color = s >= 80 ? '#34d399' : s >= 60 ? '#b48cff' : s >= 40 ? '#f0a04b' : '#ef476f';
+    return { score: s, grade: grade, color: color, fb: fb };
+  }
+
+  function renderScore(panelId, result) {
+    var panel = $(panelId);
+    var fbHtml = result.fb.map(function (line) {
+      var cls = line.indexOf('✓') === 0 ? 'fb-ok' : 'fb-bad';
+      return '<div class="' + cls + '">' + esc(line) + '</div>';
+    }).join('');
+    panel.innerHTML =
+      '<div class="score-line"><span class="score-num" style="color:' + result.color + '">' + result.score + '</span>' +
+      '<span class="score-grade" style="color:' + result.color + ';border-color:' + result.color + '">' + result.grade + '</span></div>' +
+      '<div class="score-fb">' + fbHtml + '</div>';
+  }
+
+  function bindScorer(inputId, btnId, panelId, resultId, targetScore, milestoneIdx, doneMsg) {
+    var input = $(inputId), btn = $(btnId);
+    btn.addEventListener('click', function () {
+      var r = scorePrompt(input.value);
+      renderScore(panelId, r);
+      if (r.score >= targetScore && !milestones[milestoneIdx]) {
+        completeMilestone(milestoneIdx);
+        $(resultId).className = 'result show ok';
+        $(resultId).innerHTML = doneMsg;
+      }
+    });
+  }
+  bindScorer('pInput', 'pScore', 'pPanel', 'labResult', 60, 2,
+    '恭喜！你的提示词已经结构完整（≥60 分）。接下来学习 few-shot 与思维链，把提示词推向更高分。');
+  bindScorer('pInput2', 'pScore2', 'pPanel2', 'labResult2', 80, 7,
+    '太棒了！你写出了 80 分以上的专业提示词——记住这个结构，它适用于 80% 的工作场景。');
+
+  /* ═══════════════ 掌握度测验 ═══════════════ */
+  var quizData = [
+    { q: '提示词工程的核心目标是？', opts: ['让提示词越长越好', '用结构化信息（任务/上下文/约束/格式）让输出可控', '让模型访问更多数据', '绕过模型的安全限制'], right: 1, expl: '提示词工程 = 把需求说清楚，让输出更可控、可复用。' },
+    { q: '哪个提示词最完整？', opts: ['"写一下"', '"总结这段文字，用 3 条要点，每条不超过 20 字"', '"写得好点，专业点"', '"随便"'], right: 1, expl: '任务（总结）+ 格式（要点 + 字数）明确；其余选项都缺要素。' },
+    { q: 'few-shot 是指？', opts: ['一次调用多个模型', '在提示词里给出少量输入→输出示例让模型模仿', '把训练集全量放进来', '只给一个指令没有任何示例'], right: 1, expl: 'few-shot = 少量示例（示范模式），2-5 个高质量示例通常就够。' },
+    { q: '思维链（CoT）适合？', opts: ['所有任务', '推理 / 计算 / 多步骤任务', '只有翻译任务', '图片生成'], right: 1, expl: 'CoT 让模型先推理再作答，适合需要分步推导的任务。' },
+    { q: '"帮我写邮件" 这个提示词的问题在于？', opts: ['没有语法错误，很完美', '缺少收件人、背景、语气、字数等关键信息', '太长', '用了英文单词'], right: 1, expl: '模糊指令 = 缺上下文与约束，模型只能自由发挥。' },
+    { q: '"写一篇关于 AI 的文章，非常详细但别超过 20 字" 属于？', opts: ['优秀提示词', '约束自相矛盾的反模式', 'few-shot 示例', '思维链提示'], right: 1, expl: '"详细"与"20 字"不可兼得，约束互相冲突会让输出两头不讨好。' },
+    { q: '提示词里"你是资深律师，请用 200 字以内给客户解释…" 中的"资深律师"是？', opts: ['格式要求', '角色设定，影响语言风格与视角', '任务指令', '示例'], right: 1, expl: '角色设定（system 式口吻）改变模型的身份视角与表达方式。' },
+    { q: '改进提示词的第一原则是？', opts: ['换一个更强的模型', '输出不可控时，先检查提示词：任务、上下文、约束、格式', '多试几次直到运气好', '把提示词写得更短'], right: 1, expl: '输出失控时先审视提示词结构，而不是盲目换模型。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经掌握提示词工程的核心方法。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═══════════════ init ═══════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>

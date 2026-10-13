@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rust 所有权 交互式学习 · 迷你 borrow-checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --rust: #fb7185; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #21262d; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #0d1117; background: var(--rust); border-radius: 999px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  h1 { font-size: 34px; color: #f0f6fc; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: var(--rust); font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #8b949e; }
+  .progress-track { height: 6px; background: #21262d; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--rust), #a3e635); border-radius: 999px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: var(--rust); font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #f0f6fc; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--rust); border: 1px solid #30363d; border-radius: 6px; padding: 1px 7px; }
+  .lead { color: #c9d1d9; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--rust); }
+  pre { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c9d1d9; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #8b949e; }
+  .insight { background: rgba(251, 113, 133, 0.07); border: 1px solid rgba(251, 113, 133, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: var(--rust); }
+  h3 { font-size: 15px; color: #e6edf3; margin: 20px 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 9px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: var(--rust); }
+  .opt-row input { margin-top: 5px; accent-color: var(--rust); }
+  .opt-row.correct { border-color: var(--rust); background: rgba(251, 113, 133, 0.09); }
+  .opt-row.wrong { border-color: #f87171; background: rgba(248, 113, 113, 0.07); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 9px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(251, 113, 133, 0.08); border: 1px solid rgba(251, 113, 133, 0.3); color: #ffe4e6; }
+  .result.err { background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.3); color: #fecaca; }
+  .clab { background: #161b22; border: 1px solid #30363d; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d1117; border-bottom: 1px solid #30363d; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #30363d; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #fb7185; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea {
+    background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 7px; outline: none; width: 100%; min-height: 76px; resize: vertical;
+  }
+  .clab-body textarea:focus { border-color: var(--rust); }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: var(--rust); color: #0d1117; border: none; border-radius: 7px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { filter: brightness(1.1); }
+  .clab-hint { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #0d1117; border: 1px solid #30363d; border-radius: 7px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c9d1d9; min-height: 40px; }
+  .c-cmd { color: #8b949e; }
+  .c-ok { color: var(--rust); }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .quiz-box { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; }
+  .quiz-q { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px 18px; }
+  .q-title { font-size: 14.5px; font-weight: 600; color: #e6edf3; margin-bottom: 11px; }
+  .q-num { font-family: 'JetBrains Mono', monospace; color: var(--rust); margin-right: 8px; font-size: 13px; }
+  .quiz-q .opt-row { background: #0d1117; }
+  .quiz-score { text-align: center; padding: 26px 18px; }
+  .score-num-big { font-size: 44px; font-weight: 800; color: var(--rust); font-family: 'JetBrains Mono', monospace; }
+  .quiz-score p { color: #8b949e; font-size: 14px; margin-top: 6px; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.92); backdrop-filter: blur(8px); border-top: 1px solid #21262d; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: var(--rust); color: var(--rust); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8b949e; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #161b22; border: 1px solid var(--rust); color: #ffe4e6; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #484f58; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">CS</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>Rust <em>所有权</em></h1>
+    <p class="subtitle">迷你 borrow-checker · move / Copy · 借用 · 生命周期 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 所有权三规则 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>所有权：三条规则</h2>
+    <p class="lead">Rust 不靠 GC，靠编译期所有权：<strong>①</strong> 每个值有且只有一个所有者；<strong>②</strong> 所有者离开作用域时值被 drop 释放；<strong>③</strong> 值可以 move（转移）给新所有者，原所有者失效。</p>
+    <pre>{
+    let s = String::from("hi");   <span class="cmt"># s 拥有堆上的字符串</span>
+}                                 <span class="cmt"># 作用域结束，s drop，内存释放</span></pre>
+    <h3>练习：所有者判定</h3>
+    <div class="opts" id="ownOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="own">每个值同时只能有一个所有者；离开作用域自动释放，杜绝双重释放与悬垂指针</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="own">同一个值可以同时被两个变量共同拥有</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="own">Rust 用运行时垃圾回收来管理内存</label>
+    </div>
+    <div class="result" id="ownResult"></div>
+  </section>
+
+  <!-- ═══ 2 move 语义 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>move：所有权转移</h2>
+    <p class="lead">把值赋给新变量或传参 = <strong>move</strong>，原变量此后<strong>不可再用</strong>（编译期报错）。堆类型（String、Vec）默认 move；这避免了深拷贝，也保证了单所有者。</p>
+    <pre>let s1 = String::from("hi");
+let s2 = s1;            <span class="cmt"># move：s1 的所有权转给 s2</span>
+println!("{}", s1);     <span class="c-err"># 编译错误：borrow of moved value: `s1`</span></pre>
+    <h3>练习：move 判读</h3>
+    <div class="opts" id="moveOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="move">let s2 = s1 后 s1 失效——这是 move 不是拷贝，后续用 s1 编译报错</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="move">let s2 = s1 会对堆内容做一次深拷贝，s1 仍可用</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="move">move 只发生在函数参数，赋值不会转移所有权</label>
+    </div>
+    <div class="result" id="moveResult"></div>
+  </section>
+
+  <!-- ═══ 3 Copy ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>Copy 类型：赋值即复制</h2>
+    <p class="lead">实现了 <code>Copy</code> 的类型（整数、浮点、bool、char、以及只含这些的元组）赋值时是<strong>逐位复制</strong>，原变量继续可用。<code>String</code> 不实现 Copy（堆数据），所以 move。</p>
+    <pre>let a = 42;
+let b = a;            <span class="cmt"># Copy：b 是 a 的副本</span>
+println!("{}", a);    <span class="cmt"># ✓ 还能用，a 仍是 42</span></pre>
+    <h3>练习：Copy 判读</h3>
+    <div class="opts" id="copyOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="copy">i32/f64/bool 赋值是 Copy（继续可用）；String/Vec 赋值是 move（原变量失效）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="copy">String 也实现了 Copy，赋值后两个变量都能用</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="copy">Copy 只对堆上的大数据类型生效</label>
+    </div>
+    <div class="result" id="copyResult"></div>
+  </section>
+
+  <!-- ═══ 4 借用 ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>借用：&amp; 只读引用</h2>
+    <p class="lead"><code>&amp;s</code> 是<strong>借用</strong>：不转移所有权，只临时访问。<code>&amp;mut s</code> 是可变借用，可以修改。<strong>借用规则：</strong>任意时刻要么<strong>一个可变借用</strong>，要么<strong>多个不可变借用</strong>，不能同时混有可变与不可变借用。</p>
+    <pre>fn len(s: &amp;String) -&gt; usize { s.len() }   <span class="cmt"># 借用，不拿走所有权</span>
+let s = String::from("hi");
+let n = len(&amp;s);                          <span class="cmt"># ✓ 借完归还，s 还能用</span></pre>
+    <h3>练习：借用规则</h3>
+    <div class="opts" id="borOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="bor">&amp; 借用不转移所有权，函数用完归还，原变量继续可用</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="bor">&amp;s 会把 s 的所有权转移到函数里</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="bor">借用没有数量限制，可变与不可变可以同时存在</label>
+    </div>
+    <div class="result" id="borResult"></div>
+  </section>
+
+  <!-- ═══ 5 借用冲突 ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>借用冲突：可变 vs 不可变</h2>
+    <p class="lead">在同一作用域内：<code>&amp;mut s</code> 与 <code>&amp;s</code> 并存 → 编译错误 "cannot borrow `s` as mutable because it is also borrowed as immutable"。<strong>不可变借用存在期间，不允许可变借用</strong>；反之亦然。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">迷你 borrow-checker</span></div>
+      <div class="clab-body">
+        <textarea id="bcInput" spellcheck="false" placeholder="let mut s = String::from(&quot;hi&quot;);&#10;let r1 = &amp;s;&#10;let r2 = &amp;mut s;">let mut s = String::from("hi");
+let r1 = &s;
+let r2 = &mut s;</textarea>
+        <button type="button" class="clab-btn" id="bcBtn">检查借用</button>
+        <div class="clab-out" id="bcOut">— 输入代码，判读能否通过 borrow checker —</div>
+      </div>
+    </div>
+    <h3>练习：冲突场景</h3>
+    <div class="opts" id="cfOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="cf">不可变借用 &amp;s 仍存活时创建 &amp;mut s → 编译错误（同一数据不可变与可变借用冲突）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="cf">可变借用和不可变借用可以同时存活，编译器会自动排队</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="cf">借用冲突只在运行时崩溃，编译期不检查</label>
+    </div>
+    <div class="result" id="cfResult"></div>
+  </section>
+
+  <!-- ═══ 6 生命周期 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>生命周期：引用能活多久</h2>
+    <p class="lead">每个引用都有<strong>生命周期</strong>（'a）。编译器保证：引用不会比它指向的数据活得更久（防止悬垂引用）。函数签名里 <code>fn first&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str</code> 表示返回值的生命周期与输入中最短者一致。</p>
+    <pre>fn first&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str {
+    if x.len() &gt; y.len() { x } else { y }
+}</pre>
+    <h3>练习：生命周期判读</h3>
+    <div class="opts" id="lfOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="lf">'a 表示引用与数据的"存活区间"；返回值不能比它的输入活得更久（防悬垂）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="lf">生命周期标注是运行时开销，会让程序变慢</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="lf">引用可以比它指向的数据活得更久，靠运行时检查兜底</label>
+    </div>
+    <div class="result" id="lfResult"></div>
+  </section>
+
+  <!-- ═══ 7 String vs &str ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>String vs &amp;str</h2>
+    <p class="lead"><code>String</code>：堆上可增长的 UTF-8 字符串，拥有所有权。<code>&amp;str</code>：字符串切片（借用），常用来做参数，不拥有数据。<strong>&str 转 String：</strong><code>s.to_string()</code>；<strong>String 转 &amp;str：</strong><code>&amp;s[..]</code> 或 <code>s.as_str()</code>。</p>
+    <h3>练习：类型判读</h3>
+    <div class="opts" id="strOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="str">函数参数优先用 &amp;str（只读借用、不转移所有权、可同时接受 &quot;字面量&quot; 与 &amp;String）</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="str">&amp;str 拥有堆上的字符串数据，可以自由修改内容</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="str">String 是不可变的，声明后内容永远不能改</label>
+    </div>
+    <div class="result" id="strResult"></div>
+  </section>
+
+  <!-- ═══ 8 Option / Result ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>Option 与 Result：没有 null</h2>
+    <p class="lead">Rust 没有 null。<code>Option&lt;T&gt;</code> 表达"可能有值"（Some/None），<code>Result&lt;T, E&gt;</code> 表达"可能出错"（Ok/Err）。用 <code>match</code>、<code>unwrap()</code>（None/Err 时 panic）、<code>? </code>（Err 时提前返回）处理。</p>
+    <pre>fn parse(s: &amp;str) -&gt; Option&lt;i32&gt; { s.parse().ok() }
+match parse("42") {
+    Some(n) =&gt; println!("{}", n),
+    None =&gt; println!("解析失败"),
+}</pre>
+    <h3>练习：错误处理判读</h3>
+    <div class="opts" id="optOpts">
+      <label class="opt-row" data-id="a"><input type="radio" name="opt">用 Option/Result 显式处理"无值/错误"，编译器强制你处理，消灭空指针</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="opt">unwrap() 遇到 None 会静默返回 0，不 panic</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="opt">? 运算符会把 Ok 丢弃，只保留错误</label>
+    </div>
+    <div class="result" id="optResult"></div>
+  </section>
+
+  <!-- ═══ 9 测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度。</p>
+    <div class="quiz-box" id="quizBox"></div>
+  </section>
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：所有权规则 → move → Copy → 借用 → 借用冲突 → 生命周期 → String/&str → Option/Result → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 上手先用 &amp;str / &amp;[T] 做参数，避免无谓 move；<br>
+      ② 编译报错 "borrow of moved value" / "cannot borrow as mutable" 时，先想"谁拥有它、谁在借用"；<br>
+      ③ 读别人代码时标出每个值的所有者与借用区间；<br>
+      ④ 用 cargo clippy 自动提示借用与所有权反模式。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:var(--rust)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">Rust 所有权 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═════════════ step nav ═════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═════════════ reveal ═════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═════════════ progress + localStorage ═════════════ */
+  var MODULE_KEY = 'rust';
+  var TOTAL_MILESTONES = 9;
+  /* milestone indices:
+     0 所有权规则
+     1 move
+     2 Copy
+     3 借用
+     4 借用冲突
+     5 生命周期
+     6 String vs &str
+     7 Option/Result
+     8 测验 ≥ 6/8 */
+  var milestones = [false, false, false, false, false, false, false, false, false];
+
+  function loadProgress() {
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY];
+      if (!g || !g.steps) return;
+      g.steps.forEach(function (i) { if (i >= 0 && i < TOTAL_MILESTONES) milestones[i] = true; });
+      if (g.quiz && g.quiz.total) {
+        var qb = $('quizBox');
+        if (qb && qb.querySelector('.quiz-score') === null) {
+          var d = document.createElement('div');
+          d.className = 'quiz-score';
+          d.innerHTML = '<div class="score-num-big">' + g.quiz.score + '/' + g.quiz.total + '</div><p>上次测验成绩已从本地进度恢复</p>';
+          qb.appendChild(d);
+        }
+      }
+      if (g.done) $('doneBadge').classList.remove('hidden');
+      refreshProgress();
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function saveProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      var stepsList = [];
+      for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) stepsList.push(i);
+      g.steps = stepsList;
+      g.last = Date.now();
+      g.done = doneCount === TOTAL_MILESTONES;
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+  }
+
+  function refreshProgress() {
+    var doneCount = 0, i;
+    for (i = 0; i < TOTAL_MILESTONES; i++) if (milestones[i]) doneCount++;
+    var pct = Math.round(doneCount / TOTAL_MILESTONES * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = doneCount + ' / ' + TOTAL_MILESTONES + ' 里程碑';
+    if (doneCount === TOTAL_MILESTONES) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+
+  function completeMilestone(i) {
+    if (i < 0 || i >= TOTAL_MILESTONES) return;
+    if (milestones[i]) return;
+    milestones[i] = true;
+    refreshProgress();
+    saveProgress();
+    toast('✓ 里程碑 ' + (i + 1) + ' / ' + TOTAL_MILESTONES + ' 解锁');
+  }
+
+  /* ═════════════ 选择题绑定（label→input 冒泡防重入） ═════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) completeMilestone(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('ownOpts', 'a', 'ownResult',
+    '正确！单一所有者 + 作用域结束自动 drop，是"无 GC、无内存错误"的根基。',
+    '不对。Rust 是编译期所有权，没有运行时 GC；一个值同时只能有一个所有者。', 0);
+  bindOpts('moveOpts', 'a', 'moveResult',
+    '正确！String 赋值是 move：堆数据不深拷贝，所有权转移，s1 编译期失效。',
+    '不对。let s2 = s1 是 move 而非深拷贝，s1 之后不可用；参数传值同样是 move。', 1);
+  bindOpts('copyOpts', 'a', 'copyResult',
+    '正确！栈上小类型实现 Copy（赋值即复制），堆类型 String/Vec 是 move。',
+    '不对。String 没有实现 Copy（堆数据无法逐位复制）；Copy 恰恰是栈上的简单类型。', 2);
+  bindOpts('borOpts', 'a', 'borResult',
+    '正确！&amp; 只是借用，函数不拿走所有权；借用结束原变量照常使用。',
+    '不对。&amp;s 是借用不是转移；可变借用与不可变借用不能同时存活（同一数据）。', 3);
+  bindOpts('cfOpts', 'a', 'cfResult',
+    '正确！不可变借用存活期间创建可变借用 → E0502 编译错误，这正是 borrow checker 在防数据竞争。',
+    '不对。借用冲突由编译期检查（E0502），不会拖到运行时；可变与不可变不能并存。', 4);
+  bindOpts('lfOpts', 'a', 'lfResult',
+    '正确！生命周期是编译期约束（零运行时开销），保证引用不悬垂。',
+    '不对。生命周期标注是编译期概念，无运行时开销；编译器保证引用不会活得比数据久。', 5);
+  bindOpts('strOpts', 'a', 'strResult',
+    '正确！&amp;str 只读借用、可接受字面量也可接受 &amp;String，是参数首选。',
+    '不对。&amp;str 是借用不拥有数据；String 可增长可变（push_str 等），拥有堆数据。', 6);
+  bindOpts('optOpts', 'a', 'optResult',
+    '正确！Option/Result 把"可能没有"编码进类型，编译器强制穷尽处理，没有空指针。',
+    '不对。unwrap() 遇 None/Err 会 panic；? 在 Err 时提前返回错误，Ok 时继续。', 7);
+
+  /* ═════════════ 迷你 borrow-checker ═════════════ */
+  $('bcBtn').addEventListener('click', function () {
+    var code = $('bcInput').value;
+    var out = $('bcOut');
+    var hasMut = /&mut\s+\w+/.test(code);
+    var immutableBorrows = code.match(/&\s*\w+/g) || [];
+    var mutBorrows = code.match(/&mut\s+\w+/g) || [];
+    var shared = (code.match(/let\s+(\w+)\s*=\s*&\s*\w+/g) || []).length;
+    var conflict = immutableBorrows.length > 0 && mutBorrows.length > 0;
+    var usedAfterMove = /let\s+s2\s*=\s*s1;[\s\S]*s1/.test(code);
+    if (conflict) {
+      out.innerHTML = '<span class="c-cmd">$ cargo build</span>\n<span class="c-err">error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable</span>\n  --> 借用冲突：不可变借用存活时创建了可变借用\n<span class="c-warn">提示：缩短不可变借用作用域，或用 clone 打破依赖。</span>';
+    } else if (usedAfterMove) {
+      out.innerHTML = '<span class="c-cmd">$ cargo build</span>\n<span class="c-err">error[E0382]: borrow of moved value: `s1`</span>\n  --> move 后继续使用原变量\n<span class="c-warn">提示：用 &amp;s 借用，或用 s1.clone() 保留副本。</span>';
+    } else {
+      out.innerHTML = '<span class="c-cmd">$ cargo build</span>\n<span class="c-ok">✓ 编译通过（借用规则满足）</span>\n不可变借用：' + immutableBorrows.length + ' 处；可变借用：' + mutBorrows.length + ' 处——同一数据未发生可变/不可变混用。';
+    }
+  });
+
+  /* ═════════════ 掌握度测验 ═════════════ */
+  var quizData = [
+    { q: 'let s2 = s1（String）后，s1 还能用吗？', opts: ['能用，自动拷贝', '不能用，move 了', '取决于长度', '运行时决定'], right: 1, expl: 'String 是 move 语义，s1 所有权已转移。' },
+    { q: '哪个类型赋值后原变量仍可用？', opts: ['String', 'Vec&lt;i32&gt;', 'i32', '自定义 struct'], right: 2, expl: 'i32 实现 Copy，赋值即复制。' },
+    { q: '&amp;s 是什么？', opts: ['深拷贝', '所有权转移', '借用（只读引用）', '指针删除'], right: 2, expl: '&amp; 是借用，不转移所有权。' },
+    { q: '不可变借用存活时创建可变借用，结果？', opts: ['编译错误 E0502', '运行时 panic', '自动排队', '正常编译'], right: 0, expl: 'borrow checker 在编译期拦截借用冲突。' },
+    { q: '生命周期标注的运行时开销是？', opts: ['每次调用都要计数', '零开销', 'O(n) 扫描', '占用额外内存'], right: 1, expl: '生命周期是编译期概念，零运行时开销。' },
+    { q: '函数参数更推荐用？', opts: ['String', '&amp;str', '&amp;mut String 总是最好', '裸指针'], right: 1, expl: '&amp;str 只读借用，接受面更广。' },
+    { q: 'unwrap() 遇到 None 会？', opts: ['返回 0', '静默忽略', 'panic', '返回 null'], right: 2, expl: 'unwrap 遇 None/Err 直接 panic。' },
+    { q: 'Rust 如何避免空指针？', opts: ['运行时检查', '禁止所有指针', '用 Option/Result 把"无值/错误"编码进类型', '靠程序员自律'], right: 2, expl: '类型系统强制处理 Some/None 与 Ok/Err。' }
+  ];
+  var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
+  var quizWrongs = [];
+
+  function renderQuiz() {
+    var box = $('quizBox');
+    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    try {
+      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
+        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
+        var _popped = [];
+        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
+        quizData = _popped.concat(quizData);
+      }
+    } catch (e) { /* storage unavailable */ }
+    var html = quizData.map(function (item, qi) {
+      var optsHtml = item.opts.map(function (o, oi) {
+        return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
+      }).join('');
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+        '<div class="result" id="quizr' + qi + '"></div></div>';
+    }).join('');
+    box.innerHTML = html;
+
+    box.querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var qi = parseInt(row.dataset.q, 10), oi = parseInt(row.dataset.o, 10);
+        var q = quizData[qi];
+        var rows = box.querySelectorAll('.opt-row[data-q="' + qi + '"]');
+        rows.forEach(function (r) { r.classList.add('disabled'); r.classList.remove('correct', 'wrong'); });
+        var res = $('quizr' + qi);
+        row.querySelector('input').checked = true;
+        if (oi === q.right) {
+          row.classList.add('correct');
+          res.className = 'result show ok';
+          res.innerHTML = '✓ 正确。' + esc(q.expl);
+          quizScore++;
+        } else {
+          rows[q.right].classList.add('correct');
+          row.classList.add('wrong');
+          quizWrongs.push(qi);
+          res.className = 'result show err';
+          res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
+        }
+        quizAnswered++;
+        if (quizAnswered === quizTotal) finishQuiz();
+      });
+    });
+  }
+
+  function finishQuiz() {
+    var box = $('quizBox');
+    var old = box.querySelector('.quiz-score');
+    if (old) old.remove();
+    var d = document.createElement('div');
+    d.className = 'quiz-score';
+    d.innerHTML = '<div class="score-num-big">' + quizScore + '/' + quizTotal + '</div>' +
+      '<p>' + (quizScore >= 6 ? '优秀！你已经能读懂所有权与借用规则了。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
+    box.appendChild(d);
+    try {
+      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      var g = store[MODULE_KEY] || {};
+      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
+      store[MODULE_KEY] = g;
+      localStorage.setItem('il_progress', JSON.stringify(store));
+    } catch (e) { /* storage unavailable */ }
+    if (quizScore >= 6) completeMilestone(8);
+  }
+
+  /* ═════════════ init ═════════════ */
+  loadProgress();
+  renderQuiz();
+  showNav();
+})();
+</script></body>
+</html>
