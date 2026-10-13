@@ -1,4 +1,4 @@
-/* Data-driven module: regex (packed from regex-interactive.html) */
+/* Data-driven module: regex (packed from src/regex-interactive.html) */
 window.IL_MODULES = window.IL_MODULES || {};
 window.IL_MODULES['regex'] = {
   title: "正则表达式 · 互动学习",

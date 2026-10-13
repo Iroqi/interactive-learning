@@ -39,9 +39,10 @@ function main() {
     .filter((f) => f.endsWith('.js')).map((f) => f.slice(0, -3)).sort();
 
   // Pack into an out-of-tree copy so modules/ is never touched.
-  cp.execSync(`rm -rf ${TMP} && mkdir -p ${TMP} && cp -r src tools courses.js index.html ${TMP}/`, {
-    cwd: ROOT, stdio: 'inherit',
-  });
+  cp.execSync(
+    `rm -rf ${TMP} && mkdir -p ${TMP} && cp -r src tools courses.js index.html ilquiz.js ilquizzes.js ${TMP}/`,
+    { cwd: ROOT, stdio: 'inherit' }
+  );
   cp.execSync('python3 tools/pack-modules.py', { cwd: TMP, stdio: 'inherit' });
 
   const missing = keys.filter((k) => !fs.existsSync(path.join(TMP, 'modules', k + '.js')));

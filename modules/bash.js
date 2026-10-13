@@ -1,4 +1,4 @@
-/* Data-driven module: bash (packed from bash-interactive.html) */
+/* Data-driven module: bash (packed from src/bash-interactive.html) */
 window.IL_MODULES = window.IL_MODULES || {};
 window.IL_MODULES['bash'] = {
   title: "Shell 脚本 · 互动学习",

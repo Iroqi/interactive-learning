@@ -41,12 +41,42 @@ function readModule(key) {
   return data;
 }
 
+function unisolateScope(js) {
+  /* pack-modules.py 把模块顶层代码包进 (function () { ... })()，并在末尾追加
+     __g.<name> 导出行（内联 on* 处理函数需要全局名字）。独立页面在浏览器里直接
+     打开 src/*.html 时仍是全局作用域，所以还原成作者写的样子。 */
+  const marked = /^\s*\/\* ilscope:isolated \*\/\s*\(function\s*\(\)\s*\{\n([\s\S]*?)\n\}\)\(\)\s*$/.exec(js);
+  if (!marked) return js;
+  let body = marked[1];
+  body = body.replace(/\n {2}\/\* 内联 on\* 处理函数在全局作用域编译：导出本模块自有名字 \*\/(?:\n {2}var __g = [^\n]*;)?(?:\n {2}__g\.[\w$]+ = [\w$]+;)*/, '');
+  return body + '\n';
+}
+
 function render(key, data) {
   const links = (data.links || []).join('\n');
   // pack-modules.py rewrites index.html -> #/ when packing; undo that so the
   // source stays a page that opens directly in a browser.
   const body = (data.html || '').replace(/href="#\/"/g, 'href="index.html"');
-  const script = (data.js || '').trim() ? '<script>' + data.js + '</script>' : '';
+
+  // Undo the shared-runtime inlining that pack-modules.py performed, restoring
+  // a plain <script src="../ilquiz.js"> reference instead of a copy.
+  let js = data.js || '';
+  let runtime = '';
+  const m = js.match(/^\/\* ilquiz:inlined ([\w./-]+) \*\//);
+  if (m) {
+    const file = path.join(ROOT, m[1]);
+    if (fs.existsSync(file)) {
+      const inlined = '/* ilquiz:inlined ' + m[1] + ' */\n' + fs.readFileSync(file, 'utf8') + '\n';
+      if (js.startsWith(inlined)) {
+        js = js.slice(inlined.length);
+        runtime = '<script src="../' + m[1] + '"></script>';
+      }
+    }
+  }
+
+  js = unisolateScope(js);
+
+  const script = js.trim() ? runtime + (js.trim() ? '<script>' + js + '</script>' : '') : runtime;
   return [
     '<!DOCTYPE html>',
     '<html lang="zh-CN">',

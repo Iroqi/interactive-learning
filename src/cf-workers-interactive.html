@@ -903,6 +903,19 @@ function toggleTheme() {
 
 // ===== Progress =====
 const checkpoints = ['l1c1', 'l2c1', 'l3c1', 'l4c1', 'l5c1'];
+
+// 行内 onclick="toggleComplete(...)"：整行点击也算勾选（点在 checkbox/label 上
+// 时交给原生行为，避免二次翻转）。此前该函数从未定义，点击这些行会抛
+// ReferenceError: toggleComplete is not defined。
+function toggleComplete(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const evt = typeof window !== 'undefined' ? window.event : null;
+  const t = evt && evt.target;
+  if (t && (t === el || t.tagName === 'LABEL')) return;
+  el.checked = !el.checked;
+  updateProgress();
+}
 function updateProgress() {
   const done = checkpoints.filter(id => document.getElementById(id) && document.getElementById(id).checked).length;
   const pct = (done / checkpoints.length) * 100;
@@ -923,7 +936,7 @@ function resetLevel1() {
   document.getElementById('editor1').value = origEditor1;
   document.getElementById('output1').textContent = '代码已重置，点击 "运行代码" 查看结果...';
 }
-function runLevel1() {
+async function runLevel1() {
   const code = document.getElementById('editor1').value;
   const output = document.getElementById('output1');
   try {

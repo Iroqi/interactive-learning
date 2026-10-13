@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDN 与边缘缓存 交互式学习 · 迷你缓存判读器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --cdn: #00ff41; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050507; color: #d6ffe0; font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+    line-height: 1.65; padding-bottom: 90px;
+  }
+  .mast { max-width: 900px; margin: 0 auto; padding: 64px 28px 30px; border-bottom: 1px solid #1a2a20; }
+  .mast-top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #050507; background: #00ff41; border-radius: 4px; padding: 3px 12px; }
+  .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #9fcca9; }
+  h1 { font-size: 34px; color: #d6ffe0; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
+  h1 em { color: #00ff41; font-style: italic; font-weight: 500; }
+  .subtitle { font-size: 14px; color: #9fcca9; }
+  .progress-track { height: 6px; background: #131318; border-radius: 999px; margin-top: 22px; overflow: hidden; }
+  .progress-fill { display: block; height: 100%; width: 0; background: #00ff41; border-radius: 999px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(0, 255, 65, 0.4); }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #9fcca9; font-family: 'JetBrains Mono', monospace; }
+  .done-badge { color: #00ff41; font-weight: 700; }
+  .done-badge.hidden { display: none; }
+  .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .step.visible { opacity: 1; transform: none; }
+  h2 { font-size: 20px; color: #d6ffe0; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #00ff41; border: 1px solid #00ff41; border-radius: 4px; padding: 1px 7px; }
+  .challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
+  .ch-lead { min-width: 0; }
+  .ch-task { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; padding: 18px 20px; }
+  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #00ff41; margin-bottom: 10px; }
+  .task-list { margin: 0 0 14px; padding-left: 20px; color: #9fcca9; font-size: 13px; }
+  .task-list li { margin-bottom: 6px; }
+  .task-list li::marker { color: #00ff41; }
+  @media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
+  .lead { color: #c2d9c8; font-size: 15px; margin-bottom: 16px; }
+  .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #7dffa0; }
+  pre { background: #050507; border: 1px solid #1a2a20; border-radius: 6px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c2d9c8; margin-bottom: 16px; line-height: 1.7; }
+  pre .cmt { color: #5f7a66; }
+  .insight { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.35); border-radius: 6px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
+  .insight strong { color: #00ff41; }
+  h3 { font-size: 15px; color: #e6ffe9; margin: 0 0 10px; }
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 6px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .opt-row:hover { border-color: #00ff41; }
+  .opt-row input { margin-top: 5px; accent-color: #00ff41; }
+  .opt-row.correct { border-color: #00ff41; background: rgba(0, 255, 65, 0.12); }
+  .opt-row.wrong { border-color: #d24d4d; background: rgba(210, 77, 77, 0.12); }
+  .opt-row.disabled { cursor: default; opacity: 0.75; }
+  .result { display: none; margin: 6px 0 4px; padding: 10px 14px; border-radius: 6px; font-size: 13.5px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(0, 255, 65, 0.08); border: 1px solid rgba(0, 255, 65, 0.4); color: #e6ffe9; }
+  .result.err { background: rgba(210, 77, 77, 0.1); border: 1px solid rgba(210, 77, 77, 0.4); color: #f8d7d7; }
+  .clab { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+  .clab-head { display: flex; align-items: center; gap: 6px; background: #0d0d10; border-bottom: 1px solid #1a2a20; padding: 8px 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a2a20; }
+  .dot:nth-child(1) { background: #f87171; } .dot:nth-child(2) { background: #fbbf24; } .dot:nth-child(3) { background: #00ff41; }
+  .clab-head .txt { margin-left: 8px; font-size: 12px; color: #5f7a66; font-family: 'JetBrains Mono', monospace; }
+  .clab-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body textarea, .clab-body input[type="text"] {
+    background: #050507; border: 1px solid #1a2a20; color: #d6ffe0; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; padding: 8px 10px; border-radius: 4px; outline: none; width: 100%;
+  }
+  .clab-body textarea { min-height: 70px; resize: vertical; }
+  .clab-body textarea:focus, .clab-body input:focus { border-color: #00ff41; }
+  .clab-ctrl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .clab-btn { background: #00ff41; color: #050507; border: none; border-radius: 4px; font-size: 13px; font-weight: 700; padding: 7px 16px; cursor: pointer; }
+  .clab-btn:hover { background: #00d43a; }
+  .clab-hint { font-size: 11px; color: #5f7a66; font-family: 'JetBrains Mono', monospace; }
+  .clab-out { background: #050507; border: 1px solid #1a2a20; border-radius: 4px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px; white-space: pre-wrap; color: #c2d9c8; min-height: 40px; }
+  .c-cmd { color: #5f7a66; }
+  .c-ok { color: #7dffa0; }
+  .c-err { color: #f87171; }
+  .c-warn { color: #fbbf24; }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(5, 5, 7, 0.94); backdrop-filter: blur(8px); border-top: 1px solid #1a2a20; z-index: 50; }
+  .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-btn { background: #0d0d12; color: #9fcca9; border: 1px solid #1a2a20; border-radius: 4px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .nav-btn:hover { border-color: #00ff41; color: #00ff41; }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .nav-btn.hidden-nav { visibility: hidden; }
+  .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #5f7a66; }
+  .toast { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(16px); background: #0d0d12; border: 1px solid #00ff41; color: #e6ffe9; border-radius: 999px; padding: 8px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer { max-width: 900px; margin: 30px auto 0; padding: 20px 28px 0; text-align: center; font-size: 12px; color: #4a5a4e; letter-spacing: 1px; }
+  @media (max-width: 640px) { h1 { font-size: 27px; } .step { padding: 34px 18px 6px; } .mast { padding: 44px 18px 22px; } }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>CDN <em>与边缘缓存</em></h1>
+    <p class="subtitle">迷你缓存判读器 · Cache-Control · Vary · ETag · 回源防护 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 CDN 与回源 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>CDN 是什么 · 回源</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">CDN（Content Delivery Network）把源站内容<strong>缓存到离用户最近的边缘节点</strong>。用户请求先打到边缘，命中就直接返回（HIT）；未命中则<strong>回源</strong>（cache miss → origin fetch），拿到响应后缓存再返回。回源成本远高于命中，所以缓存命中率是 CDN 的核心指标。</p>
+        <pre>用户 → 边缘节点 (POP)
+         ├─ HIT  → 直接返回缓存内容 (ms 级)
+         └─ MISS → 回源站 origin → 缓存 → 返回</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解边缘节点与源站的关系</li>
+          <li>知道 HIT / MISS / 回源 三个核心概念</li>
+        </ul>
+        <h3>练习：回源</h3>
+        <div class="opts" id="s1Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s1">边缘节点缓存未命中时回源站拉取，缓存后再返回给用户</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s1">每次请求都直接打到源站，CDN 只做 DNS 解析</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s1">CDN 节点只缓存 HTML，不缓存 JS/CSS/图片</label>
+        </div>
+        <div class="result" id="s1Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 2 缓存命中与 TTL ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>缓存命中与 TTL</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">边缘节点缓存对象时记录 <strong>TTL</strong>（Time To Live，单位秒）。TTL 内请求直接 HIT；TTL 过期后节点要么回源重新拉取，要么发起<strong>条件请求</strong>（If-None-Match / If-Modified-Since）做协商缓存。TTL 由源站响应头决定，CDN 可覆盖但不应随意缩短。</p>
+        <pre>HTTP/1.1 200 OK
+Cache-Control: max-age=3600    ← 边缘缓存 3600 秒
+Age: 120                       ← 已在缓存中存活 120 秒
+X-Cache: HIT                   ← 边缘命中</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 TTL 与 Age 的关系</li>
+          <li>知道 TTL 过期后的两种处理</li>
+        </ul>
+        <h3>练习：TTL</h3>
+        <div class="opts" id="s2Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s2">TTL 由源站 Cache-Control 决定；过期后边缘可回源拉取或发起条件请求</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s2">TTL 由 CDN 节点自行决定，与源站无关</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s2">TTL 过期后边缘直接丢弃缓存，不做任何请求</label>
+        </div>
+        <div class="result" id="s2Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3 Cache-Control ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>Cache-Control · 边缘 vs 浏览器</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead"><code>Cache-Control</code> 是缓存行为的核心指令。<code>max-age=N</code> 指定缓存秒数；<code>s-maxage=N</code> 仅对<strong>共享缓存</strong>（CDN/代理）生效，优先级高于 <code>max-age</code>；<code>no-store</code> 禁止任何缓存；<code>private</code> 只允许浏览器缓存、CDN 不缓存；<code>public</code> 允许所有缓存；<code>no-cache</code> 可缓存但每次必须<strong>协商验证</strong>。</p>
+        <pre>Cache-Control: public, s-maxage=86400, max-age=3600
+  → CDN 缓存 24h，浏览器缓存 1h
+
+Cache-Control: private, max-age=600
+  → CDN 不缓存，浏览器缓存 10 分钟
+
+Cache-Control: no-store
+  → 任何缓存都不存（含 CDN 与浏览器）</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>区分 s-maxage 与 max-age</li>
+          <li>理解 private / no-store / no-cache</li>
+        </ul>
+        <h3>练习：Cache-Control</h3>
+        <div class="opts" id="s3Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s3">s-maxage 仅对共享缓存（CDN）生效；private 让 CDN 不缓存；no-cache 每次需协商验证</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s3">max-age 与 s-maxage 完全等价</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s3">no-cache 等于 no-store，都是完全不缓存</label>
+        </div>
+        <div class="result" id="s3Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 4 缓存键与 Vary ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>缓存键与 Vary</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">边缘缓存的键（cache key）默认是 <strong>scheme + host + path + query</strong>。同一 URL 返回不同内容（如按 Accept-Encoding 返回 gzip / brotli，或按 User-Agent 返回不同页面）时，必须让源站响应 <code>Vary</code> 头告诉 CDN 按哪些请求头<strong>分片缓存</strong>。缺少 Vary 会导致一种变体覆盖另一种。</p>
+        <pre>Vary: Accept-Encoding, Cookie
+  → 缓存键 = URL + Accept-Encoding + Cookie
+  → gzip 与 br 各存一份；带 Cookie 与不带各存一份
+
+Vary: *
+  → 永远不缓存（每个请求都回源）</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解缓存键的组成</li>
+          <li>知道 Vary 的作用与风险</li>
+        </ul>
+        <h3>练习：Vary</h3>
+        <div class="opts" id="s4Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s4">Vary 让 CDN 按指定请求头分片缓存；Vary: * 表示永不缓存</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s4">Vary 只影响浏览器缓存，CDN 忽略它</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s4">缓存键只看 URL，与 Vary 无关</label>
+        </div>
+        <div class="result" id="s4Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5 ETag / Last-Modified ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>ETag / Last-Modified 条件请求</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">TTL 过期后，边缘不一定要回源拉完整内容。源站若返回过 <code>ETag</code>（内容指纹）或 <code>Last-Modified</code>（最后修改时间），边缘会发<strong>条件请求</strong>：<code>If-None-Match</code> 带 ETag、<code>If-Modified-Since</code> 带时间。源站比对后若未变化返回 <strong>304 Not Modified</strong>（无 body，极小开销）；变化了返回 200 + 新内容。</p>
+        <pre>GET /style.css HTTP/1.1
+If-None-Match: "abc123"
+If-Modified-Since: Wed, 01 Oct 2026 00:00:00 GMT
+
+← 304 Not Modified          ← 内容未变，无 body
+← 200 OK + 新内容            ← 内容已变</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 304 协商缓存的开销优势</li>
+          <li>区分 ETag 与 Last-Modified</li>
+        </ul>
+        <h3>练习：条件请求</h3>
+        <div class="opts" id="s5Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s5">304 不传 body，开销极小；ETag 基于内容指纹，比 Last-Modified 更精确</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s5">304 与 200 开销相同，条件请求没有意义</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s5">ETag 只能由客户端生成，源站不参与</label>
+        </div>
+        <div class="result" id="s5Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 6 缓存失效 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>缓存失效 · purge 与版本化</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">内容更新后必须让边缘旧缓存失效。两种方式：<strong>purge</strong>（主动通知 CDN 删除指定 URL 的缓存）与<strong>版本化</strong>（文件名带 hash，如 <code>app.a3f2c1.js</code>，天然绕过缓存）。purge 有传播延迟（CDN 数百节点同步需秒级到分钟级）；版本化无延迟但需要构建工具支持。</p>
+        <pre># purge 指定 URL
+curl -X PURGE https://cdn.example.com/index.html
+
+# 版本化：文件名含内容 hash
+&lt;script src="/js/app.a3f2c1.js"&gt;&lt;/script&gt;
+  → 内容变 → hash 变 → URL 变 → 天然 MISS 拿新版</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>理解 purge 的传播延迟</li>
+          <li>知道版本化是更可靠的失效方式</li>
+        </ul>
+        <h3>练习：缓存失效</h3>
+        <div class="opts" id="s6Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s6">purge 有传播延迟；文件名带 hash 的版本化方式无延迟、更可靠</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s6">purge 瞬间全局生效，无需等待</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s6">版本化会导致用户永远拿到旧版本</label>
+        </div>
+        <div class="result" id="s6Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 7 击穿/穿透/雪崩 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>回源防护 · 击穿 / 穿透 / 雪崩</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">三大回源故障：<strong>缓存击穿</strong>——热点 key 过期瞬间大量并发回源（解决：单飞锁 singleflight / stale-while-revalidate）；<strong>缓存穿透</strong>——请求的 key 永远不在缓存（如恶意随机 URL，解决：布隆过滤 / 空值短缓存）；<strong>缓存雪崩</strong>——大批 key 同时过期（解决：TTL 加随机抖动 jitter）。<code>stale-while-revalidate</code> 让边缘先返回过期缓存、后台异步回源刷新，是防击穿利器。</p>
+        <pre>Cache-Control: max-age=3600, stale-while-revalidate=60
+  → 3600s 内正常 HIT
+  → 过期后 60s 内先返回旧缓存，后台异步回源刷新
+  → 超过 60s 才同步回源
+
+TTL jitter: base=3600 + random(0, 300)
+  → 避免大批 key 同时过期 → 防雪崩</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>区分击穿、穿透、雪崩</li>
+          <li>理解 stale-while-revalidate</li>
+        </ul>
+        <h3>练习：回源防护</h3>
+        <div class="opts" id="s7Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s7">stale-while-revalidate 先返回过期缓存、后台异步刷新；TTL 加 jitter 防雪崩</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s7">击穿是因为 CDN 节点宕机</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s7">雪崩只需缩短 TTL 即可解决</label>
+        </div>
+        <div class="result" id="s7Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 8 静态资源版本化 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>静态资源版本化与部署策略</h2>
+    <div class="challenge">
+      <div class="ch-lead">
+        <p class="lead">生产部署最佳实践：HTML 用 <code>no-cache</code>（每次都协商，保证拿到最新入口）；JS/CSS/图片用<strong>内容 hash 文件名</strong> + <code>max-age=31536000</code>（一年强缓存，hash 变即新版本）。部署时新旧文件<strong>并存</strong>（旧 hash 文件不删），避免用户在旧页面点击时 404。CDN 配置 <code>immutable</code> 可让浏览器跳过条件请求。</p>
+        <pre>&lt;!-- HTML: 不缓存，每次协商 --&gt;
+Cache-Control: no-cache
+
+&lt;!-- JS/CSS: 内容 hash + 长缓存 --&gt;
+Cache-Control: public, max-age=31536000, immutable
+
+部署：新旧 hash 文件并存 ≥ 24h，再清理旧版</pre>
+      </div>
+      <div class="ch-task">
+        <div class="task-head">本节任务</div>
+        <ul class="task-list">
+          <li>掌握 HTML 与静态资源的不同缓存策略</li>
+          <li>理解部署时新旧并存的必要性</li>
+        </ul>
+        <h3>练习：部署策略</h3>
+        <div class="opts" id="s8Opts">
+          <label class="opt-row" data-id="a"><input type="radio" name="s8">HTML 用 no-cache 保证入口最新；JS/CSS 用 hash 文件名 + 长缓存；部署新旧并存</label>
+          <label class="opt-row" data-id="b"><input type="radio" name="s8">所有资源都用 max-age=31536000，一劳永逸</label>
+          <label class="opt-row" data-id="c"><input type="radio" name="s8">部署时立即删除旧版本文件节省空间</label>
+        </div>
+        <div class="result" id="s8Result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 迷你引擎 ═══ -->
+  <section class="step">
+    <h2><span class="num">⚡</span>迷你缓存判读器</h2>
+    <p class="lead">输入请求场景或 URL + 头部信息，判读边缘节点行为：HIT / MISS / REVALIDATE / BYPASS / STALE / RANGE。下面是 CDN 决策引擎的模拟。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">CDN 缓存判读器</span></div>
+      <div class="clab-body">
+        <input type="text" id="cacheInput" spellcheck="false" value="GET /style.css 首次请求">
+        <div class="clab-ctrl">
+          <button type="button" class="clab-btn" id="cacheBtn">判读</button>
+          <span class="clab-hint">试试：命中且未过期 / 过期 ETag 协商 / purge / no-store / Range / Vary 变化 / stale-while-revalidate / 击穿 / 雪崩 / 穿透</span>
+        </div>
+        <pre class="clab-out" id="cacheOut">— 输入场景或请求描述 —</pre>
+      </div>
+    </div>
+  </section>
+  <!-- ═══ 9 综合测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度与错题。错题下次进入优先呈现。</p>
+    <div id="quizBox"></div>
+  </section>
+
+
+  <!-- ═══ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：回源 → TTL → Cache-Control → Vary → 条件请求 → purge → 回源防护 → 部署策略 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 用 curl -I 观察真实 CDN 响应的 X-Cache / Age / Cache-Control；<br>
+      ② 在 Nginx 或 Cloudflare 配置 s-maxage + stale-while-revalidate，压测验证防击穿；<br>
+      ③ 给构建工具（Vite / webpack）开启内容 hash 输出，验证版本化部署；<br>
+      ④ 用 purge API 测试缓存失效传播延迟。
+    </div>
+    <p class="lead">回到 <a href="index.html" style="color:#00ff41">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">CDN 与边缘缓存 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+<script src="../ilquiz.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  /* ═══════════════ step nav ═══════════════ */
+  var steps = document.querySelectorAll('.step');
+  var totalSteps = steps.length;
+  var currentStep = 0;
+  var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+  function showNav() {
+    navPrev.classList.toggle('hidden-nav', currentStep === 0);
+    navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+    navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+    $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+  }
+  function scrollToStep(i) {
+    if (i < 0 || i >= totalSteps) return;
+    currentStep = i; showNav();
+    steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+  navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+  var spyTimer;
+  window.addEventListener('scroll', function () {
+    clearTimeout(spyTimer);
+    spyTimer = setTimeout(function () {
+      var mid = window.scrollY + window.innerHeight * 0.4;
+      for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+      showNav();
+    }, 60);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+  });
+
+  /* ═══════════════ reveal ═══════════════ */
+  var revealEls = document.querySelectorAll('.step');
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.1 });
+    revealEls.forEach(function (el) { observer.observe(el); });
+  } else {
+    revealEls.forEach(function (el) { el.classList.add('visible'); });
+  }
+
+  /* ═══════════════ milestones (via IL.mount) ═══════════════ */
+  var MC = IL.mount('cdn', {
+    total: 9,
+    toast: toast,
+    onCount: function (n, total) {
+      var pct = Math.round(n / total * 100);
+      $('progress').style.width = pct + '%';
+      $('progressLabel').textContent = n + ' / ' + total + ' 里程碑';
+      if (n === total) $('doneBadge').classList.remove('hidden');
+      else $('doneBadge').classList.add('hidden');
+    }
+  });
+
+  /* ═══════════════ 选择题绑定 ═══════════════ */
+  function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+    $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        if (row.classList.contains('disabled')) return;
+        var rows = $(elId).querySelectorAll('.opt-row');
+        rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+        var selected = row.dataset.id;
+        rows.forEach(function (r) { r.classList.add('disabled'); });
+        var radio = row.querySelector('input'); radio.checked = true;
+        if (selected === rightId) {
+          row.classList.add('correct');
+          $(resultId).className = 'result show ok';
+          $(resultId).innerHTML = rightMsg;
+          if (milestoneIdx >= 0) MC.complete(milestoneIdx);
+        } else {
+          row.classList.add('wrong');
+          $(resultId).className = 'result show err';
+          $(resultId).innerHTML = wrongMsg;
+        }
+      });
+    });
+  }
+
+  bindOpts('s1Opts', 'a', 's1Result',
+    '正确！MISS 回源 → 缓存 → 返回，这是 CDN 的基本工作流。',
+    '不对。CDN 核心价值就是在边缘缓存内容，不是只做 DNS 解析。', 0);
+  bindOpts('s2Opts', 'a', 's2Result',
+    '正确！TTL 由源站 Cache-Control 决定，过期后可回源或协商。',
+    '不对。TTL 由源站响应头决定，CDN 可覆盖但不应脱离源站指令。', 1);
+  bindOpts('s3Opts', 'a', 's3Result',
+    '正确！s-maxage 仅作用于共享缓存；no-cache 不等于 no-store。',
+    '不对。max-age 对浏览器生效，s-maxage 对 CDN 生效，两者不同；no-cache 允许缓存但每次需协商。', 2);
+  bindOpts('s4Opts', 'a', 's4Result',
+    '正确！Vary 让 CDN 按请求头分片缓存；Vary: * 永不缓存。',
+    '不对。CDN 严格遵守 Vary 头，它直接影响缓存键的组成。', 3);
+  bindOpts('s5Opts', 'a', 's5Result',
+    '正确！304 无 body 开销极小；ETag 基于内容指纹更精确。',
+    '不对。304 不传 body，开销远小于 200；ETag 由源站生成。', 4);
+  bindOpts('s6Opts', 'a', 's6Result',
+    '正确！purge 有传播延迟；版本化（文件名含 hash）无延迟更可靠。',
+    '不对。purge 需要传播到所有边缘节点，不可能瞬间全局生效。', 5);
+  bindOpts('s7Opts', 'a', 's7Result',
+    '正确！stale-while-revalidate 防击穿；TTL jitter 防雪崩。',
+    '不对。击穿是热点 key 过期并发回源；缩短 TTL 反而加剧雪崩。', 6);
+  bindOpts('s8Opts', 'a', 's8Result',
+    '正确！HTML no-cache + 静态资源 hash 长缓存 + 新旧并存是标准部署策略。',
+    '不对。HTML 必须每次协商保证入口最新；立即删旧版会让旧页面用户 404。', 7);
+
+  /* ═══════════════ 迷你缓存判读器 ═══════════════ */
+  $('cacheBtn').addEventListener('click', function () {
+    var raw = $('cacheInput').value;
+    var s = String(raw).toLowerCase();
+    var out = $('cacheOut');
+    var lines = ['<span class="c-cmd">$ cdn-cache-check</span>'];
+
+    if (/purge|清除|清理|invalidate|删除缓存/.test(s)) {
+      lines.push('场景：缓存 purge / invalidate');
+      lines.push('判定：<span class="c-err">MISS</span>（已 purge）');
+      lines.push('行为：边缘节点删除该 URL 的缓存条目；下次请求回源拉取。');
+      lines.push('<span class="c-warn">⚠ 注意：purge 传播到所有边缘节点需秒级到分钟级，期间部分节点仍返回旧缓存。</span>');
+    } else if (/no-store|nostore|禁止缓存|不缓存/.test(s)) {
+      lines.push('场景：Cache-Control: no-store');
+      lines.push('判定：<span class="c-err">BYPASS</span>（不缓存）');
+      lines.push('行为：CDN 与浏览器均不存储该响应，每次请求都回源。');
+      lines.push('<span class="c-warn">⚠ 注意：no-store 会完全绕过 CDN 加速，仅用于敏感数据（如用户隐私、支付页）。</span>');
+    } else if (/private|私有/.test(s)) {
+      lines.push('场景：Cache-Control: private');
+      lines.push('判定：<span class="c-err">BYPASS</span>（CDN 不缓存）');
+      lines.push('行为：仅浏览器可缓存，CDN 边缘节点不存储。');
+      lines.push('<span class="c-warn">⚠ 注意：含用户个人数据的响应必须设 private，否则 CDN 会把用户 A 的数据返回给用户 B。</span>');
+    } else if (/range|分片|断点续传|partial/.test(s)) {
+      lines.push('场景：Range 请求（大文件分片）');
+      lines.push('判定：<span class="c-ok">RANGE HIT</span>');
+      lines.push('行为：边缘按 Range 头返回 206 Partial Content；若该 Range 已缓存则直接 HIT，否则回源拉取对应字节段。');
+      lines.push('<span class="c-warn">⚠ 注意：源站必须返回 Accept-Ranges: bytes，且 CDN 需开启 Range 缓存（Cloudflare 默认开启）。</span>');
+    } else if (/vary|vary.*变化|vary.*mismatch|accept-encoding.*变|cookie.*变/.test(s)) {
+      lines.push('场景：Vary 头变化导致缓存键不匹配');
+      lines.push('判定：<span class="c-err">MISS</span>（Vary mismatch）');
+      lines.push('行为：请求头组合与已缓存条目不同，缓存键不匹配 → MISS → 回源拉取新变体。');
+      lines.push('<span class="c-warn">⚠ 注意：Vary 头组合过多（如 Vary: *）会导致缓存命中率极低，几乎每次回源。</span>');
+    } else if (/stale|过期.*返回|stale-while-revalidate|stale-if-error|源站故障.*过期|异步刷新/.test(s)) {
+      lines.push('场景：stale-while-revalidate / 源站故障时使用过期缓存');
+      lines.push('判定：<span class="c-ok">STALE HIT</span>（返回过期缓存，后台异步回源）');
+      lines.push('行为：边缘在 stale-while-revalidate 窗口内先返回旧缓存，同时后台异步回源刷新；用户无感知延迟。');
+      lines.push('<span class="c-warn">⚠ 注意：stale-if-error 在源站 5xx 时兜底返回过期缓存，是源站故障时的救命稻草。</span>');
+    } else if (/击穿|hotspot|热点.*过期|singleflight|single.*flight|并发回源/.test(s)) {
+      lines.push('场景：缓存击穿（热点 key 过期）');
+      lines.push('判定：<span class="c-err">MISS</span>（并发回源风险）');
+      lines.push('行为：热点 URL 的 TTL 到期，大量并发请求同时回源，源站压力骤增。');
+      lines.push('<span class="c-warn">⚠ 防护：singleflight 让只有一个请求回源，其余等待结果；stale-while-revalidate 先返回旧缓存。</span>');
+    } else if (/穿透|penetration|随机.*url|恶意.*url|不存在的.*key|布隆|bloom/.test(s)) {
+      lines.push('场景：缓存穿透（请求的 key 永远不在缓存）');
+      lines.push('判定：<span class="c-err">MISS</span>（每次都回源）');
+      lines.push('行为：恶意或错误请求的 URL 源站也不存在 / 永远不缓存，每次穿透到源站。');
+      lines.push('<span class="c-warn">⚠ 防护：布隆过滤器拦截不存在的 key；对空值/404 也短缓存（如 60s TTL）。</span>');
+    } else if (/雪崩|avalanche|大批.*过期|同时过期|jitter|抖动/.test(s)) {
+      lines.push('场景：缓存雪崩（大批 key 同时过期）');
+      lines.push('判定：<span class="c-err">MISS × N</span>（批量回源）');
+      lines.push('行为：大量缓存条目在同一时刻 TTL 到期，回源流量瞬间暴增，源站可能被打垮。');
+      lines.push('<span class="c-warn">⚠ 防护：TTL 加随机 jitter（如 base + random(0, 300)）打散过期时间；多级缓存兜底。</span>');
+    } else if (/协商|etag|if-none-match|if-modified-since|last-modified|304|revalidate|条件请求|过期.*协商/.test(s)) {
+      lines.push('场景：缓存过期 → 条件请求协商');
+      lines.push('判定：<span class="c-warn">REVALIDATE</span>（协商缓存）');
+      lines.push('行为：边缘发送 If-None-Match (ETag) / If-Modified-Since；源站返回 304（内容未变）或 200（新内容）。');
+      lines.push('<span class="c-warn">⚠ 注意：304 无 body 开销极小，但仍有 RTT 延迟；对高频资源建议延长 TTL 减少协商次数。</span>');
+    } else if (/hit|命中|未过期|fresh|ttl.*内|ttl.*内.*请求|缓存.*有效/.test(s)) {
+      lines.push('场景：缓存命中且未过期');
+      lines.push('判定：<span class="c-ok">HIT</span>');
+      lines.push('行为：边缘节点在 TTL 内直接返回缓存内容，不回源。响应头 X-Cache: HIT, Age: N。');
+      lines.push('<span class="c-ok">✓ 这是 CDN 的理想状态：低延迟、低源站负载。</span>');
+    } else if (/miss|首次|未缓存|第一次|不在缓存|冷启动/.test(s)) {
+      lines.push('场景：首次请求 / 未缓存');
+      lines.push('判定：<span class="c-err">MISS</span>');
+      lines.push('行为：边缘无缓存条目 → 回源拉取 → 缓存（按 Cache-Control TTL）→ 返回给用户。');
+      lines.push('<span class="c-warn">⚠ 注意：首次 MISS 延迟较高（含回源 RTT）；预热（prefetch）可提前填充热点缓存。</span>');
+    } else {
+      lines.push('<span class="c-warn">未识别的场景。试试以下关键词：</span>');
+      lines.push('  首次请求 / 命中且未过期');
+      lines.push('  过期 ETag 协商 / 304');
+      lines.push('  purge / 清除缓存');
+      lines.push('  no-store / private');
+      lines.push('  Range 分片');
+      lines.push('  Vary 变化');
+      lines.push('  stale-while-revalidate / 源站故障');
+      lines.push('  击穿 / 穿透 / 雪崩');
+    }
+    out.innerHTML = lines.join('\n');
+  });
+
+  /* ═══════════════ 掌握度测验 (via IL.quiz) ═══════════════ */
+  var quizData = [
+    { q: 'CDN 边缘节点缓存未命中时的行为是？', opts: ['直接返回 404', '回源站拉取内容，缓存后返回', '转发给其他用户', '丢弃请求'], right: 1, expl: 'MISS → 回源 → 缓存 → 返回。' },
+    { q: 'Cache-Control: s-maxage=86400, max-age=3600 中，CDN 缓存多久？', opts: ['3600 秒', '86400 秒', '取两者最小值', '不缓存'], right: 1, expl: 's-maxage 仅对共享缓存（CDN）生效，优先级高于 max-age。' },
+    { q: 'Vary: Accept-Encoding 的作用是？', opts: ['让浏览器压缩响应', '让 CDN 按 Accept-Encoding 分片缓存（gzip/br 各存一份）', '禁止 CDN 缓存', '加速 DNS 解析'], right: 1, expl: 'Vary 让缓存键包含指定请求头，不同编码各存一份。' },
+    { q: '304 Not Modified 的特点是？', opts: ['包含完整新内容', '不传 body，开销极小', '等同于 200', '表示服务器错误'], right: 1, expl: '304 无 body，仅头部，开销远小于 200。' },
+    { q: '以下哪种缓存失效方式无传播延迟？', opts: ['PURGE 请求', '文件名带内容 hash 的版本化', '设置更短的 TTL', '重启 CDN 节点'], right: 1, expl: '版本化（hash 文件名）让新内容 URL 天然不同，无需等待 purge 传播。' },
+    { q: 'stale-while-revalidate 的作用是？', opts: ['禁止返回过期缓存', '先返回过期缓存，后台异步回源刷新', '延长源站超时', '清除所有缓存'], right: 1, expl: '在 stale 窗口内先返回旧缓存，后台异步刷新，用户无感知。' },
+    { q: '缓存雪崩的防护措施是？', opts: ['缩短 TTL', 'TTL 加随机 jitter 打散过期时间', '禁用缓存', '增加回源并发'], right: 1, expl: 'jitter 避免大批 key 同时过期。' },
+    { q: '生产部署中 HTML 入口文件的推荐缓存策略是？', opts: ['max-age=31536000 强缓存一年', 'no-cache（每次协商，保证拿到最新入口）', 'no-store（完全不缓存）', 'private（CDN 不缓存）'], right: 1, expl: 'HTML 用 no-cache 保证入口最新；JS/CSS 用 hash 文件名 + 长缓存。' }
+  ];
+
+  IL.quiz({
+    key: 'cdn',
+    box: 'quizBox',
+    data: quizData,
+    title: 'CDN 缓存',
+    pass: 6,
+    onPass: function () { MC.complete(8); }
+  });
+
+  /* ═══════════════ init ═══════════════ */
+  showNav();
+})();
+</script>
+</body>
+</html>

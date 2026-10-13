@@ -1,4 +1,4 @@
-/* Data-driven module: pid (packed from pid-interactive.html) */
+/* Data-driven module: pid (packed from src/pid-interactive.html) */
 window.IL_MODULES = window.IL_MODULES || {};
 window.IL_MODULES['pid'] = {
   title: "PID 控制器 · 互动学习",

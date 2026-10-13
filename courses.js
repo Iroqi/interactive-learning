@@ -372,5 +372,23 @@ window.IL_COURSES = [
     size: '43 KB',
     progress: 'graphql',
     total: 9
+  },
+  {
+      key: 'cdn',
+    cat: 'devops',
+    title: 'CDN 与边缘缓存',
+    desc: '迷你缓存判读器：命中/回源、Cache-Control、缓存键与 Vary、ETag 协商、purge 与击穿防护',
+    size: '64 KB',
+    progress: 'cdn',
+    total: 9
+  },
+  {
+      key: 'css-layout',
+    cat: 'tools',
+    title: 'CSS 布局系统实战',
+    desc: '迷你布局计算引擎：盒模型尺寸、flex 伸缩分配、grid 轨道与区域、居中与层叠上下文',
+    size: '69 KB',
+    progress: 'css-layout',
+    total: 9
   }
 ];

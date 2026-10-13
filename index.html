@@ -807,6 +807,18 @@
     @media (max-width: 1000px) { .module-bar { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .module-bar { padding-left: 16px; padding-right: 16px; } }
 
+    /* ── 壳层挂载的共享测验区块（早期模块）──
+       模块各自的 CSS 不认识这些类名，配色沿用 geek 终端皮肤变量。 */
+    .il-quiz-append {
+      display: block; margin: 8px auto 40px; padding: 22px 20px 8px;
+      max-width: 900px; border: 1px dashed var(--border); border-radius: 8px;
+    }
+    .il-quiz-append h2.il-quiz-h {
+      font-family: var(--font-mono); font-size: 17px; letter-spacing: 1px;
+      color: var(--accent); margin: 0 0 8px; text-transform: none;
+    }
+    .il-quiz-append p.il-quiz-p { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
+
     /* ── Footer ── */
     .foot {
       text-align: center;
@@ -1068,6 +1080,8 @@
   </style>
 
   <script src="courses.js"></script>
+  <script src="ilquiz.js"></script>
+  <script src="ilquizzes.js"></script>
   <script>
     (function () {
       /* ═════════ 主题切换：il_theme（light / dark / auto） ═════════ */
@@ -1496,7 +1510,7 @@
           if (!key) return;
           var p = store[key];
           if (!p || !p.quiz || !Array.isArray(p.quiz.wrongs) || !p.quiz.wrongs.length) return;
-          var title = card.querySelector('.card h3');
+          var title = card.querySelector('h3');
           items.push({ key: key, name: title ? title.textContent : key, n: p.quiz.wrongs.length, score: p.quiz.score, total: p.quiz.total, href: card.getAttribute('href') });
         });
         if (!items.length) return;
@@ -1635,7 +1649,7 @@
           if (!key) return;
           var p = store[key];
           if (p && p.quiz && p.quiz.total) {
-            var title = card.querySelector('.card h3');
+            var title = card.querySelector('h3');
             rows.push({ name: title ? title.textContent : key, score: p.quiz.score, total: p.quiz.total });
           }
         });
@@ -1803,7 +1817,87 @@
       var loadedModules = {};
       var activeAssets = [];
 
+      /* ── 模块运行时资源回收 ──
+       * 模块是追加进同一个文档的 <script>，它注册的定时器、rAF 链、
+       * window/document 监听器在离开模块（moduleRoot 被清空）后依然活着：
+       * 回调引用已删除的 DOM 就抛错（pid 的 300ms 自动运行、regex 的滚动 spy），
+       * 多个模块的 keydown 监听还会同时响应同一组方向键。
+       * 这里只在「模块脚本执行期间」以及「它自己排定的回调里」记账，
+       * 壳层自身的计时不受影响；离开模块时统一回收。 */
+      var modEpoch = 0;
+      var curEpoch = null;
+      var modTimers = [];
+      var modRafs = [];
+      var modListeners = [];
+      var nativeTimeout = window.setTimeout;
+      var nativeInterval = window.setInterval;
+      var nativeRaf = window.requestAnimationFrame;
+      var nativeDocAdd = document.addEventListener;
+      var nativeWinAdd = window.addEventListener;
+
+      function running(epoch, fn) {
+        curEpoch = epoch;
+        try { return fn(); } finally { curEpoch = null; }
+      }
+
+      window.setTimeout = function (fn) {
+        var args = Array.prototype.slice.call(arguments);
+        if (curEpoch === null || typeof fn !== 'function') return nativeTimeout.apply(window, args);
+        var epoch = curEpoch;
+        args[0] = function () {
+          var cbArgs = Array.prototype.slice.call(arguments);
+          if (epoch !== modEpoch) return;          // 模块已被替换：旧回调作废
+          running(epoch, function () { fn.apply(null, cbArgs); });
+        };
+        var id = nativeTimeout.apply(window, args);
+        modTimers.push(id);
+        return id;
+      };
+      window.setInterval = function (fn) {
+        var args = Array.prototype.slice.call(arguments);
+        if (curEpoch === null || typeof fn !== 'function') return nativeInterval.apply(window, args);
+        var epoch = curEpoch;
+        args[0] = function () { if (epoch === modEpoch) running(epoch, fn); };
+        var id = nativeInterval.apply(window, args);
+        modTimers.push(id);
+        return id;
+      };
+      window.requestAnimationFrame = function (fn) {
+        var args = Array.prototype.slice.call(arguments);
+        if (curEpoch === null || typeof fn !== 'function') return nativeRaf.apply(window, args);
+        var epoch = curEpoch;
+        args[0] = function () {
+          var cbArgs = Array.prototype.slice.call(arguments);
+          if (epoch !== modEpoch) return;
+          running(epoch, function () { fn.apply(null, cbArgs); });
+        };
+        var id = nativeRaf.apply(window, args);
+        modRafs.push(id);
+        return id;
+      };
+
+      function trackListeners(target, native) {
+        target.addEventListener = function (type, handler, opts) {
+          if (curEpoch !== null) modListeners.push({ t: target, type: type, h: handler, o: opts });
+          return native.call(target, type, handler, opts);
+        };
+      }
+
+      function releaseModule() {
+        modTimers.forEach(function (id) { clearTimeout(id); clearInterval(id); });
+        modRafs.forEach(function (id) { window.cancelAnimationFrame(id); });
+        modListeners.forEach(function (l) {
+          try { l.t.removeEventListener(l.type, l.h, l.o); } catch (e) { /* ignore */ }
+        });
+        modTimers = []; modRafs = []; modListeners = [];
+      }
+
+      trackListeners(window, nativeWinAdd);
+      trackListeners(document, nativeDocAdd);
+
       function cleanupModule() {
+        modEpoch++;               // 让任何仍在队列里的旧模块回调失效
+        releaseModule();
         activeAssets.forEach(function (el) { if (el && el.parentNode) el.parentNode.removeChild(el); });
         activeAssets = [];
         moduleRoot.innerHTML = '';
@@ -1829,16 +1923,43 @@
         var mod = window.IL_MODULES && window.IL_MODULES[key];
         if (!mod) return;
         cleanupModule();
+        var epoch = modEpoch;   // cleanupModule 刚递增过
+        /* 访问时间戳由壳层统一记录：没有里程碑体系的早期模块（17 个）也能
+           进入连续学习 / 热力图 / 到期复习，不必逐个改造模块内部代码。 */
+        if (window.IL) IL.touch(key);
         injectModuleAssets(mod);
         moduleRoot.innerHTML = mod.html || '';
         moduleTitle.textContent = mod.title || '';
         var js = document.createElement('script');
         js.textContent = mod.js || '';
-        moduleRoot.appendChild(js);
-        if (mod.needsReady) {
-          document.dispatchEvent(new Event('DOMContentLoaded'));
-        }
+        /* 脚本在 appendChild 时同步执行，模块的初始化（以及它注册的定时器与
+           全局监听器）都发生在这段时间内；curEpoch 让资源回收能把它们归到本模块。 */
+        running(epoch, function () {
+          moduleRoot.appendChild(js);
+          if (mod.needsReady) document.dispatchEvent(new Event('DOMContentLoaded'));
+        });
+        attachQuiz(key);
         window.scrollTo(0, 0);
+      }
+
+      /* ── 统一测验层：为早期模块挂载共享测验引擎 ──
+       * 17 个 Round 1 之前的存量模块各有各的 DOM 与配色，逐个改造测验代码
+       * 风险高；这里按 key 查题库（ilquizzes.js），在模块末尾追加测验区块，
+       * 用 ilquiz.js 的 IL.quiz 渲染，从而共享同一套 quiz.wrongs 协议与
+       * 错题优先重做。已有自测题的模块跳过，避免重复出题。 */
+      function attachQuiz(key) {
+        if (!window.IL || !window.IL_QUIZZES || !window.IL_QUIZZES[key]) return;
+        if (document.getElementById('ilQuizAppend')) return;
+        var host = moduleRoot.querySelector('main') || moduleRoot.lastElementChild || moduleRoot;
+        var sec = document.createElement('section');
+        sec.className = 'il-quiz-append';
+        sec.id = 'ilQuizAppend';
+        sec.innerHTML =
+          '<h2 class="il-quiz-h">掌握度测验</h2>' +
+          '<p class="il-quiz-p">8 题 · 答完自动记录成绩与错题，错题本与“错题优先重做”随之生效。</p>' +
+          '<div id="ilQuizBox"></div>';
+        host.appendChild(sec);
+        IL.quiz({ key: key, box: 'ilQuizBox', data: window.IL_QUIZZES[key], title: key });
       }
 
       function loadModule(key) {

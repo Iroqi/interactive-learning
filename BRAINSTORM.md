@@ -380,3 +380,44 @@
 - **注册与同步**：pack KEYS +grpc/+graphql（43 模块）、courses.js +2 条（43 课程）、README 模块表/统计/错题本特性更新。
 - **验证**：smoke12.js 全量 20/20（43 卡片、错题本徽标/提示、grpc/graphql 各 10 step/8 双栏/错题优先重排/7 选择里程碑/测验 8/8 wrongs 收敛、regex 老模块兼容）；chromium 采样确认纯黑底 + 霓虹绿 + 双栏。
 - 提交 `19f1f55` 推送 main 成功，HEAD == origin/main。
+
+# 第十三轮迭代（Round 13）
+
+## 42. 现状盘点（Round 12 之后）
+- 43 个模块（devops 12 / cs 18 / automation 4 / tools 9），全部走 `src/<key>-interactive.html → tools/pack-modules.py → modules/<key>.js` 单向构建，`verify-pack.js` 在 CI `check` job 把关。
+- 错题闭环：测验 → `quiz.wrongs` → 错题本聚合 → 错题优先重做。但**错题优先重做从未真正生效过**（见 43）。
+- 壳层与模块共享同一个 document：`modules/<key>.js` 里的 `js` 字段被当作**普通 `<script>` 追加进 SPA**，也就是 45 个模块的顶层 `var/function` 全部落在同一个全局作用域。
+- 进度协议只有 `il_progress[key] = {steps[], quiz{score,total,wrongs}, last, done}`，没有"运行时资源"概念——模块内 `setTimeout`/监听器切走后照旧存活。
+
+## 43. 发散：Round 13 候选（本轮以"体检"为主，先找真 bug 再加功能）
+| 候选 | 价值 | 成本 | 风险 |
+|------|------|------|------|
+| **错题优先重做失效根因** | 极高：Round 12 的招牌特性是空的 | 低 | 低 |
+| **全局作用域污染** | 极高：模块间顶层同名声明互相覆盖，跨模块导航静默报错 | 中（打包器改造） | 中 |
+| **模块运行时资源回收** | 高：泄漏定时器改 DOM 导致下一页 `Cannot set properties of null` | 中 | 中 |
+| 共享运行时 `ilquiz.js` | 高：把"迷你引擎 + 测验"从每模块复制改为一份可复用实现 | 中 | 中 |
+| CDN / CSS 布局两个新模块 | 中高：补 CDN 主题、把布局计算做成引擎 | 中 | 低 |
+| `.card h3` 选择器 | 中：错题本/趋势显示 key 而非标题 | 极低 | 低 |
+| 测验选项位置偏置 | 中：答案集中在同一位置可被"蒙对" | 低 | 低 |
+| README 模块表与 courses.js 漂移 | 中：文档重复/错分类 | 低 | 低 |
+| 间隔复习排期、学习时长统计 | 中 | 中高 | 中（语义模糊，继续搁置） |
+
+## 44. 收敛：Round 13 实施项
+1. **修复错题优先重做**：`reorderWrong()` 读的是 `saved.wrongs`，协议实际是 `saved.quiz.wrongs`——恒不触发。修后发现更深一层：wrongs 存的是**重排后的展示下标**，题序一变错题身份就漂移；统一改为存**原始题库下标 `oi`**。
+2. **打包期作用域隔离**：`pack-modules.py` 对未包 IIFE 的模块自动 `(function(){ … })()` 包裹，并只把内联 `on*` 处理函数引用的自有名字挂回 `window`（HTML 内联属性在全局作用域编译，必须可见）；`unpack-modules.js` 对称还原，保证 round-trip 干净。
+3. **壳层运行时回收**：epoch 计数 + 包裹 `setTimeout`/`setInterval`/`requestAnimationFrame` + 追踪 `window`/`document` 监听器，切模块时 `releaseModule()` 清掉上一页的定时器、帧回调与监听器。
+4. **共享运行时 `ilquiz.js` + 题库 `ilquizzes.js`**：`IL.touch`/`IL.mount`/`IL.quiz`（带 `if (global.IL) return;` 幂等锁，打包时按 `/* ilquiz:inlined */` 内联进各模块）；无自建测验的早期模块由壳层 `attachQuiz(key)` 在页尾挂载题库测验，复用同一 `quiz.wrongs` 协议。
+5. **新增 2 模块**：`cdn`（devops，迷你缓存判读器）、`css-layout`（tools，迷你布局计算引擎），均为 `IL.quiz` 原生用户。
+6. 卫生项：`.card h3` 选择器、`.il-quiz-append` 缺失样式、`ilquizzes.js` 选项位置轮换消偏置、README 模块表改为**由 courses.js 生成**。
+
+> 取舍依据：本轮不堆功能——先让已有承诺兑现（错题优先重做、模块隔离），因为这两个属于"用户以为有、实际没有"的静默失效；新模块只挑引擎化程度最高、且能直接当 `IL.quiz` 首个真实用户的两个。
+
+## 45. Round 13 执行记录（已完成并推送）
+- **错题优先重做**：`ilquiz.js` 的 `reorderWrong()` 返回 `[{item, oi}]`，错题按原始下标前置且保持相对顺序；`quiz()` 用 `prevWrong.indexOf(row.oi)` 打"错题重做"标，答错 push `rows[qi].oi`。26 个仍用内联测验的老模块同步改造（`item._oi = oi` + `quizWrongs.push(..._oi)`），并把 Round 12 那段读 `saved.wrongs` 的死代码替换掉。`go` 模块实测：wrongs `[1,4]` → 呈现为 Q1/Q2，其余保持相对顺序。
+- **作用域隔离**：`isolate_scope()` + `SCOPE_MARK`/`ON_ATTR_RE`/`CALL_ROOT_RE`；`is_already_iife()` 允许 unpack→pack 往返。**13 个模块**被包裹（cf-workers、cs、docker、gh-actions、makefile、n8n、net、plc、sql、vfd、vscode、web、yaml），其余 32 个本就是 IIFE。导出名单做了内置名排除（`stopPropagation`/`toggle`/`scrollTo`/`event` 等不覆盖全局）。
+- **发现并修复的真 bug（smoke13 逐个定位）**：① `Identifier 'quizData' has already been declared`（gh-actions/makefile/net/vscode/yaml）与 `revealEls`（cf-workers）——隔离后消失；② `cf-workers` 自 Round 1 起就是死的：非 async 函数里用 `await`（改 `async function runLevel1`）+ `onclick="toggleComplete(...)"` 指向不存在的函数（补实现）；③ `Cannot set properties of null`（6 次，`pid` 的 300ms 定时器越过页面生命周期）——壳层 epoch 回收解决；④ 错题本/趋势显示 key 而非标题——`card.querySelector('.card h3')` 在卡片元素内部恒为 null，改 `querySelector('h3')`（Round 11 曾声称修过，其实只改了类名）；⑤ 壳层挂载的测验区块无样式——补 `.il-quiz-append` 三条规则；⑥ `ilquizzes.js` 答案位置偏置（A/B/C/D = 7/8/7/18，`plc` 是 1/1/0/6）——按题库轮换为**每个 bank 2/2/2/2、总计 10/10/10/10**，题干/解析/选项集合/正确项文本逐题比对不变。
+- **共享运行时**：`ilquiz.js` 236 行、`ilquizzes.js` 5 bank / 40 题（cf-workers、web、yaml、pid、plc）；45 个模块全部内联运行时；`IL.quiz` 当前原生用户 `cdn` + `css-layout`。
+- **新模块**：`cdn`（devops，9 里程碑 + 迷你缓存判读器：MISS/HIT/回源、Cache-Control、Vary、ETag、purge、击穿防护）；`css-layout`（tools，9 里程碑 + 盒模型/flex/grid 轨道计算，实测 `width 300 padding 20 border 5 → 350`、flex `600 / 100,100,100 / 1,2,1 → 175,250,175`）。`css-layout` 补 `✓ 下一步` 区块、`cdn` 的判读器挪到 `9 掌握度测验` 之前，两者与 `tls`/`oauth2` 一样是"8 编号里程碑 + 测验 + 下一步"。
+- **注册与同步**：pack KEYS 43 → **45 模块**、courses.js **45 课程**（devops 13 / cs 18 / automation 4 / tools 10）、README 模块表改由 `courses.js` 生成（顺带修掉 terraform/nginx/systemd 重复行与 go/oauth2/tls/grpc/graphql 错分类）、目录树与贡献流程补 `pack-modules.py` / `verify-pack.js` 及两条打包约定。
+- **验证**：smoke13.js 全量 **46/46**（含 [6b] 19 次连续跨模块导航 + "内部变量不外泄" + "内联处理函数名仍全局可见"、[6c] `pid → regex` 与方向键切换、[6] 错题优先重做真实流程——注意 `page.goto()` 到相同 hash 是 no-op，必须先回 `#/`）；45 个壳层模块与 45 个 `src/` 独立页零 `pageerror`；`verify-pack.js` → `OK: 45 modules round-trip src/ -> modules/ with identical content`。
+- **遗留**：M2/M3 的内联测验（regex/sql/n8n）尚未迁到 `IL.*`；16 个模块没有自建打分测验（其中仅 5 个拿到壳层题库）；间隔复习与学习时长统计仍搁置。

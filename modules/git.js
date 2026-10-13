@@ -1,4 +1,4 @@
-/* Data-driven module: git (packed from git-interactive.html) */
+/* Data-driven module: git (packed from src/git-interactive.html) */
 window.IL_MODULES = window.IL_MODULES || {};
 window.IL_MODULES['git'] = {
   title: "Git 版本控制 · 互动学习",

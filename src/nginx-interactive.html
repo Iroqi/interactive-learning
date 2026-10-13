@@ -796,14 +796,19 @@ server {
 
   function renderQuiz() {
     var box = $('quizBox');
-    /* wrongs-first: 上次错题优先重做 (Round 12) */
+    /* wrongs-first: 上次错题优先重做 (Round 13)
+     * quiz.wrongs 存题库的原始下标（记在每题的 _oi 上），重排只改变呈现顺序。
+     * Round 12 存的是呈现下标，于是第二次进入时拿"上一轮重排后的位置"去切
+     * 这一轮的全新数组，会重做一批根本没答错的题、并漏掉真正的错题。 */
     try {
       var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
+      quizData.forEach(function (item, oi) { item._oi = oi; });
       if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
-        var _w = _pg.quiz.wrongs.slice().sort(function (a, b) { return b - a; });
-        var _popped = [];
-        _w.forEach(function (qi) { if (qi >= 0 && qi < quizData.length) _popped.unshift(quizData.splice(qi, 1)[0]); });
-        quizData = _popped.concat(quizData);
+        var _want = {};
+        _pg.quiz.wrongs.forEach(function (oi) { _want[oi] = true; });
+        quizData.sort(function (a, b) {
+          return (_want[a._oi] ? 0 : 1) - (_want[b._oi] ? 0 : 1);
+        });
       }
     } catch (e) { /* storage unavailable */ }
     var html = quizData.map(function (item, qi) {
@@ -832,7 +837,7 @@ server {
         } else {
           rows[q.right].classList.add('correct');
           row.classList.add('wrong');
-          quizWrongs.push(qi);
+          quizWrongs.push(quizData[qi]._oi == null ? qi : quizData[qi]._oi);
           res.className = 'result show err';
           res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
         }
