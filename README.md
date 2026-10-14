@@ -28,7 +28,7 @@
 .
 ├── index.html                         # 唯一页面：导航 + 模块容器 + hash 路由
 ├── courses.js                         # 课程数据源（卡片/计数/页脚的唯一来源）
-├── ilquiz.js                          # 共享运行时：IL.touch / IL.mount / IL.quiz
+├── ilquiz.js                          # 共享运行时：IL.touch / IL.mount / IL.quiz / IL.order / IL.record
 ├── ilquizzes.js                       # 壳层挂载测验的题库（无自测题的早期模块）
 ├── src/                               # 模块**源码**（自包含 HTML，作者直接编辑这里）
 │   ├── git-interactive.html
@@ -165,7 +165,7 @@ node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check
 两条打包约定值得知道：
 
 - **作用域隔离**：壳层把所有模块的 `js` 追加进同一个文档，顶层 `const/let` 会在模块间互相冲突（第二轮 13 个模块因此整段失效）。打包脚本自动把模块顶层代码包进 `(function () { ... })()`，并把内联 `on*` 处理函数用到的名字挂回 `window`。源码里不需要自己写 IIFE。
-- **共享运行时内联**：模块可以用 `<script src="../ilquiz.js"></script>` 引用 `IL.mount` / `IL.quiz`，打包时该文件内容被内联进 `js` 字段（带 `/* ilquiz:inlined */` 标记），因此 `modules/*.js` 仍然自包含；`unpack-modules.js` 会把它还原成引用。
+- **共享运行时内联**：模块可以用 `<script src="../ilquiz.js"></script>` 引用 `IL.mount` / `IL.quiz` / `IL.order` / `IL.record`，打包时该文件内容被内联进 `js` 字段（带 `/* ilquiz:inlined */` 标记），因此 `modules/*.js` 仍然自包含；`unpack-modules.js` 会把它还原成引用。运行时带 `if (global.IL) return;` 幂等锁，壳层与模块各内联一份也只生效一次。
 
 ### 2. 注册课程数据
 
@@ -196,9 +196,19 @@ node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check
 - **模块 key** 与 `courses.js` 记录中的 `progress` 字段保持一致（如 Git 模块为 `git`）
 - `total` 字段声明该模块的里程碑总数（如 Git 为 9）
 
-参考实现见 `src/cdn-interactive.html`：`IL.mount('cdn', { total: 9 })` 管里程碑，`IL.quiz({ key, box, data, pass, onPass })` 管测验与错题；`src/git-interactive.html` 是同类的手写实现（`loadProgress` / `saveProgress` / `completeMilestone`）。
+参考实现见 `src/cdn-interactive.html`：`IL.mount('cdn', { total: 9 })` 管里程碑，`IL.quiz({ key, box, data, pass, onPass })` 管测验与错题。
 
-没有自测题的模块也会被壳层自动接入：`index.html` 在进入任意模块时调用 `IL.touch(key)` 记录访问时间，因此连续学习、热力图、到期复习对全部 45 个模块生效；`ilquizzes.js` 里登记的模块还会在页尾被挂载一份共享测验（8 题），成绩与错题进入同一套 `quiz.wrongs` 协议。
+自带测验 UI 的老模块不必重写界面，用同一段协议垫片即可接入错题本与错题优先重做（参考 `src/git-interactive.html`）：
+
+```js
+if (window.IL && IL.order) IL.order(MODULE_KEY, quizData);   // 渲染前：错题前置 + 打 _oi/_re 标记
+// 判分时把「原始题库下标」push 进 quizWrongs（不是呈现位置，否则错题身份会漂移）
+if (window.IL && IL.record) IL.record(MODULE_KEY, score, total, quizWrongs);  // 交卷时落盘
+```
+
+题目写死在 HTML 里、答案另存 `ANSWERS[]` 的模块（`regex` / `sql`）改用 `IL.orderDom(key, cards, labelSel)`：它返回 `perm`（呈现位置 → 原始下标），按同一张表重排 `ANSWERS` 即可保持判分正确。
+
+没有自测题的模块也会被壳层自动接入：`index.html` 在进入任意模块时调用 `IL.touch(key)` 记录访问时间，因此连续学习、热力图、到期复习对全部 45 个模块生效；`ilquizzes.js` 里登记的模块还会在页尾被挂载一份共享测验（8 题），成绩与错题进入同一套 `quiz.wrongs` 协议。目前 45 个模块全部有判分测验（40 个模块自带 + 5 个壳层挂载）。
 
 ### 4. Commit 并推送
 

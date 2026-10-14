@@ -416,8 +416,45 @@
 - **错题优先重做**：`ilquiz.js` 的 `reorderWrong()` 返回 `[{item, oi}]`，错题按原始下标前置且保持相对顺序；`quiz()` 用 `prevWrong.indexOf(row.oi)` 打"错题重做"标，答错 push `rows[qi].oi`。26 个仍用内联测验的老模块同步改造（`item._oi = oi` + `quizWrongs.push(..._oi)`），并把 Round 12 那段读 `saved.wrongs` 的死代码替换掉。`go` 模块实测：wrongs `[1,4]` → 呈现为 Q1/Q2，其余保持相对顺序。
 - **作用域隔离**：`isolate_scope()` + `SCOPE_MARK`/`ON_ATTR_RE`/`CALL_ROOT_RE`；`is_already_iife()` 允许 unpack→pack 往返。**13 个模块**被包裹（cf-workers、cs、docker、gh-actions、makefile、n8n、net、plc、sql、vfd、vscode、web、yaml），其余 32 个本就是 IIFE。导出名单做了内置名排除（`stopPropagation`/`toggle`/`scrollTo`/`event` 等不覆盖全局）。
 - **发现并修复的真 bug（smoke13 逐个定位）**：① `Identifier 'quizData' has already been declared`（gh-actions/makefile/net/vscode/yaml）与 `revealEls`（cf-workers）——隔离后消失；② `cf-workers` 自 Round 1 起就是死的：非 async 函数里用 `await`（改 `async function runLevel1`）+ `onclick="toggleComplete(...)"` 指向不存在的函数（补实现）；③ `Cannot set properties of null`（6 次，`pid` 的 300ms 定时器越过页面生命周期）——壳层 epoch 回收解决；④ 错题本/趋势显示 key 而非标题——`card.querySelector('.card h3')` 在卡片元素内部恒为 null，改 `querySelector('h3')`（Round 11 曾声称修过，其实只改了类名）；⑤ 壳层挂载的测验区块无样式——补 `.il-quiz-append` 三条规则；⑥ `ilquizzes.js` 答案位置偏置（A/B/C/D = 7/8/7/18，`plc` 是 1/1/0/6）——按题库轮换为**每个 bank 2/2/2/2、总计 10/10/10/10**，题干/解析/选项集合/正确项文本逐题比对不变。
-- **共享运行时**：`ilquiz.js` 236 行、`ilquizzes.js` 5 bank / 40 题（cf-workers、web、yaml、pid、plc）；45 个模块全部内联运行时；`IL.quiz` 当前原生用户 `cdn` + `css-layout`。
+- **共享运行时**：`ilquiz.js` 236 行、`ilquizzes.js` 5 bank / 40 题（cf-workers、web、yaml、pid、plc）；壳层 `index.html` 全局加载 `ilquiz.js`；`IL.quiz` 当前原生用户 `cdn` + `css-layout`。
+  > **订正（Round 14 复查）**：本条原写「45 个模块全部内联运行时」，是错的。测量用了 `grep -c 'ilquiz:inlined' modules/*.js | wc -l`——`grep -c` 对每个文件都输出一行（包括 `0`），`wc -l` 数到的是文件数而不是命中数。真实情况：**只有 14 个模块内联了运行时**（即 src 里写了运行时引用的那 14 个），其余 31 个不引用它、只在壳层里靠全局加载使用 `IL.*`。因此独立打开 `src/` 页面时，那 31 个模块没有 `window.IL`（实测 `go`、`cf-workers` 为 undefined）；它们本来也不调用 `IL.*`，所以不报错，但这正是 Round 14 的垫片必须写成 `if (window.IL && IL.order)` 防御式调用的原因。
 - **新模块**：`cdn`（devops，9 里程碑 + 迷你缓存判读器：MISS/HIT/回源、Cache-Control、Vary、ETag、purge、击穿防护）；`css-layout`（tools，9 里程碑 + 盒模型/flex/grid 轨道计算，实测 `width 300 padding 20 border 5 → 350`、flex `600 / 100,100,100 / 1,2,1 → 175,250,175`）。`css-layout` 补 `✓ 下一步` 区块、`cdn` 的判读器挪到 `9 掌握度测验` 之前，两者与 `tls`/`oauth2` 一样是"8 编号里程碑 + 测验 + 下一步"。
 - **注册与同步**：pack KEYS 43 → **45 模块**、courses.js **45 课程**（devops 13 / cs 18 / automation 4 / tools 10）、README 模块表改由 `courses.js` 生成（顺带修掉 terraform/nginx/systemd 重复行与 go/oauth2/tls/grpc/graphql 错分类）、目录树与贡献流程补 `pack-modules.py` / `verify-pack.js` 及两条打包约定。
 - **验证**：smoke13.js 全量 **46/46**（含 [6b] 19 次连续跨模块导航 + "内部变量不外泄" + "内联处理函数名仍全局可见"、[6c] `pid → regex` 与方向键切换、[6] 错题优先重做真实流程——注意 `page.goto()` 到相同 hash 是 no-op，必须先回 `#/`）；45 个壳层模块与 45 个 `src/` 独立页零 `pageerror`；`verify-pack.js` → `OK: 45 modules round-trip src/ -> modules/ with identical content`。
 - **遗留**：M2/M3 的内联测验（regex/sql/n8n）尚未迁到 `IL.*`；16 个模块没有自建打分测验（其中仅 5 个拿到壳层题库）；间隔复习与学习时长统计仍搁置。
+
+# 第十四轮迭代（Round 14）
+
+## 46. 现状盘点（Round 13 之后）
+- 45 个模块，壳层与 `src/` 独立页双形态可用；作用域隔离 + 运行时回收 + `IL.*` 共享运行时已就位。
+- 错题闭环看似完整，实际只覆盖一部分：**只有 28/45 个模块的测验会写 `quiz.wrongs`**。剩下 17 个里，5 个由壳层 `ilquizzes.js` 题库挂载补齐，**12 个模块自带测验 UI 却只落 `{score,total}`、不落 wrongs**。
+- 后果是连锁的：这 12 个模块不进错题本、没有错题优先重做、不进测验成绩趋势；其中 8 个（cs/docker/gh-actions/makefile/net/vfd/n8n/vscode）**连 `il_progress` 都不写**，因此在连续学习、热力图、到期复习里也是隐形的。
+- `showDueReview()` 的排序方向与注释相反（升序 = 推最近看过的那个）。
+
+## 47. 发散：Round 14 候选
+| 候选 | 价值 | 成本 | 风险 |
+|------|------|------|------|
+| **12 模块接入 wrongs 协议** | 极高：错题本/趋势对全库才真正成立 | 中 | 中（12 套判分代码各不相同） |
+| 到期复习排序修正 | 高：面板语义反了 | 极低 | 低 |
+| 把这 12 个模块的测验 UI 全量重写成 `IL.quiz` | 中：最彻底 | 极高 | 高（丢各模块配色与讲解风格） |
+| 新增模块 / 新主题 | 中 | 中 | 低 |
+| vfd 故障挑战题（答案写死在 HTML onclick）纳入错题协议 | 低 | 高 | 高（需要给卡片造题库下标） |
+| regex/sql 题目从 HTML 迁到 JS 题库 | 中 | 中高 | 中 |
+
+## 48. 收敛：Round 14 实施项
+1. **不动 UI，只补协议**：给共享运行时加两个垫片——`IL.order(key, quizData)`（就地重排 + 打 `_oi`/`_re` 标记）与 `IL.record(key, score, total, wrongs)`（落盘）。模块侧改动稳定为三处：渲染前 `IL.order`、答错分支 `push(原始下标)`、交卷处 `IL.record`。
+2. **`IL.orderDom(key, cards, labelSel)`** 专门伺候 `regex`/`sql`：题写死在 HTML、答案在独立 `ANSWERS[]`、事件按卡片位置绑定，因此返回 `perm`（呈现位置 → 原始下标）让模块**用同一张表重排 ANSWERS**，否则重排后判分会错配。
+3. 到期复习排序改为降序。
+4. 覆盖核算：45 个模块全部具备判分测验（40 模块自带 + 5 壳层挂载）。
+
+> 取舍依据：这 12 套测验 UI 是 12 种交互形态（一次一题带进度点 / 平铺 radio / 平铺按钮 / 提交时统一判分 / HTML onclick 硬编码），重写等于重做 12 个模块的测验章节，且会丢掉各自的讲解文案与配色；而它们缺的只是"把错题下标存下来"这一件事。垫片方案让每个模块的 diff 收敛到 3–6 行。vfd 的故障挑战题答案直接写在 `onclick="checkAnswer(this,true,'faultB')"` 里，没有题库下标可言，判分回调 `updateQuizScore` 还是空实现——本轮明确不做，只接它的自测题。
+
+## 49. Round 14 执行记录（已完成并推送）
+- **运行时**：`IL.order` / `IL.orderDom` / `IL.record` 三个新出口。`IL.order` 刻意**就地重排**而非返回新数组——一半模块把题库声明成 `const`，`quizData = IL.order(...)` 会直接抛 TypeError。
+- **就地重排的代价（自查出来的坑）**：数组被就地改过之后，第二次调用的"当前位置"已不是"原始下标"。于是 `reorderWrong()` 改为复用已有的 `item._oi` 标记；否则 `bash`/`git` 这类"模块内多次调用 renderQuiz"的路径会重新踩上 Round 13 刚修掉的错题身份漂移。
+- **12 个模块接入**：`bash`/`git`（`right`/`expl` + MODULE_KEY + 已有手写落盘，垫进 wrongs 即可）；`cs`/`docker`（`ans`/`explain`、一次一题、原本零落盘）；`gh-actions`/`net`/`n8n`/`vscode`/`vfd`（平铺按钮即时判分，其中 `n8n` 挂在 `QUIZ.questions`、`vscode` 挂在 `QUIZ_DATA` 的 `answer` 键、`vfd` 只接自测题）；`makefile`（`correct` 键 + 提交时判分，"未作答"同样记为错题）；`regex`/`sql`（`IL.orderDom` + ANSWERS 重排）。
+- **到期复习方向修正**：`due.sort` 由升序改为降序。改前面板永远推"昨天刚看过"的模块，改后才推最久未复习的。
+- **本轮自己制造又自己抓到的两个缺陷**（记录以免日后误判）：① 注入脚本把 `regex` 的 `<script>` 开标签当成锚点吃掉了，模块内联脚本静默不执行，测验点了没反应——独立页与壳页表现一致地"死"，靠对比 `git show HEAD:` 版本定位；② `sql` 的 `var KEY` 声明在测验代码之后（提升后此刻是 undefined），垫片初版拿它当 key 会写到 `undefined` 条目，改为字面量 `'sql'`。
+- **测试自身的坑**：统计"错题重做"角标时数了 `moduleRoot.textContent`，把模块 `<script>` 源码里的字符串也数了进去（虚高 4~5 个）；改为限定到测验容器。一次一题型（`cs`/`docker`）同一时刻只渲染一题，角标恒为 1，断言按形态分支。`page.evaluate` 只接一个参数，Node 侧数组要显式取用；`MODS` 是 Node 变量，不能直接在浏览器里引用。
+- **验证**：新增 `smoke14.js` **77/77** —— 12 个模块 × {可答完、quiz 落盘、wrongs 唯一且在范围内、错题数与失题数吻合、重进后角标数吻合}，`regex` 的三轮全链路（原始下标正确 → 卡片重排且判分跟随原答案 → 全对后 wrongs 清空），壳层错题本一次列出 12 个模块且显示标题、成绩趋势与到期复习覆盖到它们，最后 45 卡片 / 45 模块挂载 / 零 pageerror。Round 13 的 `smoke13.js` 回归 **46/46**（`reorderWrong` 改动同时影响 `IL.quiz` 路径，必须一起跑）；45 个 `src/` 独立页零 pageerror；`verify-pack` → `OK: 45 modules round-trip src/ -> modules/ with identical content`。
+- **遗留**：vfd 故障挑战题仍无错题协议（答案在 HTML onclick 内、`updateQuizScore` 为空实现）；`regex`/`sql` 的题目本体仍写死在 HTML（垫片可用，但题库不可复用）；`cs`/`docker`/`gh-actions`/`makefile`/`net`/`n8n`/`vscode` 已写 `il_progress` 但没有里程碑体系，进度条仍为空。

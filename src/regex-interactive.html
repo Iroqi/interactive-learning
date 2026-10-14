@@ -525,6 +525,7 @@ CDN: http://static.cdn.net/assets</textarea></div>
 
 
 
+<script src="../ilquiz.js"></script>
 <script>
 
   (function () {
@@ -771,32 +772,40 @@ CDN: http://static.cdn.net/assets</textarea></div>
 
     /* ── 测验（M8：≥6/8） ── */
     var ANSWERS = [0, 1, 0, 1, 1, 1, 1, 1];
+    /* wrongs-first：8 道题写死在 HTML 里、答案另存在 ANSWERS[]，事件按卡片位置绑定。
+   * 所以重排卡片的同时必须按同一张表重排答案：_perm[呈现位置] = 原始下标，
+   * 错题记 _perm 换算出的原始下标，避免 Round 13 那种错题身份漂移。 */
+    var _perm = ANSWERS.map(function (_, i) { return i; });
+    if (window.IL && IL.orderDom) _perm = IL.orderDom(MODULE_KEY, document.querySelectorAll('.quiz-q'), '.q span');
+    var ORDER = _perm.map(function (i) { return ANSWERS[i]; });
     var quizSubmitted = false;
     var quizSel = {};
-    document.querySelectorAll('.quiz-q .opts').forEach(function (box) {
+    document.querySelectorAll('.quiz-q .opts').forEach(function (box, pos) {
       box.querySelectorAll('.opt').forEach(function (opt) {
         opt.addEventListener('click', function () {
           if (quizSubmitted) return;
           box.querySelectorAll('.opt').forEach(function (o) { o.classList.remove('sel'); });
           opt.classList.add('sel');
-          quizSel[box.dataset.q] = parseInt(opt.dataset.opt, 10);
+          quizSel[pos] = parseInt(opt.dataset.opt, 10);
         });
       });
     });
     $('quizSubmit').addEventListener('click', function () {
       if (quizSubmitted) return;
-      var score = 0;
-      for (var q = 0; q < ANSWERS.length; q++) {
+      var score = 0, wrongs = [];
+      for (var q = 0; q < ORDER.length; q++) {
         var box = document.querySelectorAll('.quiz-q .opts')[q];
         var sel = quizSel[q];
         box.querySelectorAll('.opt').forEach(function (o) {
           var oi = parseInt(o.dataset.opt, 10);
-          if (oi === ANSWERS[q]) o.classList.add('correct');
+          if (oi === ORDER[q]) o.classList.add('correct');
           else if (oi === sel) o.classList.add('wrong');
         });
-        if (sel === ANSWERS[q]) score++;
+        if (sel === ORDER[q]) score++;
+        else wrongs.push(_perm[q]);
       }
       quizSubmitted = true;
+      if (window.IL && IL.record) IL.record(MODULE_KEY, score, ORDER.length, wrongs);
       var el = $('quizScore');
       if (score >= 6) {
         el.innerHTML = '得分 ' + score + ' / 8 —— 通过！✓';

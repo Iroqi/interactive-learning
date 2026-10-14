@@ -507,6 +507,7 @@ id | emp_id | amount | month
 <div class="toast" id="toast"></div>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 /* mini SQL engine — shared by node tests and the interactive module */
 
@@ -1123,6 +1124,12 @@ function runSQL(sql) {
 
   /* ── quiz (8 questions, pass >= 6) ── */
   var ANSWERS = [0, 1, 0, 1, 1, 1, 1, 1];
+  /* wrongs-first：8 道题写死在 HTML 里、答案另存在 ANSWERS[]，事件按卡片位置绑定。
+   * 所以重排卡片的同时必须按同一张表重排答案：_perm[呈现位置] = 原始下标，
+   * 错题记 _perm 换算出的原始下标，避免 Round 13 那种错题身份漂移。 */
+  var _perm = ANSWERS.map(function (_, i) { return i; });
+  if (window.IL && IL.orderDom) _perm = IL.orderDom('sql', document.querySelectorAll('.quiz-q'), '.q span');
+  var ORDER = _perm.map(function (i) { return ANSWERS[i]; });
   var selected = {};
   document.querySelectorAll('.quiz-q').forEach(function (box, qi) {
     box.querySelectorAll('.opt').forEach(function (opt, oi) {
@@ -1130,18 +1137,19 @@ function runSQL(sql) {
         box.querySelectorAll('.opt').forEach(function (x) { x.classList.remove('sel'); });
         opt.classList.add('sel');
         selected[qi] = oi;
-        if (oi === ANSWERS[qi]) {
-          box.querySelectorAll('.opt').forEach(function (x, xi) { x.classList.toggle('correct', xi === ANSWERS[qi]); x.classList.remove('wrong'); });
+        if (oi === ORDER[qi]) {
+          box.querySelectorAll('.opt').forEach(function (x, xi) { x.classList.toggle('correct', xi === ORDER[qi]); x.classList.remove('wrong'); });
         } else {
           opt.classList.add('wrong');
-          box.querySelectorAll('.opt')[ANSWERS[qi]].classList.add('correct');
+          box.querySelectorAll('.opt')[ORDER[qi]].classList.add('correct');
         }
       });
     });
   });
   $('quizSubmit').addEventListener('click', function () {
-    var n = 0;
-    for (var i = 0; i < 8; i++) if (selected[i] === ANSWERS[i]) n++;
+    var n = 0, wrongs = [];
+    for (var i = 0; i < 8; i++) { if (selected[i] === ORDER[i]) n++; else wrongs.push(_perm[i]); }
+    if (window.IL && IL.record) IL.record('sql', n, 8, wrongs);
     var el = $('quizScore');
     var ok = n >= 6;
     el.className = 'quiz-score ' + (ok ? 'ok' : 'fail');

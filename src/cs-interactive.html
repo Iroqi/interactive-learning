@@ -428,6 +428,7 @@ print("Hello World")
 <footer class="container"><p>CS 基础工具互动学习 — 基于你的 CS-Note 笔记生成</p></footer>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 /* Theme */
 (function(){var b=document.getElementById('themeToggle');if(!b)return;
@@ -497,21 +498,24 @@ var quizData=[
 {q:'git merge 什么时候会冲突？',opts:['分支超过3个','两个分支改了同一处','远程断开','reset 之后'],ans:1,explain:'两个分支对同一区域做了不同修改时产生冲突。'},
 {q:'文件描述符 0/1/2 分别代表？',opts:['读/写/执行','stdin/stdout/stderr','用户/组/其他','创建/修改/删除'],ans:1,explain:'0=标准输入，1=标准输出，2=标准错误。'}
 ];
-var qIdx=0,qScore=0,qAns=false;
+var qIdx=0,qScore=0,qAns=false,quizWrongs=[];
+/* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+if(window.IL&&IL.order)quizData=IL.order('cs',quizData);
 function renderQuiz(){var el=document.getElementById('quizBox');
 if(qIdx>=quizData.length){var pct=Math.round(qScore/quizData.length*100);
+if(window.IL&&IL.record)IL.record('cs',qScore,quizData.length,quizWrongs);
 var msg=pct>=90?'太棒了！':pct>=70?'不错！':pct>=50?'继续加油！':'建议重新复习命令浏览器。';
 el.innerHTML='<div class="quiz-score"><h3>'+qScore+'/'+quizData.length+' ('+pct+'%)</h3><p>'+esc(msg)+'</p><button onclick="resetQuiz()">重新测试</button></div>';return}
 var d=quizData[qIdx];qAns=false;
 el.innerHTML='<div class="quiz-dots">'+quizData.map(function(_,i){return'<span class="quiz-dot'+(i===qIdx?' active':'')+(i<qIdx?' done':'')+'"></span>'}).join('')+'</div>'+
-'<div class="quiz-question"><h3>Q'+(qIdx+1)+'. '+esc(d.q)+'</h3><div class="quiz-opts">'+d.opts.map(function(o,i){return'<button onclick="ansQuiz('+i+')">'+esc(o)+'</button>'}).join('')+'</div></div>'+
+'<div class="quiz-question"><h3>Q'+(qIdx+1)+(d._re?' · 错题重做':'')+'. '+esc(d.q)+'</h3><div class="quiz-opts">'+d.opts.map(function(o,i){return'<button onclick="ansQuiz('+i+')">'+esc(o)+'</button>'}).join('')+'</div></div>'+
 '<div class="quiz-explain" id="qEx"></div>'}
 function ansQuiz(ch){if(qAns)return;qAns=true;var d=quizData[qIdx],el=document.getElementById('quizBox');
 el.querySelectorAll('.quiz-opts button').forEach(function(b,i){b.disabled=true;if(i===d.ans)b.classList.add('correct');if(i===ch&&ch!==d.ans)b.classList.add('wrong')});
-if(ch===d.ans)qScore++;
+if(ch===d.ans)qScore++;else quizWrongs.push(d._oi==null?qIdx:d._oi);
 document.getElementById('qEx').innerHTML='<p>'+esc(d.explain)+'</p><button onclick="nextQ()">下一题 →</button>'}
 function nextQ(){qIdx++;renderQuiz()}
-function resetQuiz(){qIdx=0;qScore=0;renderQuiz()}
+function resetQuiz(){qIdx=0;qScore=0;quizWrongs=[];renderQuiz()}
 renderQuiz();
 
 /* Flip Cards */

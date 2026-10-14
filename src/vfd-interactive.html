@@ -1144,6 +1144,7 @@ body {
 </div>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 // === Theme ===
 function toggleTheme() {
@@ -1467,13 +1468,18 @@ const quizQuestions = [
 ];
 
 let quizScore = 0, quizAnswered = 0;
+var quizWrongs = [];
+/* wrongs-first：自测题（quizQuestions）走共享运行时。故障挑战题的答案写死在
+   * HTML 的 onclick 里、没有题库下标，且判分回调 updateQuizScore 是空实现，
+   * 本轮不纳入错题协议。 */
+if (window.IL && IL.order) IL.order('vfd', quizQuestions);
 
 function buildQuiz() {
   const container = document.getElementById('quizContainer');
   let html = '';
   quizQuestions.forEach((q, i) => {
     html += `<div class="quiz-card" id="quiz-q-${i}">`;
-    html += `<div class="quiz-question">Q${i+1}: ${q.q}</div>`;
+    html += `<div class="quiz-question">Q${i+1}${q._re ? " · 错题重做" : ""}: ${q.q}</div>`;
     q.opts.forEach((opt, j) => {
       html += `<button class="quiz-option" onclick="answerQuiz(${i},${j})">${opt}</button>`;
     });
@@ -1494,7 +1500,10 @@ function answerQuiz(qIdx, optIdx) {
     if (j === quizQuestions[qIdx].ans) { o.classList.add('correct'); o.style.opacity = '1'; }
   });
   opts[optIdx].style.opacity = '1';
-  if (!isCorrect) opts[optIdx].classList.add('wrong');
+  if (!isCorrect) {
+    opts[optIdx].classList.add('wrong');
+    quizWrongs.push(quizQuestions[qIdx]._oi == null ? qIdx : quizQuestions[qIdx]._oi);
+  }
 
   const fb = document.getElementById(`quiz-fb-${qIdx}`);
   fb.classList.add('show');
@@ -1507,6 +1516,7 @@ function answerQuiz(qIdx, optIdx) {
     const scoreDiv = document.getElementById('quizScore');
     scoreDiv.style.display = 'block';
     document.getElementById('scoreNum').textContent = `${quizScore}/${quizQuestions.length}`;
+    if (window.IL && IL.record) IL.record('vfd', quizScore, quizQuestions.length, quizWrongs);
     const pct = quizScore / quizQuestions.length;
     document.getElementById('scoreMsg').textContent =
       pct >= 0.9 ? '🎉 优秀！你对变频器知识掌握得非常扎实！' :
@@ -1524,6 +1534,7 @@ function updateQuizScore(isCorrect) {
 function resetQuiz() {
   quizScore = 0;
   quizAnswered = 0;
+  quizWrongs = [];
   document.getElementById('quizScore').style.display = 'none';
   buildQuiz();
 }

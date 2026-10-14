@@ -1001,6 +1001,7 @@
 
 
 
+<script src="../ilquiz.js"></script>
 <script>
 // ============================================
 // DATA
@@ -1503,13 +1504,15 @@ function checkTask31() {
 // ============================================
 
 let quizScore = 0, quizTotal = 0, quizAnswered = 0;
-
+var quizWrongs = [];
+/* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+if (window.IL && IL.order) IL.order('vscode', QUIZ_DATA);
 function initQuiz() {
   const area = document.getElementById('quizArea');
   let html = '';
   QUIZ_DATA.forEach((q, qi) => {
     html += `<div class="quiz-card" id="quiz${qi}">
-      <div class="q-text">Q${qi+1}: ${q.q}</div>`;
+      <div class="q-text">Q${qi+1}${q._re ? " · 错题重做" : ""}: ${q.q}</div>`;
     q.opts.forEach((opt, oi) => {
       html += `<button class="quiz-opt" onclick="answerQuiz(${qi},${oi})">${opt}</button>`;
     });
@@ -1540,6 +1543,7 @@ function answerQuiz(qi, oi) {
     fb.style.background = 'var(--success-bg)';
     fb.style.color = 'var(--success)';
   } else {
+    quizWrongs.push(QUIZ_DATA[qi]._oi == null ? qi : QUIZ_DATA[qi]._oi);
     fb.innerHTML = '&#10008; 不对。' + QUIZ_DATA[qi].explain;
     fb.style.background = 'var(--error-bg)';
     fb.style.color = 'var(--error)';
@@ -1552,6 +1556,7 @@ function answerQuiz(qi, oi) {
     const msgEl = document.getElementById('scoreMsg');
     scoreEl.style.display = 'block';
     numEl.textContent = `${quizScore}/${quizTotal}`;
+    if (window.IL && IL.record) IL.record('vscode', quizScore, QUIZ_DATA.length, quizWrongs);
     const pct = Math.round(quizScore / quizTotal * 100);
     if (pct >= 90) msgEl.textContent = '出色！你对 VSCode 配置的理解非常扎实。';
     else if (pct >= 70) msgEl.textContent = '不错！回顾一下错误的题目，巩固理解。';

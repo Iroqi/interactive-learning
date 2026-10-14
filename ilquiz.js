@@ -9,6 +9,9 @@
  *   IL.touch(key)        仅标记“今天学过”，让全部模块都能被壳层看见
  *   IL.mount(key, cfg)   里程碑引擎：解锁进度条 + localStorage 联动
  *   IL.quiz(cfg)         测验引擎：判分 + quiz.wrongs + 错题优先重做
+ *   IL.order(key, data)  协议垫片：自带 JS 题库的老模块，错题前置 + 稳定下标
+ *   IL.orderDom(key, els) 同上，但题库写死在 HTML 里（regex/sql）
+ *   IL.record(key, ...)  协议垫片：写 quiz { score,total,wrongs } + last
  *
  * 使用方式（二选一）：
  *   - 独立页面（src/*.html）：<script src="../ilquiz.js"></script>
@@ -147,18 +150,98 @@
 
   /* 返回 [{ item, oi }]，oi = 该题在原始题库里的下标。
      quiz.wrongs 存的是 oi：重排只改变呈现顺序，错题身份必须稳定，
-     否则第二次重做会去标记“位置变了但不是错题”的题目。 */
+     否则第二次重做会去标记“位置变了但不是错题”的题目。
+     已经打过 _oi 标记的题库要复用那个标记——数组可能是上一轮就地重排后的
+     结果，拿当前位置当原始下标就正好制造上面那个 bug。 */
   function reorderWrong(data, saved) {
     /* saved 是 il_progress[key] 整条记录，错题清单在 saved.quiz.wrongs：
        早期版本直接读 saved.wrongs，于是“错题优先重做”永远不生效。 */
     var q = saved && saved.quiz ? saved.quiz : saved;
-    var pool = data.map(function (item, oi) { return { item: item, oi: oi }; });
+    var pool = data.map(function (item, oi) {
+      return { item: item, oi: typeof item._oi === 'number' ? item._oi : oi };
+    });
     if (!q || !q.wrongs || !q.wrongs.length) return pool;
     var wanted = {};
     q.wrongs.forEach(function (oi) { wanted[oi] = true; });
     var head = [], rest = [];
     pool.forEach(function (row) { (wanted[row.oi] ? head : rest).push(row); });
     return head.concat(rest);
+  }
+
+  /* ── IL.order / IL.record：给“自带测验 UI”的老模块用的协议垫片 ──
+   * 这 12 个模块（bash/cs/docker/gh-actions/git/makefile/net/vfd/regex/sql/
+   * n8n/vscode）各有一套自己的判分与渲染代码，重写风险大且会丢风格；但它们
+   * 都不写 quiz.wrongs，于是错题本、错题优先重做、成绩趋势对它们全部失效。
+   * 与其逐个改造 UI，不如只把“协议”抽出来：
+   *
+   *   IL.order(key, quizData) -> 重排后的 quizData（错题前置）
+   *   IL.record(key, score, total, wrongs) -> 落盘 quiz + last
+   *
+   * order() 就地重排数组并给每题打两个标记，模块原有渲染代码几乎不用动：
+   *   _oi  该题在原始题库里的下标 —— wrongs 必须存它，不能存呈现位置，
+   *        否则第二次重做时错题身份会随重排漂移（Round 13 修过的坑）
+   *   _re  是否是上次答错的题，模块愿意的话可以渲染“错题重做”角标
+   *
+   * 就地重排而不是返回新数组是有意的：一半模块把题库声明成 const，
+   * `quizData = IL.order(...)` 会直接抛 TypeError。
+   *
+   * 题库字段命名三家分化（right / ans / correct），判分逻辑留在模块里，
+   * 运行时不猜——只负责顺序与存储，避免再造一层需要维护的适配。 */
+  function order(key, data) {
+    var saved = read()[key];
+    var prevWrong = (saved && saved.quiz && saved.quiz.wrongs) || [];
+    var rows = reorderWrong(data, saved);
+    rows.forEach(function (row) {
+      row.item._oi = row.oi;
+      row.item._re = prevWrong.indexOf(row.oi) !== -1;
+    });
+    data.length = 0;
+    for (var i = 0; i < rows.length; i++) data.push(rows[i].item);
+    return data;
+  }
+
+  function record(key, score, total, wrongs) {
+    return patch(key, function (g) {
+      g.quiz = { score: score, total: total, wrongs: wrongs ? wrongs.slice() : [] };
+      g.last = Date.now();
+    });
+  }
+
+  /* ── IL.orderDom：给"题目写死在 HTML 里"的模块用的等价物 ──
+   * regex/sql 没有 JS 题库数组：8 道题是 HTML 里的 .quiz-q 卡片，答案另存在
+   * 一个 ANSWERS[] 里，事件按卡片位置绑定。所以重排要同时守住两点：
+   *   1) 卡片物理顺序与 ANSWERS 不能错位 —— 返回 perm（呈现位置 -> 原始下标），
+   *      模块用它重排 ANSWERS，并在记错题时把位置换算回原始下标；
+   *   2) quiz.wrongs 存的仍是原始下标，不是呈现位置，否则又踩 Round 13 那个
+   *      错题身份漂移的坑。
+   * 必须在绑定点击事件之前调用；用注释节点做游标，保证卡片挪动后仍落在
+   * 小标题与提交按钮之间。 */
+  function orderDom(key, cards, labelSel) {
+    var n = cards.length;
+    var perm = [], i;
+    for (i = 0; i < n; i++) perm.push(i);
+    var saved = read()[key];
+    var prevWrong = (saved && saved.quiz && saved.quiz.wrongs) || [];
+    if (!n || !prevWrong.length) return perm;
+
+    var wanted = {};
+    prevWrong.forEach(function (oi) { if (oi >= 0 && oi < n) wanted[oi] = true; });
+    var head = [], rest = [];
+    perm.forEach(function (oi) { (wanted[oi] ? head : rest).push(oi); });
+    perm = head.concat(rest);
+
+    var parent = cards[0].parentNode;
+    if (!parent) return perm;
+    var cursor = document.createComment('ilq-order');
+    parent.insertBefore(cursor, cards[0]);
+    perm.forEach(function (oi, pos) {
+      var card = cards[oi];
+      parent.insertBefore(card, cursor);
+      var lab = labelSel && card.querySelector(labelSel);
+      if (lab) lab.textContent = 'Q' + (pos + 1) + (wanted[oi] ? ' · 错题重做' : '');
+    });
+    parent.removeChild(cursor);
+    return perm;
   }
 
   function quiz(cfg) {
@@ -232,5 +315,9 @@
     return { get score() { return score; }, get wrongs() { return wrongs.slice(); } };
   }
 
-  global.IL = { touch: touch, mount: mount, quiz: quiz, read: read, esc: esc };
+  global.IL = {
+    touch: touch, mount: mount, quiz: quiz,
+    order: order, orderDom: orderDom, record: record,
+    read: read, esc: esc,
+  };
 })(window);

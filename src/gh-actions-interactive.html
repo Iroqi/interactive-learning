@@ -1031,6 +1031,7 @@ jobs:
 </div><!-- /container -->
 
 
+<script src="../ilquiz.js"></script>
 <script>
 // ==================== THEME ====================
 function toggleTheme() {
@@ -1452,11 +1453,14 @@ const quizData = [
   { q: 'actions/cache 和 upload-artifact 的主要区别是？', opts: ['没有区别', 'cache 用于跨 Job 传文件，artifact 用于缓存', 'cache 用于加速依赖安装（同一 Job），artifact 用于跨 Job 传文件', 'cache 有大小限制，artifact 没有'], ans: 2, explain: '<strong>Cache</strong> = 同一 Job 内加速重复安装（10GB 上限）。<strong>Artifact</strong> = 跨 Job 传递文件或保存构建产物（保留 90 天）。' },
 ];
 let quizAnswered = 0, quizCorrect = 0;
+var quizWrongs = [];
+/* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+if (window.IL && IL.order) IL.order('gh-actions', quizData);
 function renderQuiz() {
   const container = document.getElementById('quizContainer');
   container.innerHTML = quizData.map((q, i) => `
     <div class="quiz-card" id="quiz-${i}">
-      <div class="q-title">Q${i+1}: ${q.q}</div>
+      <div class="q-title">Q${i+1}${q._re ? " · 错题重做" : ""}: ${q.q}</div>
       ${q.opts.map((o, j) => `<button class="quiz-opt" onclick="answerQuiz(${i}, ${j})">${String.fromCharCode(65+j)}. ${o}</button>`).join('')}
       <div class="quiz-feedback" id="fb-${i}"></div>
     </div>
@@ -1482,6 +1486,7 @@ function answerQuiz(qi, oi) {
     fb.textContent = '✅ 正确！' + quizData[qi].explain;
   } else {
     fb.classList.add('wrong');
+    quizWrongs.push(quizData[qi]._oi == null ? qi : quizData[qi]._oi);
     fb.textContent = '❌ ' + quizData[qi].explain;
   }
   if (quizAnswered === quizData.length) {
@@ -1490,11 +1495,12 @@ function answerQuiz(qi, oi) {
     document.getElementById('scoreNum').textContent = `${quizCorrect}/${quizData.length}`;
     const pct = quizCorrect / quizData.length;
     document.getElementById('scoreMsg').textContent = pct >= 0.8 ? '🎉 优秀！你已经掌握了核心知识' : pct >= 0.6 ? '👍 不错！再复习一下薄弱环节' : '📚 建议重新阅读知识地图和各级别内容';
+    if (window.IL && IL.record) IL.record('gh-actions', quizCorrect, quizData.length, quizWrongs);
     scoreDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 function resetQuiz() {
-  quizAnswered = 0; quizCorrect = 0;
+  quizAnswered = 0; quizCorrect = 0; quizWrongs = [];
   document.getElementById('quizScore').style.display = 'none';
   renderQuiz();
 }

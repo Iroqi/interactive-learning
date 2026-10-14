@@ -745,6 +745,7 @@ footer {
 </div><!-- /container -->
 
 
+<script src="../ilquiz.js"></script>
 <script>
 /* ===== Theme ===== */
 const themeBtn = document.getElementById('themeToggle');
@@ -983,6 +984,9 @@ const quizData = [
   { q: 'NAT（网络地址转换）主要解决什么问题？', opts: ['加快路由收敛','IPv4 地址不足','数据加密','域名解析'], ans: 1, explain: 'NAT 允许多个内网设备共享少量公网 IP，缓解了 IPv4 地址空间不足的问题。' },
 ];
 let quizAnswered = 0, quizCorrect = 0;
+var quizWrongs = [];
+/* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+if (window.IL && IL.order) IL.order('net', quizData);
 function renderQuiz() {
   const container = document.getElementById('quizContainer');
   container.innerHTML = '';
@@ -991,7 +995,7 @@ function renderQuiz() {
   quizData.forEach((q, qi) => {
     const div = document.createElement('div');
     div.className = 'quiz-q';
-    div.innerHTML = '<h4>' + (qi+1) + '. ' + q.q + '</h4><div class="quiz-opts" id="qopts' + qi + '">' +
+    div.innerHTML = '<h4>' + (qi+1) + (q._re ? ' · 错题重做' : '') + '. ' + q.q + '</h4><div class="quiz-opts" id="qopts' + qi + '">' +
       q.opts.map((o, oi) => '<div class="quiz-opt" onclick="answerQuiz(' + qi + ',' + oi + ',this)">' + String.fromCharCode(65+oi) + '. ' + o + '</div>').join('') +
       '</div><div class="quiz-explain" id="qexp' + qi + '">' + q.explain + '</div>';
     container.appendChild(div);
@@ -1007,6 +1011,7 @@ function answerQuiz(qi, oi, el) {
     quizCorrect++;
   } else {
     el.classList.add('wrong');
+    quizWrongs.push(quizData[qi]._oi == null ? qi : quizData[qi]._oi);
     opts[correct].classList.add('correct');
   }
   document.getElementById('qexp' + qi).classList.add('show');
@@ -1015,10 +1020,11 @@ function answerQuiz(qi, oi, el) {
     const scoreDiv = document.getElementById('quizScore');
     scoreDiv.style.display = 'block';
     document.getElementById('quizScoreNum').textContent = quizCorrect + '/' + quizData.length;
+    if (window.IL && IL.record) IL.record('net', quizCorrect, quizData.length, quizWrongs);
     scoreDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
-function resetQuiz() { renderQuiz(); }
+function resetQuiz() { quizWrongs = []; renderQuiz(); }
 renderQuiz();
 
 /* ===== Glossary ===== */

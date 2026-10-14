@@ -1078,6 +1078,7 @@ CC = gcc
 </div><!-- /container -->
 
 
+<script src="../ilquiz.js"></script>
 <script>
 // ===== Progress bar =====
 window.addEventListener('scroll', () => {
@@ -1515,11 +1516,14 @@ const quizData = [
 ];
 
 let quizAnswers = {};
+var quizWrongs = [];
+/* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+if (window.IL && IL.order) IL.order('makefile', quizData);
 function renderQuiz() {
   const container = document.getElementById('quiz-container');
   container.innerHTML = quizData.map((q, i) => `
     <div class="quiz-question" id="qq-${i}">
-      <h4>${i+1}. ${q.q}</h4>
+      <h4>${i+1}${q._re ? " · 错题重做" : ""}. ${q.q}</h4>
       <div class="quiz-options">
         ${q.opts.map((o, j) => `
           <div class="quiz-opt" onclick="selectQuizOpt(${i},${j},this)">
@@ -1545,6 +1549,7 @@ function submitQuiz() {
     const fb = document.getElementById(`qfb-${i}`);
     const opts = document.querySelectorAll(`#qq-${i} .quiz-opt`);
     if (quizAnswers[i] === undefined) {
+      quizWrongs.push(q._oi == null ? i : q._oi);
       fb.className = 'quiz-feedback show wrong';
       fb.textContent = '未作答。' + q.explain;
     } else if (quizAnswers[i] === q.correct) {
@@ -1553,12 +1558,14 @@ function submitQuiz() {
       fb.className = 'quiz-feedback show correct';
       fb.textContent = '✅ 正确！' + q.explain;
     } else {
+      quizWrongs.push(q._oi == null ? i : q._oi);
       opts[quizAnswers[i]].classList.add('wrong');
       opts[q.correct].classList.add('correct');
       fb.className = 'quiz-feedback show wrong';
       fb.textContent = '❌ ' + q.explain;
     }
   });
+  if (window.IL && IL.record) IL.record('makefile', score, quizData.length, quizWrongs);
   const scoreEl = document.getElementById('quiz-score');
   scoreEl.style.display = 'block';
   document.getElementById('score-num').textContent = `${score}/${quizData.length}`;
@@ -1571,7 +1578,7 @@ function submitQuiz() {
   scoreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function resetQuiz() {
-  quizAnswers = {};
+  quizAnswers = {}; quizWrongs = [];
   renderQuiz();
   document.getElementById('quiz-score').style.display = 'none';
   document.getElementById('quiz-submit').style.display = 'inline-flex';

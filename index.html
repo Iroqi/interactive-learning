@@ -1701,7 +1701,9 @@
           }
         });
         if (!due.length) return;
-        due.sort(function (a, b) { return a.days - b.days; }); /* 最久未复习的优先 */
+        /* 降序：最久未复习的模块优先提醒。此前写成升序，顶栏永远推的是
+           "昨天刚看过" 的那个，与注释和面板语义相反。 */
+        due.sort(function (a, b) { return b.days - a.days; });
         var top = due[0];
         var strip = document.getElementById('reviewStrip');
         strip.href = top.card.getAttribute('href');

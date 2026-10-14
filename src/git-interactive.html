@@ -632,6 +632,7 @@ proposal_FINAL_USE_THIS.docx
 <div class="footer">GIT 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 (function () {
   'use strict';
@@ -1192,13 +1193,18 @@ proposal_FINAL_USE_THIS.docx
   ];
   var quizScore = 0, quizTotal = quizData.length, quizAnswered = 0;
 
+  var quizWrongs = [];
+
   function renderQuiz() {
     var box = $('quizBox');
+    /* wrongs-first：上次错题优先重做。顺序与 _oi/_re 标记由共享运行时统一
+     * 计算（quiz.wrongs 存题库原始下标，不是呈现位置）。 */
+    if (window.IL && IL.order) quizData = IL.order(MODULE_KEY, quizData);
     var html = quizData.map(function (item, qi) {
       var optsHtml = item.opts.map(function (o, oi) {
         return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
       }).join('');
-      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + (item._re ? ' · 错题重做' : '') + '</span>' + esc(item.q) + '</div>' + optsHtml +
         '<div class="result" id="quizr' + qi + '"></div></div>';
     }).join('');
     box.innerHTML = html;
@@ -1220,6 +1226,7 @@ proposal_FINAL_USE_THIS.docx
         } else {
           rows[q.right].classList.add('correct');
           row.classList.add('wrong');
+          quizWrongs.push(q._oi == null ? qi : q._oi);
           res.className = 'result show err';
           res.innerHTML = '✗ 正确答案：' + esc(q.opts[q.right]) + '。' + esc(q.expl);
         }
@@ -1240,10 +1247,12 @@ proposal_FINAL_USE_THIS.docx
     d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
       '<p>' + (quizScore >= 6 ? '优秀！你已掌握 Git 的核心概念。' : '答对 ' + quizScore + ' 题，回看相关小节后再试一次。') + '</p>';
     box.appendChild(d);
-    try {
+    if (window.IL && IL.record) IL.record(MODULE_KEY, quizScore, quizTotal, quizWrongs);
+    else try {
       var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
       var g = store[MODULE_KEY] || {};
-      g.quiz = { score: quizScore, total: quizTotal };
+      g.quiz = { score: quizScore, total: quizTotal, wrongs: quizWrongs };
+      g.last = Date.now();
       store[MODULE_KEY] = g;
       localStorage.setItem('il_progress', JSON.stringify(store));
     } catch (e) { /* ignore */ }

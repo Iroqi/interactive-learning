@@ -957,6 +957,7 @@ footer {
 </footer>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 // ===== Concept Map =====
 const CM = {
@@ -1591,12 +1592,15 @@ const QUIZ = {
   ],
   answers: {},
   answered: new Set(),
+  wrongs: [],
 
   init() {
+    /* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算 */
+    if (window.IL && IL.order) IL.order('n8n', this.questions);
     const container = document.getElementById('quiz-container');
     container.innerHTML = this.questions.map((q, i) => `
       <div class="quiz-question" id="qq-${i}">
-        <div class="q-text">${i+1}. ${q.q}</div>
+        <div class="q-text">${i+1}${q._re ? " · 错题重做" : ""}. ${q.q}</div>
         ${q.options.map((opt, j) => `
           <div class="quiz-option" id="qo-${i}-${j}" onclick="QUIZ.answer(${i}, ${j})">
             <div class="opt-letter">${String.fromCharCode(65+j)}</div>
@@ -1621,6 +1625,7 @@ const QUIZ = {
       document.getElementById(`qo-${qIdx}-${q.correct}`).classList.add('correct');
     }
 
+    if (!isCorrect) this.wrongs.push(q._oi == null ? qIdx : q._oi);
     const fb = document.getElementById(`qf-${qIdx}`);
     fb.className = `quiz-feedback show ${isCorrect ? 'correct' : 'wrong'}`;
     fb.innerHTML = (isCorrect ? '✓ 正确！' : '✗ 不正确。') + ' ' + q.explain;
@@ -1629,6 +1634,7 @@ const QUIZ = {
       const score = Object.entries(this.answers).filter(([k, v]) => v === this.questions[k].correct).length;
       const scoreEl = document.getElementById('quiz-score');
       scoreEl.style.display = 'block';
+      if (window.IL && IL.record) IL.record('n8n', score, this.questions.length, this.wrongs);
       scoreEl.innerHTML = `得分：${score} / ${this.questions.length} ${score >= 8 ? '🎉' : score >= 6 ? '👍' : '💪'}`;
     }
   }
