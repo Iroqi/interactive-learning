@@ -616,7 +616,7 @@
     }
     .ov-cat-bar { flex: 1; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
     .ov-cat-fill { display: block; height: 100%; width: 0; border-radius: 999px; transition: width 0.5s ease; }
-    .ov-cat-num { width: 96px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    .ov-cat-num { width: 120px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     @media (max-width: 1000px) { .ov-cats { margin-left: 24px; margin-right: 24px; } }
     @media (max-width: 640px) { .ov-cats { margin-left: 16px; margin-right: 16px; } }
 
@@ -1286,13 +1286,67 @@
       function progKey(card) {
         return card.dataset.progress || card.dataset.key || '';
       }
-      function progressPct(card, store) {
+
+      /* ── 掌握度派生：把两类模块归一到同一条进度语义 ──
+       * 全站 45 个模块分两种：
+       *   milestone  有 9 里程碑体系（courses.js 声明了 total，模块调 IL.mount 写 steps）
+       *   assess     没有里程碑体系，只有一个判分测验（13 个：8 个自带题库
+       *              cs/docker/gh-actions/makefile/net/n8n/vfd/vscode，
+       *              5 个由壳层 ilquizzes.js 挂载 cf-workers/pid/plc/web/yaml）
+       * 壳层过去只认 steps，于是 assess 型永远不算完成：🏁全站通关数学上不可能，
+       * 自动化看板满分学生也读 0%，卡片永远停在"未开始"。
+       * 这里让 assess 型按测验掌握度参与统计——及格线取 75%，与 ilquiz.js 里
+       * IL.quiz 的默认 pass 阈值一致，"达标"在运行时和用户眼里是同一件事。
+       * 关键约束：壳层只读不写。steps 的含义（模块内解锁的里程碑）不被改写，
+       * IL.touch 也继续不写 steps/done——访问不等于掌握。 */
+      var PASS_RATIO = 0.75;
+      function passLine(total) { return Math.ceil(total * PASS_RATIO); }
+      function deriveEntry(key, declared, p) {
+        var hasSteps = !!(p.steps && p.steps.length);
+        var hasQuiz = !!(p.quiz && p.quiz.total);
+        var d = {
+          key: key, kind: declared > 0 ? 'milestone' : 'assess',
+          n: 0, total: 0, frac: 0, mastered: false,
+          /* started = 真做过题（解锁过里程碑或交过卷）。visited 只表示打开过：
+             IL.touch 每次进模块都会写 last，访问不等于掌握，故 visited 不计入
+             "进行中"，否则随手点开一个模块就永远显示在读。 */
+          started: hasSteps || hasQuiz,
+          visited: hasSteps || hasQuiz || !!p.last
+        };
+        if (declared > 0) {
+          d.total = declared;
+          d.n = hasSteps ? p.steps.length : 0;
+          d.frac = Math.min(1, d.n / declared);
+          d.mastered = !!(p.done || d.n >= declared);
+          return d;
+        }
+        if (!hasQuiz) return d;
+        d.total = p.quiz.total;
+        d.n = typeof p.quiz.score === 'number' ? p.quiz.score : 0;
+        d.need = passLine(d.total);
+        d.frac = Math.min(1, d.n / d.total);
+        d.mastered = d.n >= d.need;
+        return d;
+      }
+
+      function derive(card, store) {
         var key = progKey(card);
-        if (!key) return -1;
-        var p = store[key];
-        if (!p || !p.steps || !p.steps.length) return 0;
-        var total = parseInt(card.dataset.total || p.steps.length, 10);
-        return Math.round(p.steps.length / total * 100);
+        if (!key) return null;
+        return deriveEntry(key, parseInt(card.dataset.total || '0', 10), store[key] || {});
+      }
+
+      /* courses.js 那条记录不是 DOM 卡片，但字段一一对应，用它也能算——
+         分类看板与徽章判定走这里，卡片走 derive()，两条路共用同一个派生规则。 */
+      function deriveCourse(c, store) {
+        var key = c.progress || c.key;
+        if (!key) return null;
+        return deriveEntry(key, parseInt(c.total || '0', 10), store[key] || {});
+      }
+
+      function progressPct(card, store) {
+        var d = derive(card, store);
+        if (!d) return -1;
+        return Math.round(d.frac * 100);
       }
       function sortCards() {
         var mode = document.getElementById('sortSel').value;
@@ -1349,7 +1403,8 @@
       function initProgress() {
         var store = readProgress();
         var best = null;
-        var doneCount = 0, goingCount = 0, totalMs = 0, totalDoneMs = 0;
+        var doneCount = 0, goingCount = 0;
+        var totalMs = 0, totalDoneMs = 0, quizCount = 0, quizDone = 0;
 
         /* 可重入：从模块返回导航页时会再次调用，先清掉上一轮的进度条 */
         cards.forEach(function (card) {
@@ -1357,41 +1412,59 @@
         });
 
         cards.forEach(function (card) {
-          var key = progKey(card);
-          if (!key) return;
-          var p = store[key];
-          if (!p || !p.steps || !p.steps.length) return;
+          var d = derive(card, store);
+          if (!d || !d.visited) return;
+          var p = store[d.key];
+          /* 两类模块的单位不同，各算各的：milestone 记"步"，assess 记"题"，
+             合在一个数字里会读成"288 步只解锁了 200 步"，而真相是里程碑全
+             解锁了、只是有测验没达标。 */
+          if (d.kind === 'milestone') {
+            /* 分母只算"真做过题"的里程碑模块：随手点开（IL.touch 只写 last）
+               也把整站 288 步算进来，会读成"才解锁 3/288"，其实只开了一个模块。 */
+            if (d.started) {
+              totalMs += d.total;
+              totalDoneMs += d.mastered ? d.total : d.n;
+              var wrap = document.createElement('div');
+              wrap.className = 'card-progress';
+              wrap.innerHTML = '<span class="cp-track"><span class="cp-fill" style="width:' +
+                Math.round(d.frac * 100) + '%"></span></span>' +
+                '<span class="cp-label' + (d.mastered ? ' cp-done' : '') + '">' +
+                (d.mastered ? '✓ 已完成' : '已解锁 ' + d.n + ' / ' + d.total + ' 步') + '</span>';
+              card.appendChild(wrap);
+            }
+          } else {
+            /* assess 型：进度条按测验得分率画。只点开过、还没交卷的
+               （IL.touch 写了 last）也画出来并明说"仅访问过"，否则卡片
+               一片空白，看不出它和"从没打开过"的区别。 */
+            if (d.started) { quizCount++; if (d.mastered) quizDone++; }
+            var qw = document.createElement('div');
+            qw.className = 'card-progress';
+            qw.innerHTML = '<span class="cp-track"><span class="cp-fill" style="width:' +
+              Math.round(d.frac * 100) + '%"></span></span>' +
+              '<span class="cp-label' + (d.mastered ? ' cp-done' : '') + '">' +
+              (d.mastered ? '✓ 测验达标 · ' + d.n + '/' + d.total + ' 题'
+                          : (d.started ? '测验 ' + d.n + '/' + d.total + ' 题 · 达标需 ' + d.need
+                                        : '仅访问过 · 完成掌握度测验才算达标')) + '</span>';
+            card.appendChild(qw);
+          }
 
-          var total = parseInt(card.dataset.total || p.steps.length, 10);
-          var n = p.steps.length;
-          var done = !!(p.done || n >= total);
+          if (d.mastered) doneCount++;
+          else if (d.started) goingCount++;
 
-          var wrap = document.createElement('div');
-          wrap.className = 'card-progress';
-          wrap.innerHTML = '<span class="cp-track"><span class="cp-fill" style="width:' +
-            Math.min(100, Math.round(n / total * 100)) + '%"></span></span>' +
-            '<span class="cp-label' + (done ? ' cp-done' : '') + '">' +
-            (done ? '✓ 已完成' : '已解锁 ' + n + ' / ' + total + ' 步') + '</span>';
-          card.appendChild(wrap);
-
-          totalMs += total;
-          if (done) { doneCount++; totalDoneMs += total; }
-          else { goingCount++; totalDoneMs += n; }
-
-          if (!done && (!best || (p.last || 0) > (best.last || 0))) {
-            best = { key: key, last: p.last || 0 };
+          if (d.started && !d.mastered && (!best || (p.last || 0) > (best.p.last || 0))) {
+            best = { d: d, p: p };
           }
         });
 
         if (best) {
-          var target = cards.filter(function (c) { return progKey(c) === best.key; })[0];
+          var target = cards.filter(function (c) { return progKey(c) === best.d.key; })[0];
           if (target) {
             var strip = document.getElementById('continueStrip');
             strip.href = target.getAttribute('href');
-            var p = store[best.key];
-            var total = parseInt(target.dataset.total || p.steps.length, 10);
             document.getElementById('csTitle').textContent = target.querySelector('h3').textContent;
-            document.getElementById('csMeta').textContent = '· 已解锁 ' + p.steps.length + ' / ' + total + ' 步';
+            document.getElementById('csMeta').textContent = best.d.kind === 'milestone'
+              ? '· 已解锁 ' + best.d.n + ' / ' + best.d.total + ' 步'
+              : '· 测验 ' + best.d.n + '/' + best.d.total + ' 题 · 达标需 ' + best.d.need;
             strip.classList.add('show');
           }
         }
@@ -1408,8 +1481,11 @@
             '<span class="ov-item ov-going"><b>' + goingCount + '</b>进行中</span>' +
             '<span class="ov-item ov-done"><b>' + doneCount + '</b>已完成</span>' +
             '<span class="ov-item ov-todo"><b>' + todoCount + '</b>未开始</span>';
-          document.getElementById('ovMilestones').textContent =
-            '里程碑 ' + totalDoneMs + ' / ' + totalMs + ' 已解锁';
+          /* 两类模块的单位不同，分开报：把测验分数混进"里程碑"会读成
+             "288 步里只解锁了 200 步"，而真相是里程碑全解锁了、只是有测验没达标。 */
+          var msLine = '里程碑 ' + totalDoneMs + ' / ' + totalMs + ' 已解锁';
+          if (quizCount) msLine += ' · 测验 ' + quizDone + ' / ' + quizCount + ' 个模块达标';
+          document.getElementById('ovMilestones').textContent = msLine;
           ov.classList.add('show');
         }
 
@@ -1423,31 +1499,37 @@
         showDueReview(store);
       }
 
-      /* ── 分类学习看板：每类已解锁步数 / 总步数 ── */
+      /* ── 分类学习看板：掌握度 ──
+       * 过去按"已解锁步数 / 总步数"算，分母取 c.total || 9——而没有里程碑的
+       * 13 个模块根本写不出 steps，于是自动化分类（4 个模块全是 assess 型）
+       * 满分学生也只读 0/36 步 · 0%。
+       * 现在改成以"模块"为单位归一：每个模块贡献 0..1 的掌握度
+       * （milestone 看里程碑解锁比例，assess 看测验得分比例，未开始记 0），
+       * 两类单位不同但值域相同，可以直接平均。 */
       var CAT_COLORS = { devops: '#00ff41', cs: '#00ff41', automation: '#00ff41', tools: '#00ff41' };
       function renderCatBars(store) {
         var el = document.getElementById('ovCats');
         if (!el) return;
         var acc = {};
-        Object.keys(CAT_COLORS).forEach(function (k) { acc[k] = { done: 0, total: 0 }; });
+        Object.keys(CAT_COLORS).forEach(function (k) { acc[k] = { frac: 0, n: 0, mastered: 0 }; });
         courses.forEach(function (c) {
           var a = acc[c.cat];
           if (!a) return;
-          var total = c.total || 9;
-          var p = store[c.progress || c.key];
-          a.total += total;
-          if (p && p.steps) a.done += Math.min(p.steps.length, total);
+          var d = deriveCourse(c, store);
+          a.n++;
+          a.frac += d ? d.frac : 0;
+          if (d && d.mastered) a.mastered++;
         });
-        var any = Object.keys(acc).some(function (k) { return acc[k].done > 0; });
+        var any = Object.keys(acc).some(function (k) { return acc[k].frac > 0; });
         if (!any) { el.classList.remove('show'); return; }
         var html = '';
         Object.keys(acc).forEach(function (k) {
           var a = acc[k];
-          if (!a.total) return;
-          var pct = Math.round(a.done / a.total * 100);
+          if (!a.n) return;
+          var pct = Math.round(a.frac / a.n * 100);
           html += '<div class="ov-cat"><span class="ov-cat-name">' + (CAT_LABEL[k] || k) + '</span>' +
             '<span class="ov-cat-bar"><span class="ov-cat-fill" style="width:' + pct + '%;background:' + CAT_COLORS[k] + '"></span></span>' +
-            '<span class="ov-cat-num">' + a.done + ' / ' + a.total + ' 步 · ' + pct + '%</span></div>';
+            '<span class="ov-cat-num">' + a.mastered + ' / ' + a.n + ' 掌握 · ' + pct + '%</span></div>';
         });
         document.getElementById('ovCatsRows').innerHTML = html;
         el.classList.add('show');
@@ -1468,10 +1550,14 @@
         } catch (e) { /* storage unavailable */ }
         var todayMs = 0;
         var todayKey = new Date().toDateString();
-        Object.keys(store).forEach(function (k) {
-          var p = store[k];
-          if (!p || !p.last) return;
-          if (new Date(p.last).toDateString() === todayKey) todayMs += (p.steps || []).length;
+        /* 今日目标统计的是"解锁了几个里程碑"，assess 型模块没有里程碑，
+           天然不计入——这里不改语义，只是换成走统一派生，避免 key 口径漂移。 */
+        courses.forEach(function (c) {
+          var d = deriveCourse(c, store);
+          if (!d || d.kind !== 'milestone' || !d.started) return;
+          var p = store[d.key];
+          if (!p || !p.last || new Date(p.last).toDateString() !== todayKey) return;
+          todayMs += d.n;
         });
         var body = document.getElementById('ovGoalBody');
         if (!goal) {
@@ -1530,25 +1616,23 @@
       var BADGES = [
         { id: 'streak3', icon: '&#x1F525;', name: '连学 3 天', req: '连续学习天数 ≥ 3' },
         { id: 'streak7', icon: '&#x1F3C5;', name: '连学 7 天', req: '连续学习天数 ≥ 7' },
-        { id: 'master1', icon: '&#x1F3C6;', name: '首个精通', req: '完成任意 1 个模块（全部里程碑）' },
-        { id: 'master3', icon: '&#x1F48E;', name: '三连精通', req: '完成 3 个模块' },
-        { id: 'catPioneer', icon: '&#x1F3AF;', name: '分类先锋', req: '同一分类完成 ≥ 2 个模块' },
+        { id: 'master1', icon: '&#x1F3C6;', name: '首个精通', req: '掌握任意 1 个模块（里程碑全解锁，或测验得分率 ≥ 75%）' },
+        { id: 'master3', icon: '&#x1F48E;', name: '三连精通', req: '掌握 3 个模块' },
+        { id: 'catPioneer', icon: '&#x1F3AF;', name: '分类先锋', req: '同一分类掌握 ≥ 2 个模块' },
         { id: 'perfect', icon: '&#x2705;', name: '测验满分', req: '任意模块测验全对' },
-        { id: 'quizAvg7', icon: '&#x1F4AF;', name: '测验学霸', req: '已完成测验的平均分 ≥ 7/8' },
-        { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '完成模块数 ≥ 全部模块一半' },
-        { id: 'finisher', icon: '&#x1F3C1;', name: '全站通关', req: '完成全部模块（所有里程碑）' }
+        { id: 'quizAvg7', icon: '&#x1F4AF;', name: '测验学霸', req: '已完成测验的平均得分率 ≥ 7/8' },
+        { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '掌握模块数 ≥ 全部模块一半' },
+        { id: 'finisher', icon: '&#x1F3C1;', name: '全站通关', req: '掌握全部 45 个模块' }
       ];
 
       function evaluateBadges(store) {
         var doneCount = 0, tracked = 0;
         var catDone = {};
         courses.forEach(function (c) {
-          var key = c.progress || c.key;
-          if (!key) return;
+          var d = deriveCourse(c, store);
+          if (!d) return;
           tracked++;
-          var p = store[key];
-          var total = parseInt(c.total || 9, 10);
-          if (p && (p.done || (p.steps && p.steps.length >= total))) {
+          if (d.mastered) {
             doneCount++;
             catDone[c.cat] = (catDone[c.cat] || 0) + 1;
           }
@@ -1558,12 +1642,15 @@
           var q = store[k] && store[k].quiz;
           return q && q.total && q.score === q.total;
         });
-        var quizScores = [];
+        var quizRates = [];
         Object.keys(store).forEach(function (k) {
           var q = store[k] && store[k].quiz;
-          if (q && q.total && typeof q.score === 'number') quizScores.push(q.score);
+          if (q && q.total && typeof q.score === 'number') quizRates.push(q.score / q.total);
         });
-        var quizAvg = quizScores.length ? quizScores.reduce(function (a, b) { return a + b; }, 0) / quizScores.length : 0;
+        /* 题库长度 5~12 不等，拿原始平均分当 "≥7/8" 会两头出错：只做
+           makefile（5 题）满分是 5 分、永不达标，只做 12 题模块蒙对一半就 6 分。
+           归一到得分率再比 7/8 = 87.5%，才是徽章字面说的那件事。 */
+        var quizAvg = quizRates.length ? quizRates.reduce(function (a, b) { return a + b; }, 0) / quizRates.length : 0;
         var catPioneer = Object.keys(catDone).some(function (k) { return catDone[k] >= 2; });
         return {
           streak3: streak >= 3,
@@ -1572,7 +1659,7 @@
           master3: doneCount >= 3,
           catPioneer: catPioneer,
           perfect: perfect,
-          quizAvg7: quizScores.length > 0 && quizAvg >= 7,
+          quizAvg7: quizRates.length > 0 && quizAvg >= 7 / 8,
           halfway: tracked > 0 && doneCount >= Math.ceil(tracked / 2),
           finisher: tracked > 0 && doneCount >= tracked
         };
@@ -1692,12 +1779,14 @@
           if (!key) return;
           var p = store[key];
           if (!p || !p.last) return;
-          var total = parseInt(card.dataset.total || (p.steps ? p.steps.length : 1), 10);
-          var n = p.steps ? p.steps.length : 0;
-          var done = !!(p.done || n >= total);
+          var d = derive(card, store);
           var days = Math.floor((now - p.last) / REVIEW_DAY);
-          if (done ? days >= 7 : days >= 3) {
-            due.push({ card: card, days: days, done: done });
+          /* 掌握与否统一走派生。assess 型过去 total 回退成 p.steps.length = 0，
+             "已掌握"分支永远进不去，满分的模块也只按 3 天的"待复习"节奏被催。
+             只点开过、还没做题的按 7 天：催一个从没交过卷的模块"复习"没有意义，
+             而且它会以 3 天的频率把真正在读的模块挤出提醒条。 */
+          if (d && d.started ? (d.mastered ? days >= 7 : days >= 3) : days >= 7) {
+            due.push({ card: card, days: days, done: !!(d && d.mastered) });
           }
         });
         if (!due.length) return;
@@ -1758,38 +1847,40 @@
         lines.push('');
         lines.push('生成时间：' + new Date().toLocaleString('zh-CN') + '（浏览器本地）');
         lines.push('');
-        var doneCount = 0, tracked = 0, quizDone = 0, quizSum = 0;
+        var doneCount = 0, tracked = 0, quizDone = 0, quizRate = 0;
         var rows = courses.map(function (c) {
-          var key = c.progress || c.key;
-          if (!key) return null;
+          var d = deriveCourse(c, store);
+          if (!d) return null;
+          var p = store[d.key] || {};
           tracked++;
-          var p = store[key] || {};
-          var total = parseInt(c.total || 9, 10);
-          var steps = p.steps ? p.steps.length : 0;
-          var done = !!(p.done || steps >= total);
-          if (done) doneCount++;
+          if (d.mastered) doneCount++;
+          /* 题库长度不统一（5~12 题），"平均 x/8" 对一半模块是假数字。
+             改成平均得分率，与 ilquiz 的达标线同一口径。 */
           var quizTxt = '—';
           if (p.quiz && p.quiz.total) {
             quizTxt = p.quiz.score + '/' + p.quiz.total;
-            quizDone++; quizSum += p.quiz.score;
+            quizDone++; quizRate += Math.min(1, p.quiz.score / p.quiz.total);
           }
-          var status = done ? '已掌握' : (steps > 0 ? '进行中' : '未开始');
+          var status = d.mastered ? '已掌握'
+            : (d.started ? '进行中' : (d.visited ? '仅访问' : '未开始'));
           return {
-            title: c.title || key,
+            title: c.title || d.key,
             cat: catNames[c.cat] || c.cat,
             status: status,
-            steps: steps + '/' + total,
+            steps: d.kind === 'milestone'
+              ? d.n + '/' + d.total
+              : (d.total ? '测验 ' + d.n + '/' + d.total : '—'),
             quiz: quizTxt,
             last: fmtDate(p.last)
           };
         }).filter(Boolean);
         var pct = tracked ? Math.round(doneCount / tracked * 100) : 0;
-        var quizAvgTxt = quizDone ? (Math.round(quizSum / quizDone * 100) / 100).toFixed(2) : '—';
+        var quizAvgTxt = quizDone ? Math.round(quizRate / quizDone * 100) + '%' : '—';
         lines.push('## 概览');
         lines.push('');
         lines.push('- 模块总数：' + tracked);
-        lines.push('- 已完成：' + doneCount + '（' + pct + '%）');
-        lines.push('- 测验完成：' + quizDone + ' 个模块，平均 ' + quizAvgTxt + '/8');
+        lines.push('- 已掌握：' + doneCount + '（' + pct + '%）· 判定口径：里程碑型看全部解锁，测验型看得分率 ≥ 75%');
+        lines.push('- 测验完成：' + quizDone + ' 个模块，平均得分率 ' + quizAvgTxt);
         lines.push('- 学习报告由本地进度生成，未提交任何个人数据');
         lines.push('');
         lines.push('## 模块明细');
