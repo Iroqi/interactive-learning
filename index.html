@@ -783,6 +783,26 @@
       color: var(--text-secondary);
     }
 
+    .empty-suggest {
+      margin-top: 16px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 7px 14px;
+      cursor: pointer;
+    }
+
+    .empty-suggest:hover { background: rgba(0, 255, 65, 0.1); }
+
+    .empty-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
 
     /* ── Module view (shell) ── */
     .module-view { padding: 0; }
@@ -1192,6 +1212,7 @@
           a.dataset.key = c.key || '';
           if (c.progress) a.dataset.progress = c.progress;
           if (c.total) a.dataset.total = String(c.total);
+          if (c.tags) a.dataset.tags = c.tags.join(' ');
           var idx = (i + 1 < 10 ? '0' : '') + (i + 1);
           a.innerHTML =
             '<div class="card-head">' +
@@ -1229,19 +1250,108 @@
         }
       }
 
+      /* ── 搜索 ──
+       * 过去只比对 title + desc 的 DOM 文本，于是 15/45 个模块连自己的 key 都搜不到
+       * （k8s / regex / ts / sqlidx / css-layout …），而卡片分类 Pill 明明写着
+       * DevOps，搜 "DevOps" 却零结果——因为分类名也只渲染在 Pill 上。
+       * 现在把 key、分类中文名、tags 一起纳入匹配；tags 来自 courses.js，
+       * 每个标签都被 tools/check-courses.js 验证过确实出现在该模块源码里，
+       * 所以"搜得到"不等于"教了这个"是假的。 */
+      function searchBlob(card) {
+        if (!card._sb) {
+          card._sb = [
+            card.querySelector('h3').textContent,
+            card.querySelector('.card-desc').textContent,
+            card.dataset.key,
+            CAT_LABEL[card.dataset.cat] || '',
+            card.dataset.tags || ''
+          ].join(' ').toLowerCase();
+        }
+        return card._sb;
+      }
+
+      /* 零结果时给一个"是不是想找 X"，只做建议、不静默改写结果——自动模糊
+       * 匹配会把不相关的卡片塞进来，更难排查。
+       * 相似度取两路的较大值：
+       *   Dice 二元组——对"工作流引擎 → 工作流"这类包含关系有效；
+       *   编辑距离（OSA）——纯 Dice 会漏掉换位拼写："gprc" vs "grpc" 的
+       *   二元组集合交集为空，直接判 0 分，而它显然就是 gRPC。
+       * 编辑距离只在两边都 ≥3 字符时参与，否则两个两字中文词换一个字母
+       * 就有 0.5 的分数，"网关"会莫名推出"网络"这种假建议。 */
+      function bigrams(s) {
+        var m = {};
+        for (var i = 0; i < s.length - 1; i++) m[s.slice(i, i + 2)] = 1;
+        return m;
+      }
+      function dice(a, b) {
+        if (!a || !b) return 0;
+        if (a === b) return 1;
+        var ba = bigrams(a), bb = bigrams(b), inter = 0, size = 0, k;
+        for (k in ba) size++;
+        for (k in bb) { if (ba[k]) inter++; size++; }
+        return size ? (2 * inter) / size : 0;
+      }
+      /* optimal string alignment：比 Levenshtein 多允许"换位算一次" */
+      function editDist(a, b) {
+        var la = a.length, lb = b.length, i, j, d, prev;
+        var pv = [], cu = [];
+        for (j = 0; j <= lb; j++) pv[j] = j;
+        for (i = 1; i <= la; i++) {
+          cu[0] = i;
+          for (j = 1; j <= lb; j++) {
+            d = Math.min(
+              pv[j] + 1,
+              cu[j - 1] + 1,
+              pv[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+            );
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+              d = Math.min(d, pv[j - 2] + 1);
+            }
+            cu[j] = d;
+          }
+          prev = pv; pv = cu; cu = prev;
+        }
+        return pv[lb];
+      }
+      function similarity(a, b) {
+        var s = dice(a, b);
+        if (a.length >= 3 && b.length >= 3) {
+          var e = 1 - editDist(a, b) / Math.max(a.length, b.length);
+          if (e > s) s = e;
+        }
+        return s;
+      }
+      function bestMatch(query, cards) {
+        var best = null;
+        cards.forEach(function (card) {
+          var words = searchBlob(card).split(/[\s、，,（）()\/·]+/);
+          words.forEach(function (w) {
+            if (!w || w.length < 2) return;
+            var s = similarity(query, w);
+            var d = Math.abs(w.length - query.length);
+            var bd = best ? Math.abs(best.word.length - query.length) : 99;
+            /* 分数相等时优先更接近查询长度的候选词："gprc" 与 "grpc"/"plc"
+             * 都是 0.5（OSA 距离 1），Δlen 为 0 的 "grpc" 才是更合理的建议。 */
+            if (!best || s > best.score || (s === best.score && d < bd)) {
+              best = { score: s, card: card, word: w };
+            }
+          });
+        });
+        return best && best.score >= 0.5 ? best : null;
+      }
+
       function filter() {
         var query = searchInput.value.toLowerCase().trim();
         var visible = 0;
 
         cards.forEach(function (card) {
           var cat = card.dataset.cat;
-          var title = card.querySelector('h3').textContent.toLowerCase();
-          var desc = card.querySelector('.card-desc').textContent.toLowerCase();
           var matchCat = activeCat === 'all' || cat === activeCat;
-          /* 多关键词 AND：空格分隔，全部命中标题或描述才显示 */
+          /* 多关键词 AND：空格分隔，每个词都要命中可搜文本 */
           var terms = query ? query.split(/\s+/) : [];
+          var blob = searchBlob(card);
           var matchSearch = !terms.length || terms.every(function (t) {
-            return title.indexOf(t) !== -1 || desc.indexOf(t) !== -1;
+            return blob.indexOf(t) !== -1;
           });
           var show = matchCat && matchSearch;
 
@@ -1263,9 +1373,26 @@
         if (visible === 0) {
           var empty = document.createElement('div');
           empty.className = 'empty';
+          var hint = '';
+          var m = query ? bestMatch(query, cards) : null;
+          if (m) {
+            /* 建议目标写进 dataset，点击时从按钮自身读：filter() 会被反复调用，
+               闭包捕获共享 var 容易在重渲染后指到旧卡片。 */
+            hint = '<button type="button" class="empty-suggest" id="emptySuggest" data-key="' +
+              esc(m.card.dataset.key) + '">是不是想找「' +
+              esc(m.card.querySelector('h3').textContent) + '」</button>';
+          } else if (query) {
+            hint = '<div class="empty-note">换个关键词试试，或点分类 Pill 浏览</div>';
+          }
           empty.innerHTML = '<div class="empty-icon">&#x2205;</div>' +
-            '<div class="empty-text">没有找到匹配的课程</div>';
+            '<div class="empty-text">没有找到匹配的课程</div>' + hint;
           grid.appendChild(empty);
+          var sug = document.getElementById('emptySuggest');
+          if (sug) sug.addEventListener('click', function () {
+            searchInput.value = sug.dataset.key;
+            filter();
+            searchInput.focus();
+          });
         }
       }
 

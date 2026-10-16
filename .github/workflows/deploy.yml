@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   check:
-    name: Check (modules in sync with src)
+    name: Check (src ↔ modules ↔ courses.js)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +29,9 @@ jobs:
 
       - name: Verify src/ packs to modules/ unchanged
         run: node tools/verify-pack.js
+
+      - name: Verify courses.js matches the repo (keys, size, tags, total)
+        run: node tools/check-courses.js
 
   github-pages:
     name: GitHub Pages

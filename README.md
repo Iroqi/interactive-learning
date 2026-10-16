@@ -17,8 +17,9 @@
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动；里程碑型看全部解锁，纯测验型看测验得分率 ≥ 75% |
-| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体） |
+| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、搜索别名与拼写建议、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体） |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
+| 数据校验 | CI 的 `check` job 三重把关：`src/` ↔ `modules/` 字节一致、`courses.js` 的 `size` 属实、`tags` 每个词都能在模块源码里找到 |
 
 ---
 
@@ -39,7 +40,8 @@
 ├── tools/
 │   ├── pack-modules.py                # 构建：src/<key>-interactive.html → modules/<key>.js
 │   ├── unpack-modules.js              # 反向：modules/<key>.js → src/（恢复丢失的源码层）
-│   └── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
+│   ├── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
+│   └── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
 ├── .gitignore
@@ -127,7 +129,9 @@
 
 ### 搜索与筛选
 
-- **搜索**：在导航页顶部的搜索框输入关键词，实时过滤课程；支持空格分隔的**多关键词 AND 匹配**（如 `redis 命令` 需同时命中标题或描述）
+- **搜索**：在导航页顶部的搜索框输入关键词，实时过滤课程；支持空格分隔的**多关键词 AND 匹配**（如 `redis 命令` 需同时命中）
+- **搜索范围**：每个模块的可搜文本 = 标题 + 描述 + **模块 key** + **分类中文名**（搜 `DevOps` 会返回整个 devops 书架）+ `courses.js` 里的 `tags` 别名。所以搜 `k8s`、`网关`、`调试`、`协程` 这类只出现在正文而非标题的词也能命中
+- **拼写建议**：零结果时若找到相近的词，会给一个「是不是想找「Redis 数据结构」」按钮，点击即跳转；只建议、不自动改写搜索结果，真的没有相近内容时只显示"换个关键词试试"
 - **筛选**：点击分类 Pill（DevOps / CS 基础 / 自动化 / 开发工具）按主题筛选
 - **排序**：导航页右侧排序下拉可选「最近学习 / 学习进度」，基于 `il_progress` 即时重排
 - **快捷键**：按 `/` 聚焦搜索框，按 `Esc` 清空搜索
@@ -158,6 +162,7 @@
 ```bash
 python3 tools/pack-modules.py   # 先在 KEYS 中登记 'xxx-interactive.html': 'xxx'
 node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check job 跑同一条）
+node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎
 ```
 
 脚本生成 `modules/<key>.js`：`window.IL_MODULES['<key>'] = { title, css, html, js, links, needsReady }`，由 `index.html` 壳页按需加载渲染。
@@ -178,10 +183,13 @@ node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check
   title: 'tmux 终端复用',
   desc: 'session 管理与分屏操作',
   size: '33 KB',
+  tags: ['session', '分屏', 'prefix'],  // 搜索别名，见下
   progress: 'tmux',                // 可选：进度追踪 key（与模块内 localStorage 一致）
   total: 9                         // 可选：里程碑总数（配合 progress 使用）
 }
 ```
+
+`size` 和 `tags` 不是装饰，`node tools/check-courses.js` 会当场核对：`size` 必须等于 `modules/<key>.js` 的实际体积（±1 KB），`tags` 必须 3～6 个、不与 key 同名、**每个词都真的出现在 `src/<key>-interactive.html` 里**。这条下限很重要——写一个模块根本不讲的词，等于让搜索承诺不存在的内容。
 
 保存后导航页自动完成：卡片渲染、分类计数、页脚总数、进度条与「我的学习进度」总览的联动。**不再需要手动改 `index.html`。**
 
@@ -250,7 +258,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 
 | Job | 作用 |
 |------|------|
-| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错） |
+| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对 |
 | **GitHub Pages** | `iroqi.github.io/interactive-learning/`，`actions/deploy-pages@v4`，无需 Secret |
 | **Cloudflare Pages** | `iroqi.pages.dev`，`wrangler-action@v3`，需 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
 
@@ -261,6 +269,8 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 ## 技术约定
 
 - **模块自包含**：CSS 和 JS 全部内联，每个 `src/*.html` 独立可运行
+- **元数据必须有裁判**：`courses.js` 是人写的元数据，没有校验就会腐烂（Round 16 发现 44/45 条 `size` 与实际体积不符）。新增字段前先问"谁来证明它是对的"——`size`/`tags`/`total` 现在由 `tools/check-courses.js` + CI 守着
+- **搜索靠数据不靠猜**：壳层不为模块维护第二份词表，可搜文本全部来自 `courses.js` 的 `tags`，且每个词都在模块源码中验证过
 - **模块 JS 用 ES5**：`modules/*.js` 的 `js` 字段被当作非模块 `<script>` 执行，早期模块统一用 `var` / `function`（新模块的顶层代码由打包脚本自动隔离作用域，见上文）
 - **结构约定**：模板类模块固定 9 个编号里程碑（`<span class="num">1..9</span>`）+ 一个 `✓` 下一步章节，第 9 节为掌握度测验；迷你引擎可以是独立章节（`⚡`，置于测验前），也可以嵌在某节内
 - **字体**：通过 Google Fonts CDN 引入，仅引入字体，不引入任何 JS 框架
