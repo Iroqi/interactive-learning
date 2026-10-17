@@ -90,7 +90,7 @@ nav.jump-links a {
   text-decoration: none; color: var(--primary); border: 1.5px solid var(--primary);
   transition: all var(--transition);
 }
-nav.jump-links a:hover { background: var(--primary); color: #fff; }
+nav.jump-links a:hover { background: var(--primary); color: var(--sk-on-accent, #fff); }
 /* ---- Sections ---- */
 section { margin-bottom: 56px; }
 section > h2 {
@@ -100,7 +100,7 @@ section > h2 {
 }
 section > h2 .badge {
   font-size: .7rem; vertical-align: middle; padding: 2px 8px;
-  background: var(--primary); color: #fff; border-radius: 10px; margin-left: 8px;
+  background: var(--primary); color: var(--sk-on-accent, #fff); border-radius: 10px; margin-left: 8px;
 }
 /* ---- Cards ---- */
 .card {
@@ -144,7 +144,7 @@ section > h2 .badge {
 .osi-detail .proto-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .osi-detail .proto-chip {
   padding: 4px 12px; border-radius: 14px; font-size: .78rem; font-weight: 600;
-  background: var(--primary); color: #fff; opacity: .85;
+  background: var(--primary); color: var(--sk-on-accent, #fff); opacity: .85;
 }
 /* layer colors */
 .l7 { background: #eff6ff; } .l7::before { background: #3b82f6; } .l7 .pdu-tag { background: #dbeafe; color: #1e40af; }
@@ -166,7 +166,7 @@ section > h2 .badge {
 /* ---- Comparison Table ---- */
 .cmp-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: .9rem; }
 .cmp-table th, .cmp-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
-.cmp-table th { background: var(--primary); color: #fff; font-weight: 600; }
+.cmp-table th { background: var(--primary); color: var(--sk-on-accent, #fff); font-weight: 600; }
 .cmp-table tr:hover td { background: var(--surface-alt); }
 /* ---- Encapsulation Animation ---- */
 .encap-stage { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 20px 0; }
@@ -183,10 +183,10 @@ section > h2 .badge {
   padding: 10px 24px; border-radius: var(--radius-sm); font-size: .9rem; font-weight: 600;
   border: none; cursor: pointer; transition: all var(--transition);
 }
-.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary { background: var(--primary); color: var(--sk-on-accent, #fff); }
 .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
 .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
-.btn-outline:hover { background: var(--primary); color: #fff; }
+.btn-outline:hover { background: var(--primary); color: var(--sk-on-accent, #fff); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 /* ---- Subnet Calculator ---- */
 .subnet-calc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
@@ -205,9 +205,15 @@ section > h2 .badge {
 .result-card .label { font-size: .78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
 .result-card .value { font-size: 1.1rem; font-weight: 700; margin-top: 4px; font-family: "Cascadia Code", "Fira Code", monospace; }
 /* ---- Routing Sim ---- */
-.route-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .88rem; }
-.route-table th { background: var(--surface-alt); padding: 10px; text-align: left; font-weight: 600; border: 1px solid var(--border); }
-.route-table td { padding: 10px; border: 1px solid var(--border); font-family: "Cascadia Code", "Fira Code", monospace; font-size: .85rem; }
+/* 四列等宽内容在手机宽度下超过容器：这张表原本是"被外层 overflow:hidden 吃掉"，
+   壳层的 .card 规则收进 #navView 之后才暴露出来。让它自己横向滚动，
+   而不是把整页撑宽（GitHub markdown 表用的是同一招）。 */
+.route-table {
+  display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .88rem;
+}
+.route-table th { background: var(--surface-alt); padding: 10px; text-align: left; font-weight: 600; border: 1px solid var(--border); white-space: nowrap; }
+.route-table td { padding: 10px; border: 1px solid var(--border); font-family: "Cascadia Code", "Fira Code", monospace; font-size: .85rem; white-space: nowrap; }
 .route-input { display: flex; gap: 10px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
 .route-input input {
   padding: 10px 14px; border: 2px solid var(--border); border-radius: var(--radius-sm);
@@ -235,7 +241,7 @@ section > h2 .badge {
   cursor: pointer; transition: all var(--transition); font-size: .9rem;
 }
 .quiz-opt:hover { border-color: var(--primary-light); background: var(--surface-alt); }
-.quiz-opt.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+.quiz-opt.selected { border-color: var(--primary); background: var(--primary); color: var(--sk-on-accent, #fff); }
 .quiz-opt.correct { border-color: var(--success); background: #dcfce7; color: #166534; }
 .quiz-opt.wrong { border-color: var(--error); background: #fee2e2; color: #991b1b; }
 .quiz-opt.disabled { pointer-events: none; }
@@ -270,7 +276,7 @@ section > h2 .badge {
 .level-header .meta p { font-size: .82rem; color: var(--text-muted); }
 .level-header .time-badge {
   margin-left: auto; font-size: .78rem; padding: 4px 12px;
-  background: var(--accent); color: #fff; border-radius: 12px; font-weight: 600; white-space: nowrap;
+  background: var(--accent); color: var(--sk-on-accent, #fff); border-radius: 12px; font-weight: 600; white-space: nowrap;
 }
 /* ---- Hint ---- */
 .hint-toggle {
@@ -747,14 +753,18 @@ footer {
 
 <script src="../ilquiz.js"></script>
 <script>
-/* ===== Theme ===== */
+/* ===== Theme =====
+   同 docker：主题写回壳层的 IL，避免抢走全站 <html data-theme>。 */
 const themeBtn = document.getElementById('themeToggle');
-let dark = false;
+function paintTheme(dark) { themeBtn.textContent = dark ? '☀️' : '🌙'; }
+paintTheme(window.IL ? IL.isDark() : document.documentElement.getAttribute('data-theme') === 'dark');
 themeBtn.addEventListener('click', () => {
-  dark = !dark;
+  if (window.IL) { paintTheme(IL.toggleTheme()); return; }
+  const dark = document.documentElement.getAttribute('data-theme') !== 'dark';
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
-  themeBtn.textContent = dark ? '☀️' : '🌙';
+  paintTheme(dark);
 });
+if (window.IL) document.addEventListener('il:theme', (e) => paintTheme(e.detail.dark));
 
 /* ===== Progress Bar ===== */
 window.addEventListener('scroll', () => {

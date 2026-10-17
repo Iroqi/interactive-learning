@@ -104,7 +104,10 @@ body {
   transition: all 0.2s; font-family: inherit;
 }
 .btn-primary {
-  background: #e94560; color: white;
+  /* 白字压 #e94560 只有 3.83:1（0.95em 粗体≈15px 够不上 WCAG 大字档的
+     18.66px，仍要 4.5），运行时兜底会把文字灰成 rgb(87,87,87)。压深一档
+     到 #d63350：白字 4.72:1，色相不变，两种主题都成立。 */
+  background: #d63350; color: white;
 }
 .btn-primary:hover { background: #c73652; transform: scale(1.03); }
 .btn-secondary {
@@ -460,7 +463,7 @@ details .answer {
           <text x="70" y="25" text-anchor="middle" fill="#e94560" font-size="14" font-weight="bold">CPU 模块</text>
           <text x="70" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">🔧 运算核心</text>
           <text x="70" y="75" text-anchor="middle" fill="#64748b" font-size="10">执行用户程序</text>
-          <text x="70" y="95" text-anchor="middle" fill="#64748b8" font-size="10">处理 I/O 数据</text>
+          <text x="70" y="95" text-anchor="middle" fill="#64748b" font-size="10">处理 I/O 数据</text>
           <text x="70" y="115" text-anchor="middle" fill="#64748b" font-size="10">系统诊断</text>
           <text x="70" y="140" text-anchor="middle" fill="#64b5f6" font-size="10">→ 扫描周期 →</text>
         </g>

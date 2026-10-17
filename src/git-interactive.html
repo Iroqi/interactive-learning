@@ -95,7 +95,7 @@
     display: flex; align-items: center; gap: 12px;
   }
   h2 .num {
-    background: var(--git); color: #fff; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--git); color: var(--sk-on-accent, #fff) !important; width: 30px; height: 30px; border-radius: 8px;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 0.8em; font-weight: 700; flex-shrink: 0;
   }
@@ -143,7 +143,7 @@
     transition: all 0.2s; margin: 4px 6px 4px 0;
   }
   .btn:hover { border-color: var(--line); background: #222b3d; }
-  .btn.primary { background: var(--git); border-color: var(--git); color: #fff; }
+  .btn.primary { background: var(--git); border-color: var(--git); color: var(--sk-on-accent, #fff); }
   .btn.primary:hover { filter: brightness(1.08); }
   .btn.ghost { background: transparent; }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -253,6 +253,13 @@
   .remote-node b { display: block; font-size: 0.95em; margin-bottom: 4px; }
   .remote-node span { font-size: 0.72em; color: var(--muted); }
   .remote-link { font-family: var(--mono); font-size: 0.7em; color: var(--accent); text-align: center; line-height: 1.9; flex-shrink: 0; }
+  /* 三个方块 + 两段箭头说明横着排，在手机宽度（390px）里塞不下：
+     remote-link 是 flex-shrink:0，整条被顶到 524px，页面横向溢出。
+     窄屏改成纵向流式，箭头说明转为横向一行。 */
+  @media (max-width: 640px) {
+    .remote-diagram { flex-direction: column; align-items: stretch; gap: 8px; }
+    .remote-link { flex: none; }
+  }
 
   /* ── Cheat sheet ── */
   .cheat-search { margin-bottom: 12px; }

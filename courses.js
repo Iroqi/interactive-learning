@@ -26,7 +26,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Cloudflare Workers',
     desc: 'Serverless Workers 部署，掌握边缘计算与现代化部署流程',
-    size: '54 KB',
+    size: '56 KB',
     tags: ['Workers', '边缘计算', 'Serverless', 'Fetch', '部署', 'Cloudflare']
   },
   {
@@ -34,7 +34,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Docker 入门：从镜像到容器',
     desc: '理解容器化核心概念，掌握 Dockerfile 编写、镜像构建与容器编排',
-    size: '93 KB',
+    size: '102 KB',
     tags: ['容器', '镜像', 'Dockerfile', 'Volume', 'Daemon']
   },
   {
@@ -52,7 +52,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'GitHub Actions Workflow 互动学习',
     desc: 'CI/CD 流水线、工作流模拟器、矩阵构建与密钥管理的完整实践（含 4 级渐进关卡）',
-    size: '133 KB',
+    size: '143 KB',
     tags: ['Workflow', 'Matrix', 'Secret', 'Artifact', 'Runner']
   },
   {
@@ -60,7 +60,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Makefile 从零到实战',
     desc: '构建自动化利器，从规则语法到复杂项目构建的完整学习路径',
-    size: '106 KB',
+    size: '115 KB',
     tags: ['PHONY', 'GNU', '依赖', '规则', '构建']
   },
   {
@@ -68,7 +68,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'CS 基础工具互动学习',
     desc: '命令行、文件系统与常用开发工具的基础操作与概念认知',
-    size: '75 KB',
+    size: '84 KB',
     tags: ['命令行', '文件系统', 'Shell', '终端', 'Daemon', '工具']
   },
   {
@@ -76,7 +76,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: '网络基础与协议',
     desc: 'TCP/IP、HTTP、DNS 等核心协议的运作原理与网络分层模型',
-    size: '85 KB',
+    size: '94 KB',
     tags: ['TCP', 'HTTP', 'DNS', 'DHCP', 'ARP', '网关']
   },
   {
@@ -94,7 +94,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'n8n 工作流自动化',
     desc: '从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑',
-    size: '94 KB',
+    size: '102 KB',
     tags: ['工作流', '节点', '触发器', '自动化', 'Cron']
   },
   {
@@ -110,7 +110,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: '变频器交互式学习',
     desc: '变频驱动器工作原理、参数配置与电机控制实践',
-    size: '114 KB',
+    size: '122 KB',
     tags: ['变频器', 'IGBT', 'PWM', '电机']
   },
   {
@@ -118,7 +118,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'VSCode 配置文件学习',
     desc: 'settings.json、快捷键、扩展管理与工作区配置的系统化学习',
-    size: '97 KB',
+    size: '105 KB',
     tags: ['settings.json', '快捷键', '扩展', '工作区', 'ESLint', '调试']
   },
   {
@@ -134,7 +134,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: '建站全流程仿真学习',
     desc: '从域名注册、DNS 解析、部署到 SSL 配置的完整建站模拟',
-    size: '74 KB',
+    size: '75 KB',
     tags: ['域名', 'DNS', 'SSL', 'HTTPS', '部署']
   },
   {
@@ -142,7 +142,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'Git 版本控制',
     desc: '对象模型、三区流动、提交图模拟、分支合并与团队协作的完整交互式学习',
-    size: '96 KB',
+    size: '105 KB',
     tags: ['分支', '合并', '提交', '暂存'],
     progress: 'git',
     total: 9
@@ -152,7 +152,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'Shell 脚本',
     desc: '内置迷你终端：变量、引号、管道、重定向、条件、循环与函数，动手学 Bash',
-    size: '87 KB',
+    size: '95 KB',
     tags: ['Shell', '变量', '管道', '脚本'],
     progress: 'bash',
     total: 9
@@ -170,7 +170,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: '正则表达式',
     desc: '实时匹配引擎：字符类、量词、分组捕获、锚点边界与实战提取',
-    size: '67 KB',
+    size: '75 KB',
     tags: ['正则', 'RegExp', '字符类', '量词', '捕获'],
     progress: 'regex',
     total: 9
@@ -180,7 +180,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'SQL 查询',
     desc: '迷你查询引擎：SELECT、过滤、排序、聚合分组、JOIN 联表与实战提取',
-    size: '83 KB',
+    size: '91 KB',
     tags: ['SELECT', 'JOIN', 'GROUP', '聚合'],
     progress: 'sql',
     total: 9
@@ -420,7 +420,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'GraphQL API',
     desc: '迷你 resolver 预测器：schema、类型系统、查询语法、N+1 与 DataLoader',
-    size: '44 KB',
+    size: '45 KB',
     tags: ['schema', 'resolver', 'DataLoader', '查询'],
     progress: 'graphql',
     total: 9
@@ -430,7 +430,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'CDN 与边缘缓存',
     desc: '迷你缓存判读器：命中/回源、Cache-Control、缓存键与 Vary、ETag 协商、purge 与击穿防护',
-    size: '72 KB',
+    size: '80 KB',
     tags: ['缓存', '回源', 'Cache-Control', 'ETag'],
     progress: 'cdn',
     total: 9
@@ -440,7 +440,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'CSS 布局系统实战',
     desc: '迷你布局计算引擎：盒模型尺寸、flex 伸缩分配、grid 轨道与区域、居中与层叠上下文',
-    size: '78 KB',
+    size: '86 KB',
     tags: ['盒模型', 'flex', 'grid', '居中', '主轴'],
     progress: 'css-layout',
     total: 9

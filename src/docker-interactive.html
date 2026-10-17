@@ -10,7 +10,9 @@
   --primary: #6366f1; --primary-light: #818cf8; --primary-bg: #eef2ff;
   --bg: #f8fafc; --surface: #ffffff; --surface-alt: #f1f5f9;
   --text: #0f172a; --text-muted: #475569; --text-dim: #94a3b8;
-  --success: #22c55e; --error: #ef4444; --warning: #f59e0b; --info: #3b82f6;
+  /* 状态色：既做边框也做前景文字。#22c55e/#ef4444 压在浅灰面板上只有
+     2.1/3.3:1，这里按 WCAG 反推取深色版本；暗色下由 [data-theme="dark"] 覆盖。 */
+  --success: #15803d; --error: #b91c1c; --warning: #92620a; --info: #1d4ed8;
   --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08);
   --radius: 10px; --transition: 0.3s ease;
   --font: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -21,6 +23,12 @@
   --text: #f1f5f9; --text-muted: #94a3b8; --text-dim: #64748b;
   --border: #334155; --shadow: 0 1px 3px rgba(0,0,0,0.4);
   --primary-bg: #1e1b4b;
+  --btn-bg: #0f172a;
+  --success: #4ade80; --error: #f87171; --warning: #fbbf24; --info: #93c5fd;
+}
+/* 亮色显式声明：模块自带主题切换时，这三条保证 .win/进度条回到深色版 */
+[data-theme="light"] {
+  --success: #15803d; --error: #b91c1c; --warning: #92620a; --info: #1d4ed8;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; transition: background var(--transition), color var(--transition); }
@@ -33,7 +41,7 @@ h3 { margin-bottom: 8px; font-size: 1.1rem; }
 p { margin-bottom: 12px; }
 code { font-family: var(--font-mono); background: var(--surface-alt); padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: var(--primary); }
 #progressBar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg, var(--primary), var(--primary-light)); z-index: 1000; transition: width 0.1s; }
-#themeToggle { position: fixed; top: 16px; right: 16px; z-index: 999; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 1.2rem; box-shadow: var(--shadow); transition: background var(--transition); }
+#themeToggle { position: fixed; top: 16px; right: 16px; z-index: 999; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border); background: var(--btn-bg, #ffffff); cursor: pointer; font-size: 1.2rem; box-shadow: var(--shadow); transition: background var(--transition); }
 .sticky-nav { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 0.82rem; }
 .sticky-nav a { color: var(--text-muted); text-decoration: none; padding: 4px 10px; border-radius: 6px; transition: all 0.2s; }
 .sticky-nav a:hover, .sticky-nav a.active { color: var(--primary); background: var(--primary-bg); }
@@ -73,11 +81,13 @@ section:last-child { border-bottom: none; }
 .concept-tree .node:hover, .concept-tree .node:focus-visible { background: var(--primary-bg); outline: none; }
 .concept-tree .node.current { background: var(--primary-bg); border: 2px solid var(--primary); }
 .explorer { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 16px 0; }
-.explorer-code { background: #0f172a; padding: 0; }
+/* 代码面板：底与字必须成对换主题，单改文字会白字压白底。
+   token 由壳层 skin 提供，standalone 时用 ?? 兜底。 */
+.explorer-code { background: var(--sk-code-bg, #0f172a); padding: 0; }
 .explorer-info { background: var(--surface); padding: 20px; }
-.code-line { padding: 6px 14px; font-family: var(--font-mono); font-size: 0.85rem; color: #e2e8f0; cursor: pointer; transition: background 0.2s; border-left: 3px solid transparent; }
-.code-line:hover, .code-line.active { background: #1e293b; border-left-color: var(--primary); }
-.code-line:focus-visible { outline: none; background: #1e293b; border-left-color: var(--primary); }
+.code-line { padding: 6px 14px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--sk-code-fg, #e2e8f0); cursor: pointer; transition: background 0.2s; border-left: 3px solid transparent; }
+.code-line:hover, .code-line.active { background: var(--sk-code-bar, #1e293b); border-left-color: var(--primary); }
+.code-line:focus-visible { outline: none; background: var(--sk-code-bar, #1e293b); border-left-color: var(--primary); }
 .explorer-info h4 { color: var(--primary); margin-bottom: 8px; }
 .explorer-info p { font-size: 0.88rem; color: var(--text-muted); }
 .explorer-info .hint { margin-top: 10px; padding: 8px 12px; background: var(--primary-bg); border-radius: 6px; font-size: 0.82rem; color: var(--text); }
@@ -96,7 +106,7 @@ section:last-child { border-bottom: none; }
 .cache-layer.cached .layer-status { color: #166534; }
 .cache-layer.rebuilt .layer-status { color: #991b1b; }
 .cache-layer .layer-btns { display: flex; gap: 4px; }
-.cache-layer .layer-btns button { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); cursor: pointer; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+.cache-layer .layer-btns button { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); cursor: pointer; font-size: 0.8rem; color: var(--text); display: flex; align-items: center; justify-content: center; }
 .cache-layer .layer-btns button:hover { background: var(--primary-bg); color: var(--primary); }
 .cache-layer .layer-btns button:disabled { opacity: 0.3; cursor: not-allowed; }
 [data-theme="dark"] .cache-layer.cached { background: #052e16; color: #bbf7d0; }
@@ -115,17 +125,17 @@ section:last-child { border-bottom: none; }
 [data-theme="dark"] .lifecycle-stage.success { background: #052e16; color: #bbf7d0; }
 [data-theme="dark"] .lifecycle-stage.fail { background: #450a0a; color: #fecaca; }
 .code-editor { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin: 16px 0; }
-.editor-bar { background: #1e293b; color: #94a3b8; padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+.editor-bar { background: var(--sk-code-bar, #1e293b); color: var(--sk-code-dim, #94a3b8); padding: 8px 14px; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
 .dots i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 3px; }
 .dots i:nth-child(1) { background: #ef4444; }
 .dots i:nth-child(2) { background: #f59e0b; }
 .dots i:nth-child(3) { background: #22c55e; }
-.code-editor textarea { width: 100%; min-height: 200px; padding: 14px; background: #0f172a; color: #e2e8f0; border: none; resize: vertical; font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.5; }
+.code-editor textarea { width: 100%; min-height: 200px; padding: 14px; background: var(--sk-code-bg, #0f172a); color: var(--sk-code-fg, #e2e8f0); border: none; resize: vertical; font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.5; }
 .code-editor textarea:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
-.editor-actions { display: flex; gap: 8px; padding: 8px 14px; background: #1e293b; }
-.editor-actions button { padding: 6px 16px; border: none; border-radius: 6px; background: var(--primary); color: #fff; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+.editor-actions { display: flex; gap: 8px; padding: 8px 14px; background: var(--sk-code-bar, #1e293b); }
+.editor-actions button { padding: 6px 16px; border: none; border-radius: 6px; background: var(--primary); color: var(--sk-on-accent, #fff); cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
 .editor-actions button:hover { background: var(--primary-light); }
-.console-output { padding: 10px 14px; background: #020617; color: #94a3b8; font-family: var(--font-mono); font-size: 0.82rem; min-height: 50px; white-space: pre-wrap; }
+.console-output { padding: 10px 14px; background: var(--sk-code-bg, #020617); color: var(--sk-code-dim, #94a3b8); font-family: var(--font-mono); font-size: 0.82rem; min-height: 50px; white-space: pre-wrap; }
 .accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin: 8px 0; overflow: hidden; }
 .accordion-btn { width: 100%; padding: 12px 16px; background: var(--surface-alt); border: none; text-align: left; cursor: pointer; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center; color: var(--text); font-family: var(--font); }
 .accordion-btn .arrow { transition: transform 0.3s; }
@@ -146,7 +156,7 @@ section:last-child { border-bottom: none; }
 [data-theme="dark"] .quiz-opts button.correct { background: #052e16; color: #bbf7d0; }
 [data-theme="dark"] .quiz-opts button.wrong { background: #450a0a; color: #fecaca; }
 .quiz-explain { margin-top: 12px; }
-.quiz-explain button, .quiz-score button { margin-top: 10px; padding: 8px 20px; border: none; border-radius: 8px; background: var(--primary); color: #fff; cursor: pointer; font-size: 0.88rem; }
+.quiz-explain button, .quiz-score button { margin-top: 10px; padding: 8px 20px; border: none; border-radius: 8px; background: var(--primary); color: var(--sk-on-accent, #fff); cursor: pointer; font-size: 0.88rem; }
 .quiz-score { text-align: center; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 20px 0; }
 .flip-card { perspective: 1000px; cursor: pointer; min-height: 160px; }
@@ -285,7 +295,7 @@ section:last-child { border-bottom: none; }
 <section id="lifecycle">
   <h2>容器生命周期</h2>
   <p>点击 Run 观察容器从构建到运行到清理的全过程。每个阶段对应一条 docker 命令。</p>
-  <button onclick="runLifecycle()" id="lifecycleBtn" style="padding:8px 20px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:0.88rem;margin-bottom:16px;">▶ 模拟运行</button>
+  <button onclick="runLifecycle()" id="lifecycleBtn" style="padding:8px 20px;border:none;border-radius:8px;background:var(--primary);color:var(--sk-on-accent,#fff);cursor:pointer;font-size:0.88rem;margin-bottom:16px;">▶ 模拟运行</button>
   <div class="lifecycle-flow" id="lifecycleFlow">
     <div class="lifecycle-stage" data-name="docker build" data-cmd="docker build -t myapp .">docker build</div>
     <span class="lifecycle-arrow">→</span>
@@ -530,19 +540,25 @@ window.addEventListener('scroll', function() {
   ticking = true;
 });
 
+/* 主题：只调用壳层的 IL.setTheme。
+   以前这里直接写 document.documentElement.dataset.theme（独立页面时是 ''
+   或 'dark'），打包进壳层后写的是同一个 <html> —— 会把全站主题抢走，
+   壳层的 html[data-theme="light"] 变量与 skin 的亮色 token 一起失效。 */
 function initTheme() {
   var btn = document.getElementById('themeToggle');
   if (!btn) return;
-  var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.dataset.theme = prefersDark ? 'dark' : '';
-  btn.textContent = prefersDark ? '☀️' : '🌙';
-  btn.setAttribute('aria-label', prefersDark ? '切换到浅色主题' : '切换到深色主题');
-  btn.addEventListener('click', function() {
-    var isDark = document.documentElement.dataset.theme === 'dark';
-    document.documentElement.dataset.theme = isDark ? '' : 'dark';
-    btn.textContent = isDark ? '🌙' : '☀️';
-    btn.setAttribute('aria-label', isDark ? '切换到深色主题' : '切换到浅色主题');
+  function paint(dark) {
+    btn.textContent = dark ? '☀️' : '🌙';
+    btn.setAttribute('aria-label', dark ? '切换到浅色主题' : '切换到深色主题');
+  }
+  paint(window.IL ? IL.isDark() : matchMedia('(prefers-color-scheme: dark)').matches);
+  btn.addEventListener('click', function () {
+    if (window.IL) { paint(IL.toggleTheme()); return; }
+    var dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : '';
+    paint(dark);
   });
+  if (window.IL) document.addEventListener('il:theme', function (e) { paint(e.detail.dark); });
 }
 initTheme();
 

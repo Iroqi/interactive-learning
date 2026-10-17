@@ -99,7 +99,7 @@ section h2 .badge {
   padding: 3px 10px;
   border-radius: 12px;
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
   font-weight: normal;
 }
 section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
@@ -167,7 +167,7 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
   top: -10px;
   right: -10px;
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
   border-radius: 50%;
   width: 26px;
   height: 26px;
@@ -230,11 +230,11 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
 }
 .dfl-toggle button.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
 }
 .btn {
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
   border: none;
   padding: 10px 24px;
   border-radius: 8px;
@@ -364,7 +364,7 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
 }
 .expr-item-selector button.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
   border-color: var(--accent);
 }
 
@@ -512,8 +512,8 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
   font-size: 0.8em;
   font-weight: bold;
 }
-.br-item.routed-true { background: var(--success); color: #fff; }
-.br-item.routed-false { background: var(--warn); color: #fff; }
+.br-item.routed-true { background: var(--success); color: var(--sk-on-accent, #fff); }
+.br-item.routed-false { background: var(--warn); color: var(--sk-on-accent, #fff); }
 .br-controls { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
 .br-controls .ctrl-group { display: flex; align-items: center; gap: 8px; }
 .br-controls label { font-size: 0.85em; color: var(--muted); }

@@ -27,6 +27,44 @@
   if (global.IL) return;
 
   var STORE = 'il_progress';
+  var THEME_KEY = 'il_theme';
+
+  /* ── 主题：唯一的写入点 ──
+   * 背景：<html data-theme> 是壳层与 5 个模块（docker/net/cs/cf-workers/vfd）
+   * 共用的属性，而模块 CSS 用的是裸 [data-theme="dark"] 选择器。模块自带的
+   * ☀/🌙 按钮直接写这个属性，就会把整站的 data-theme 抢走（写 '' 或 'light'
+   * 都算抢），壳层的亮色变量与 skin 的亮色 token 同时失效——表现为
+   * "切过一次模块主题，全站暗色再也回不来"。这里把读写收敛成一处，
+   * 模块按钮只准调用 IL.toggleTheme()，不再自己操作 DOM。 */
+  function themeGet() {
+    try { return global.localStorage.getItem(THEME_KEY) || 'auto'; }
+    catch (e) { return 'auto'; }
+  }
+
+  function isDark() {
+    var t = themeGet();
+    if (t === 'dark') return true;
+    if (t === 'light') return false;
+    return !!(global.matchMedia && global.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  function applyTheme() {
+    var d = isDark();
+    if (global.document) global.document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+    return d;
+  }
+
+  /* 返回切换后的有效主题，供模块更新自己的按钮文字。 */
+  function setTheme(next) {
+    try { global.localStorage.setItem(THEME_KEY, next); } catch (e) { /* storage unavailable */ }
+    var d = applyTheme();
+    if (global.document) {
+      global.document.dispatchEvent(new global.CustomEvent('il:theme', { detail: { theme: next, dark: d } }));
+    }
+    return d;
+  }
+
+  function toggleTheme() { return setTheme(isDark() ? 'light' : 'dark'); }
 
   function read() {
     try { return JSON.parse(global.localStorage.getItem(STORE) || '{}'); }
@@ -106,27 +144,87 @@
    * 错题题序在下次进入时提前（错题优先重做）-> 达标题触发 onPass。
    *
    * 自带 .ilq-* 皮肤：早期模块各自为政的配色不能被壳层的 !important 统一
-   * 覆盖（壳层只认 .opt-row 等既有类名），独立打开 src/*.html 时也要能看。 */
+   * 覆盖（壳层只认 .opt-row 等既有类名），独立打开 src/*.html 时也要能看。
+   *
+   * 颜色全部走 --ilq-* token：默认值适配"没有 data-theme 的独立页面"（模块
+   * 自己的 :root 多半是浅色），壳层里 html[data-theme="dark"] 切到暗色一套。
+   * 之前这里写死霓虹绿 + 近白文字，亮色主题下测验块是白底上的 1.4:1 灰字。 */
   var CSS = [
-    '.ilq-q{border:1px solid #1a2a20;background:#0d0d12;border-radius:6px;padding:14px 16px;margin:0 0 12px}',
-    '.ilq-title{font-weight:600;color:#d6ffe0;margin-bottom:10px;display:flex;gap:8px;align-items:baseline}',
-    '.ilq-num{font-size:11px;color:#00ff41;border:1px solid #00ff41;border-radius:4px;padding:1px 6px;flex:none}',
-    '.ilq-num.re{color:#ffb020;border-color:#ffb020}',
-    '.ilq-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid #1a2a20;background:#050507;',
-    'border-radius:6px;padding:9px 12px;margin:6px 0;cursor:pointer;color:#c2d9c8;font-size:14px}',
-    '.ilq-opt:hover{border-color:#00ff41}',
-    '.ilq-opt input{accent-color:#00ff41;margin-top:3px;flex:none}',
-    '.ilq-opt.correct{border-color:#00ff41;background:rgba(0,255,65,.14)}',
-    '.ilq-opt.wrong{border-color:#d24d4d;background:rgba(210,77,77,.12)}',
+    ':root{--ilq-card:#f7f8fa;--ilq-opt:#ffffff;--ilq-border:#dfe4ea;--ilq-text:#101725;',
+    '--ilq-body:#232c39;--ilq-dim:#41505f;--ilq-accent:#0b6b39;--ilq-redo:#8a5a00;',
+    '--ilq-ok:#14532d;--ilq-err:#7f1d1d;--ilq-bad:#b91c1c;',
+    '--ilq-tint:rgba(11,107,57,.14);--ilq-ok-bg:rgba(11,107,57,.08);--ilq-bad-bg:rgba(185,28,28,.10)}',
+    ':root[data-theme="dark"]{--ilq-card:#0d0d12;--ilq-opt:#050507;--ilq-border:#1a2a20;',
+    '--ilq-text:#d6ffe0;--ilq-body:#c2d9c8;--ilq-dim:#9fcca9;--ilq-accent:#00ff41;--ilq-redo:#ffb020;',
+    '--ilq-ok:#e6ffe9;--ilq-err:#f8d7d7;--ilq-bad:#d24d4d;',
+    '--ilq-tint:rgba(0,255,65,.14);--ilq-ok-bg:rgba(0,255,65,.08);--ilq-bad-bg:rgba(210,77,77,.12)}',
+    '.ilq-q{border:1px solid var(--ilq-border);background:var(--ilq-card);border-radius:6px;padding:14px 16px;margin:0 0 12px}',
+    /* overflow-wrap 可继承，写在容器上能让匿名 flex item（直接放进 flex 的文本）
+       也允许断词，否则长题干同样撑破宽度 */
+    '.ilq-title{font-weight:600;color:var(--ilq-text);margin-bottom:10px;display:flex;gap:8px;align-items:baseline;overflow-wrap:anywhere}',
+    '.ilq-num{font-size:11px;color:var(--ilq-accent);border:1px solid var(--ilq-accent);border-radius:4px;padding:1px 6px;flex:none}',
+    '.ilq-num.re{color:var(--ilq-redo);border-color:var(--ilq-redo)}',
+    '.ilq-opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--ilq-border);background:var(--ilq-opt);',
+    'border-radius:6px;padding:9px 12px;margin:6px 0;cursor:pointer;color:var(--ilq-body);font-size:14px}',
+    /* flex item 默认 min-width:auto，不会缩到内容宽度以下。选项文本里
+       "服务器/托管""Let's Encrypt（ACME …）" 这类含斜杠/括号的连续串没有断行点，
+       于是手机上整条选项撑破卡片（.ilq-opt scrollWidth 356 vs clientWidth 312），
+       外层是 overflow:hidden 时文字直接被吃掉。这里显式允许收缩并允许断词。 */
+    '.ilq-opt>span{min-width:0;overflow-wrap:anywhere}',
+    '.ilq-opt:hover{border-color:var(--ilq-accent)}',
+    '.ilq-opt input{accent-color:var(--ilq-accent);margin-top:3px;flex:none}',
+    /* 模块 CSS 是注入到同一个 document 的，很多模块写了裸的元素选择器
+       （web 模块的 `input, select, textarea { width:100%; padding:10px 12px; border }`），
+       这些规则会命中壳层挂进模块里的单选按钮——radio 被撑成 288px，
+       选项文字只剩 0 宽。这里把影响盒模型 property 逐个钉回控件默认值，
+       让共享测验不被宿主模块的表单样式改写（background 不动，否则原生控件会被画坏）。 */
+    '.ilq-opt input[type=radio]{width:auto;height:auto;padding:0;border:0;border-radius:0;box-shadow:none;box-sizing:content-box;font-size:inherit;max-width:none}',
+    '.ilq-opt.correct{border-color:var(--ilq-accent);background:var(--ilq-tint)}',
+    '.ilq-opt.wrong{border-color:var(--ilq-bad);background:var(--ilq-bad-bg)}',
     '.ilq-opt.disabled{pointer-events:none;opacity:.85}',
     '.ilq-result{margin-top:8px;font-size:13px;padding:8px 10px;border-radius:6px;display:none;white-space:pre-wrap}',
     '.ilq-result.show{display:block}',
-    '.ilq-result.ok{color:#e6ffe9;background:rgba(0,255,65,.08)}',
-    '.ilq-result.err{color:#f8d7d7;background:rgba(210,77,77,.08)}',
-    '.ilq-score{border:1px dashed #00ff41;border-radius:6px;padding:16px;margin-top:14px;text-align:center;color:#e6ffe9}',
-    '.ilq-score b{display:block;font-size:28px;color:#00ff41;letter-spacing:1px}',
-    '.ilq-score p{margin:6px 0 0;font-size:13px;color:#9fcca9}',
+    '.ilq-result.ok{color:var(--ilq-ok);background:var(--ilq-ok-bg)}',
+    '.ilq-result.err{color:var(--ilq-err);background:var(--ilq-bad-bg)}',
+    '.ilq-score{border:1px dashed var(--ilq-accent);border-radius:6px;padding:16px;margin-top:14px;text-align:center;color:var(--ilq-ok)}',
+    '.ilq-score b{display:block;font-size:28px;color:var(--ilq-accent);letter-spacing:1px}',
+    '.ilq-score p{margin:6px 0 0;font-size:13px;color:var(--ilq-dim)}',
   ].join('');
+
+  /* 壳层里模块 CSS 会被改写成 `#moduleRoot *{…}`（特异度 1,0,0），而这里的
+     `.ilq-opt{padding:9px 12px}` 只有 0,1,0 —— 于是模块那句通用 reset 直接赢，
+     测验块整片被压平：选项 25px 高（触控下限 32px）、卡片无内边距、题目之间
+     没有间距，视觉上像渲染坏了。这里把同一份 CSS 再生成一份 "#moduleRoot 前缀"
+     版本（特异度 1,1,0，稳压 `#moduleRoot *`），只在壳层（存在 #moduleRoot 时）
+     注入；独立打开 src/*.html 时不注入，行为与原来完全一致。
+     CSS 是扁平的 `selector{decls}` 列表（无 @media、无嵌套），可以按块切。 */
+  function scopeToRoot(css) {
+    var out = '', i = 0;
+    while (i < css.length) {
+      var open = css.indexOf('{', i);
+      if (open < 0) break;
+      var close = css.indexOf('}', open);
+      if (close < 0) close = css.length;
+      var sel = css.slice(i, open).trim();
+      var body = css.slice(open, close + 1);
+      /* :root[data-theme="dark"] → html[data-theme="dark"] #moduleRoot
+         :root → #moduleRoot（token 挂在容器上，子元素照样继承）
+         其余 .ilq-* → #moduleRoot .ilq-* */
+      sel = sel
+        .replace(/:root\[data-theme="dark"\]/g, 'html[data-theme="dark"] #moduleRoot')
+        .replace(/:root/g, '#moduleRoot')
+        .split(',').map(function (s) {
+          s = s.trim();
+          /* 上一步已经把 :root[…] 换成含 #moduleRoot 的选择器，别再加前缀 */
+          if (!s || s.indexOf(MR_SCOPE) >= 0) return s;
+          return MR_SCOPE + ' ' + s;
+        }).join(',');
+      out += sel + body;
+      i = close + 1;
+    }
+    return out;
+  }
+  var MR_SCOPE = '#moduleRoot';
 
   function ensureStyle() {
     var doc = global.document;
@@ -135,6 +233,12 @@
     st.id = 'ilquiz-css';
     st.textContent = CSS;
     (doc.head || doc.documentElement).appendChild(st);
+    if (doc.getElementById('moduleRoot')) {
+      var st2 = doc.createElement('style');
+      st2.id = 'ilquiz-css-scoped';
+      st2.textContent = scopeToRoot(CSS);
+      (doc.head || doc.documentElement).appendChild(st2);
+    }
   }
 
   function el(x) {
@@ -319,5 +423,6 @@
     touch: touch, mount: mount, quiz: quiz,
     order: order, orderDom: orderDom, record: record,
     read: read, esc: esc,
+    isDark: isDark, toggleTheme: toggleTheme, setTheme: setTheme,
   };
 })(window);

@@ -542,3 +542,46 @@
 - **95 条查询探针复测**：零结果从 **15 → 7**，单命中 59 → 61。剩下 7 条里 4 条是拼写错误（`gprc`/`redix`/`pormises`/`dckear`，现在都有"是不是想找"兜底），3 条是站内确实没有的概念（`效率`、`工作流引擎` 有建议、`不存在的课程xyz`）。
 - **回归**：`smoke15.js` **33/33**、`smoke14.js` **77/77**、`smoke13.js` **46/46**、45 个 `src/` 独立页零 pageerror、`pack-modules.py` + `verify-pack.js` 全绿。
 - **遗留**：搜索仍是"包含匹配 + 无排序"，命中 title 和命中 desc 同权，`F. 打分排序` 未做；`size` 改为运行时派生（候选 E）没做，靠 CI 挡住漂移而不是根除手抄；拼音/别名（`wangye` → 网关）未做；`效率` 这类真正的站外概念只能靠"换个关键词"文案兜住。tags 的质量依赖"确实出现在源码里"这条下限，它不保证这个词是模块的**教学重点**——那是需要人工审的，工具只能保证不是凭空捏造。
+
+## 58. 现状盘点（Round 16 之后）
+- 前几轮都在改"这个库算得对不对"，本轮换了个完全物理的入口：**用手机读它**。写了一组 Playwright 探针（390×844、hasTouch、`file://` 直开 `index.html`），把七类缺陷当成七个独立问题去量：键盘劫持、壳层 CSS 漏进模块、页面横向溢出、内容被裁、共享测验在壳层里失效、可点目标尺寸、亮色主题破功。
+- 前六类的结果基本干净（45 模块横向溢出 0、被 `overflow-x:hidden` 吞掉的不可达内容 0、输入框字号 ≥16px），第七类是一个巨大的坑：**亮色模式下源头对比度失败 285 个簇**（关掉运行时兜底、`route('**/ilcontrast.js', abort)` 后逐元素量合成底色）。
+- 一开始把这个数字归因错了。第一轮探针把"簇"统计成 `tag.class + 前景色`，285 是**颜色字符串的种类数**，不是元素数；而 `ratio` 报出的 4.17~4.49 其实是**运行时改完之后**的值——因为没有 abort 掉兜底，量到的是被 `ILContrast` 拉到 AA 线以下的边缘。真实源头比值是 1.00~4.49，最坏的一批是 `1.00`：完全同色。
+- 三个真正的根因，每个都是结构性问题而不是"某个模块写错颜色"：
+  1. **CSS 变量的替换时机**。`--muted: var(--sk-muted)` 这类别名是在**声明它的那个元素**上解析成具体颜色的，然后以具体颜色往下继承。所以 skin 在 `#moduleRoot` 上覆写 `--sk-*` 做"恒定深色孤岛"时，孤岛里的 `var(--muted)` 早就被换成了亮色值——深底配浅字变成深底配深字。修法是孤岛必须把 `--sk-*` 和**模块自造的别名**一起重声明。
+  2. **壳层与共享库的特异度不对称**。`scopeModuleCSS()` 把模块的 `*{…}` 改写成 `#moduleRoot *{…}`（1,0,0），而 `ilquiz.js` 的 `.ilq-opt{padding:9px 12px}` 只有 0,1,0——模块那条通用 reset 直接赢，测验选项被压成 25px 高，手机上点不准。共享库在壳层里不是"上层"，是被打平的那一方。
+  3. **SVG 文字在审计和兜底里双双隐形**。`<text>` 用 `fill` 上色，`cs.color` 是从主题继承来的、跟屏幕上看到的颜色没关系；而它的真实底色是同一 `<g>` 里那块 `<rect fill="#hex">`——**属性**，`getComputedStyle().backgroundColor` 永远是 transparent。于是祖先链一路穿出 SVG，量到的是外层主题浅卡，"深底板 + 浅字"被误判成"浅底 + 浅字"。
+
+## 59. 发散：Round 17 候选
+| 候选 | 价值 | 成本 | 风险 |
+|------|------|------|------|
+| **A. 恒定深色孤岛整套换装**（skin 里为 `pre/.code-block/.quiz-q/.clab/#nav`… 重声明 token + 别名） | 极高：一次性解掉 285 簇的绝大部分 | 高（几十个选择器 × 两套别名） | 中（选错家族就把亮色模块改黑） |
+| **B. `ilquiz.js` 在壳层注入 `#moduleRoot` 前缀的第二份样式表** | 极高：修测验压平，且修在正确的层 | 中 | 低（独立页不注入，行为不变） |
+| **C. `ILContrast` + 审计同时支持 SVG `fill` 与 `<rect>` 底板** | 高：补上唯一还剩下的盲区 | 中 | 中（底板找错会把清楚的图示改糊） |
+| **D. `moduleRoot.dataset.mod = key` 逃生阀** | 高：plc/git 这类"模块特例"不再污染全局规则 | 低 | 低 |
+| E. 把 `--git`/`--http` 等品牌色统一映射到 `--sk-accent` | 表面很美：一行解决一批"不跟随主题"的颜色 | 极低 | **极高**——已实测翻车 |
+| F. 给 `h2 .num` 在壳层统一配前景 | 表面合理：一处修十六个模块的圆章 | 低 | **极高**——已实测翻车 |
+| G. 把 285 簇逐条写成 285 条模块源码规则 | 低 | 极高 | 中（可维护性反而更差） |
+| H. `tools/check-contrast.js` 进 CI（真浏览器量像素） | 高：把本轮所有成果变成一条可回归的下限 | 中 | 中（CI 装浏览器；本地/CI 算法必须一致） |
+
+> 取舍：A/B/C/D 是同一条主线的四层——"谁在什么条件下赢"。E 和 F 是本轮**自己踩的两个坑**，写在发散里是因为它们的失败比成功更有信息量：E 把 `--git` 指到 accent，git 页 289 个白字圆章瞬间"白压绿"1.00:1——品牌色的职责是识别不是对比度，从此定规"品牌色不进 token 映射"；F 在壳层写 `#moduleRoot h2 .num { color:#fff !important }`，把 16 个模块**本来没有底色**的描边数字也刷成白字，同样是 289 个 1.00:1——配对必须写在有实底的那一侧（模块源码），且需要 `!important` 才压得过壳层的 1,1,0 通用规则。G 否掉：285 簇里绝大多数是同一族选择器的不同颜色值，逐条写等于放弃抽象。H 做，但必须是"能 SKIP 的 CI 步骤"——这个仓库没有 `package.json`，为了一个检查引入依赖清单是把审计的成本转嫁成仓库的复杂度。
+
+## 60. 收敛：Round 17 实施项
+1. **孤岛选择器集合**（源码普查得出，逐个验证在模块里确实是硬编码深底）：`pre, .code-block, .code-area, .code-editor, .expr-input(-area), .sandbox-editor, .editor-area, .console(-output), .explorer-code, .clab(-head/-out), .quiz-q, .ch-task, .predict(-box), .eg, #nav, #nav-inner, .nav-links`。每块内容 = 一整套 `--sk-*` 深色 token + 该家族在模块里用到的**全部别名**重声明。
+2. **刻意不进孤岛的家族**：`.term`（既是终端也是术语表，误伤）、`.simulator`（只有 plc 硬编码深底，改成 `#moduleRoot[data-mod="plc"] .simulator`）、`.step-nav`、`.lab`、`.exercise`（原本 rgba 色晕，改用 `--sk-tint-08`）。
+3. **`ilquiz.js` 的 `scopeToRoot(css)`**：检测到 `#moduleRoot` 存在时，把整份 CSS 按 `{}` 切开、给每条选择器加 `#moduleRoot ` 前缀，注入为 `#ilquiz-css-scoped`；`:root` → `#moduleRoot`、`:root[data-theme="dark"]` → `html[data-theme="dark"] #moduleRoot`，且已含 `#moduleRoot` 的选择器不重复加前缀。独立页走原路径，一行不变。
+4. **`ILContrast` 的 SVG 通道**：`svgBackdrop(el)` 在**父级**（可能是 `<svg>` 根，其直接子元素没有 `ownerSVGElement`，不能拿它当判据）用 `getElementsByTagName('*')` 找 rect/circle/path，`path` 与无显式宽高者退回 `getBBox()`，取"锚点被包住且面积最小"的那块，颜色按 **属性 → 计算值** 顺序解析并把 `#hex` 归一成 `rgb()`（下游合成函数只认 `rgb()`）；前景按 `cs.fill` 读、写回也写 `fill`，撤销时按 `data-ilc="fill"` 撤对属性。
+5. **半透明底板不能当最终底色**：n8n 概念图的节点底板是 `rect fill="rgba(46,204,113,.15)"`，旧代码直接 `return svgBg`，等于假装它是不透明亮绿——`#2ecc71` 标签被判 1.05:1，运行时把它改成近黑 `rgb(0,76,19)`，**本来清楚的图被兜底改糊**。现在 a<1 的底板只作为最上一层，继续往下层 HTML 祖先合成。
+6. **审计与兜底共用同一套合成规则**（写进 `tools/check-contrast.js` 的头注释）：忽略 `background-image`、**不看元素 `opacity`**（淡入中的 `.step` 会让全站文字压向页面底色、比值全线失真）、白色画布打底且最深不透明层替换它。两边算法分叉的代价本轮实测过一次——"审计说 1.11、运行时说 4.62"，谁也修不了。
+7. **`tools/check-contrast.js`**：默认模式量 45 模块 × 亮暗双主题的**出厂状态**（兜底生效），失败 > 预算即 exit 1；`--source` 屏蔽 `ilcontrast.js` 并按"路径 + 前景色"聚合源头簇供定位用（仅参考、不作 CI 判据）；`--theme=` / `--keys=` / `--top=` / `--budget=` 分片；找不到 Playwright 或 Chromium 时打印 SKIP 并 exit 0。CI 里临时 `npm init -y` + `npm i --no-save playwright` + `npx playwright install chromium`，装不上就自然退化成 SKIP。
+8. **`tools/check-theme.js` 从"一刀切禁字面色"改成三条**：自定义属性声明允许（那是孤岛调色板本身）；选择器含 `html[data-theme=` / `#moduleRoot[data-mod=` 的允许（显式主题/模块配对）；其余真属性写字面色报错。另加**孤岛完整性检查**——凡重定义 `--sk-page` 的块必须覆盖全部"文字系" token，少一个就是深底压深字。
+9. **源码侧修的具体缺陷**：git/bash/pid 的 `h2 .num` 配 `color … !important`；58 处 `color:#00ff41` 霓虹绿改 `var(--sk-accent, #00ff41)`（cdn/css-layout/graphql/grpc/oauth2/tls）；`transactions` 的 `td.okc/td.badc`、`web` 的 11 处 inline `color:#6b7280`、plc 的 `#e94560` 按钮与一处**非法 9 位** `fill="#64748b8"`（浏览器静默忽略，等于没上色）、css-layout flex-demo 色块 C 的 `#5f7a66`。`courses.js` 的 `size` 随重打包重新同步 14 条。
+10. **`.progress-strip .fill` / `.plabel`**：进度条填充色改指 `--sk-accent`，标签从"被模块规则刷成实心 accent（1.25:1）"改回 `--sk-dim`。
+
+## 61. Round 17 执行记录（已完成并推送）
+- **285 → 37 的轨迹**（旧探针：仅 `#moduleRoot`、light 单主题）：孤岛换装前先 1576 → 1414 → **142** 次运行时改写，其中被改成"无彩色（灰）"的从 12 → 11 → **0**；出厂状态双主题全量扫描 **TOTAL 0**。收尾时用仓库里的 `tools/check-contrast.js` 复量：亮色改写 **141**、暗色 **111**，灰化 **0**（暗色那 111 次主要是 `cs:26`、`makefile:14`、`plc:39` 这类语法高亮 span 压在半透明色晕上）。`--source --theme=light` 报 **52 簇**——比 37 多是因为新工具把 `#navView` 和 SVG 底板口径也纳进来了，不是回归。
+- **遗留（如实）**：这 37/52 簇由运行时兜底覆盖，源头仍不达标的小尾巴是 plc 的 SVG 尺寸标注（3.1~3.8）、n8n 的 `--accent-2` 紫色（2.81）、git 深色面板上的 chip（2.4~3.3）、`yaml #navLabel` 的 `9 / 9`（2.42）、bash 终端输出 `.dim`（3.32）。它们都是 1~2 个元素的小簇，改法各不相同（SVG 属性 vs token），留待下一轮按 `--source --keys=` 逐模块清。
+- **自己制造的两个回归**（都已修，且都写进 README 的约定里）：`--git → var(--sk-accent)` 造成 289 个白章 1.00:1；壳层 `#moduleRoot h2 .num { color:#fff !important }` 造成另一批 289 个 1.00:1。教训是**修对比度不能靠全局覆盖**，凡"看起来一次改十六个模块"的规则都要先看它会不会碰到不需要它的那十四个。
+- **审计工具自身也出过假阳性**：第一版 `svgPlate()` 拿 `parentElement.ownerSVGElement` 当判据，`<svg>` 根节点的直接子元素全被漏掉 → git 报 4 处假失败；第二版 `compose()` 把元素 `opacity` 乘进前景，正在淡入的文字被算成压页面底色 → 双主题下多报 13 行假失败，其中 4 行给出"白字压 `rgb(11,107,57)` = 1.00"这种自相矛盾的数（真实是 6.67），一眼就能看出量错了。两处都按兜底算法对齐后归零。**假阳性比漏报更贵**：它会把人引去改本来正确的代码。
+- **验证**：`verify-pack` 45 模块字节一致、`check-courses` OK、`check-theme` OK、新增 `check-contrast` 出厂状态 **0 失败**（light/dark 双主题 45 模块）、裁剪探针 0/45、壳层↔模块泄漏探针一致、45 个 `src/` 独立页零 pageerror；`smoke13` **46**、`smoke14` **77**、`smoke15` **33**、`smoke16` **59**、`smoke17` **29/0**（本轮新增：键盘不劫持、无横向溢出、内容不被裁、测验在壳层里正常展开且选项 ≥32px、可点目标仅对**控件**判 32px 下限——正文里的行内链接 20px 是排版不是缺陷）。
+- **改动面**：`index.html`（skin：孤岛调色板 + 别名 + 品牌色不映射 + 模块配对逃生阀）、`ilquiz.js`（`scopeToRoot` + `#ilquiz-css-scoped`）、新增 `ilcontrast.js`（SVG fill 通道 + 半透明底板合成）、新增 `tools/check-theme.js` 与 `tools/check-contrast.js`、`.github/workflows/deploy.yml`（两个新 checker 进 CI）、30 个 `src/*.html` 源码修色 + 45 个 `modules/*.js` 重打包、`courses.js` size 同步、README 技术约定新增 5 条。

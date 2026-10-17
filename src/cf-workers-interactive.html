@@ -63,10 +63,13 @@ body {
 .theme-toggle:hover { background: var(--bg3); }
 
 /* Progress bar */
+/* margin: 0 -20px 是为了让条子贴到屏幕边，但它的父级已经是全宽容器，
+   负边距反而把 sticky 条撑到 430px——390px 的手机上整页可以横向晃。
+   改成宽度 100% + 自身 padding，效果一样，不再有溢出。 */
 .progress-bar {
   position: sticky; top: 0; z-index: 50;
   background: var(--bg2); border-bottom: 1px solid var(--border);
-  padding: 10px 20px; margin: 0 -20px;
+  padding: 10px 20px; width: 100%; box-sizing: border-box;
 }
 .progress-track {
   height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden;
@@ -101,8 +104,8 @@ body {
   font-weight: 600;
   text-transform: uppercase;
 }
-.badge-l1 { background: var(--green); color: #064e3b; }
-.badge-l2 { background: var(--accent); color: #0c4a6e; }
+.badge-l1 { background: var(--green); color: var(--sk-on-accent, #064e3b); }
+.badge-l2 { background: var(--accent); color: var(--sk-on-accent, #0c4a6e); }
 .badge-l3 { background: var(--orange); color: #431407; }
 .badge-l4 { background: var(--pink); color: #50072d; }
 .badge-l5 { background: var(--yellow); color: #78350f; }
@@ -234,7 +237,7 @@ body {
 .btn:hover { border-color: var(--accent); background: var(--border); }
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--sk-on-accent, #fff);
   border-color: var(--accent);
 }
 .btn-primary:hover { opacity: 0.85; }
@@ -322,7 +325,11 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  /* li 是 flex 容器，<code>/api/users/:id</code> 这类路径就成了不可折断的
+     flex item，手机上顶出 458px。允许换行并让 code 自身可断。 */
+  flex-wrap: wrap;
 }
+.task-list code { overflow-wrap: anywhere; }
 .task-list li::before { content: "☐"; flex-shrink: 0; margin-top: 1px; }
 .task-list li.done::before { content: "☑"; color: var(--green); }
 
@@ -894,12 +901,19 @@ export default {
 
 <script>
 // ===== Theme =====
+function paintCfBtn(dark) {
+  document.querySelector('.theme-toggle').textContent = dark ? '☽' : '☼';
+}
+/* 本模块的 CSS 用 [data-theme="light"]（反过来的），打包后写的是共享的
+   <html>，会把全站主题抢走；统一走壳层的 IL。 */
 function toggleTheme() {
+  if (window.IL) { paintCfBtn(IL.toggleTheme()); return; }
   const html = document.documentElement;
   const isLight = html.getAttribute('data-theme') === 'light';
   html.setAttribute('data-theme', isLight ? '' : 'light');
-  document.querySelector('.theme-toggle').textContent = isLight ? '☼' : '☽';
+  paintCfBtn(isLight);
 }
+if (window.IL) document.addEventListener('il:theme', (e) => paintCfBtn(e.detail.dark));
 
 // ===== Progress =====
 const checkpoints = ['l1c1', 'l2c1', 'l3c1', 'l4c1', 'l5c1'];

@@ -257,7 +257,7 @@ body {
   font-size: 0.9rem; font-weight: 600; cursor: pointer;
   transition: all 0.2s; font-family: inherit;
 }
-.btn-primary { background: var(--primary); color: white; }
+.btn-primary { background: var(--primary); color: var(--sk-on-accent, white); }
 .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
 .btn-outline {
   background: transparent; color: var(--primary);
@@ -265,7 +265,7 @@ body {
 }
 .btn-outline:hover { background: var(--primary-bg); }
 .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
-.btn-success { background: var(--success); color: white; }
+.btn-success { background: var(--success); color: var(--sk-on-accent, white); }
 
 /* Hint Panel */
 .hint-panel {
@@ -320,7 +320,7 @@ body {
   cursor: help; font-size: 0.88rem; font-weight: 600; transition: all 0.2s;
   border: 1px solid transparent; position: relative;
 }
-.term:hover { background: var(--primary); color: white; }
+.term:hover { background: var(--primary); color: var(--sk-on-accent, white); }
 .term-tooltip {
   display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
   transform: translateX(-50%); background: var(--surface); color: var(--text);
@@ -336,7 +336,7 @@ body {
   font-size: 0.9rem;
 }
 .comp-table th {
-  background: var(--primary); color: white; padding: 0.8rem 1rem;
+  background: var(--primary); color: var(--sk-on-accent, white); padding: 0.8rem 1rem;
   text-align: left; font-weight: 600;
 }
 .comp-table td {
@@ -1147,7 +1147,9 @@ body {
 <script src="../ilquiz.js"></script>
 <script>
 // === Theme ===
+/* 主题走壳层的 IL（document.body 是全站在共享文档里共用的那一个） */
 function toggleTheme() {
+  if (window.IL) { IL.toggleTheme(); return; }
   const t = document.body.dataset.theme;
   document.body.dataset.theme = t === 'dark' ? '' : 'dark';
 }

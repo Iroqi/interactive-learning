@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<!-- data-theme 的初值写在 HTML 上，并由壳层脚本在 <body> 解析之后才更新：
+     壳层样式表里的 html[data-theme="light"] 在首屏就会命中，若让它先渲染成
+     亮色、再用 JS 改回暗色，手机上会闪一下白屏（prefers-color-scheme: dark
+     的用户每次进首页都白闪）。暗色是本站默认，所以静态值取 dark。 -->
+<html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,7 +20,11 @@
       --bg-elevated: #131318;
       --text: #d6ffe0;
       --text-secondary: #9fcca9;
-      --text-muted: #5f7a66;
+      --text-muted: #6d8a74;
+      /* "淡一档"的字必须用颜色表达，不能用 opacity：opacity 会把文字和它所在
+         的面板一起削薄，对比度算不准，触屏上也没有 hover 能把半透明解除。
+         下面两个值按 WCAG 反推（暗 6.46:1 / 亮 4.62:1 对卡片底）。 */
+      --text-faint: #7f9c86;
       --accent: #00ff41;
       --accent-dim: rgba(0, 255, 65, 0.12);
       --border: #1a2a20;
@@ -25,6 +33,34 @@
       --cs: #00ff41;
       --automation: #00ff41;
       --tools: #00ff41;
+      /* 强调色、语义色、面底色：暗色一套，亮色在下方覆盖。
+         凡是"文字"用的颜色都必须是变量，不能写死霓虹绿——
+         写死的颜色在亮色模式下无一例外会掉到 1.x:1。 */
+      --badge-bg: rgba(0, 255, 65, 0.1);
+      --focus: rgba(211, 168, 83, 0.4);
+      --focus-ring: rgba(211, 168, 83, 0.06);
+      --focus-strong: rgba(211, 168, 83, 0.5);
+      --gold: #facc15;
+      --gold-bg: rgba(211, 168, 83, 0.08);
+      --panel-bg: rgba(20, 24, 34, 0.96);
+      --bar-bg: rgba(12, 12, 14, 0.92);
+      --panel-border: rgba(250, 204, 21, 0.45);
+      --danger: #ef476f;
+      --amber: #fbbf24;
+      --teal: rgba(62, 206, 180, 0.65);
+      --teal-bg: rgba(62, 206, 180, 0.09);
+      --teal-border: rgba(62, 206, 180, 0.35);
+      --hairline: #1a2a20;
+      --hm-l1: #0e4429;
+      --hm-l2: #006d32;
+      --hm-l3: #26a641;
+      --hm-l4: #39d353;
+      --ambient-1: rgba(0, 255, 65, 0.05);
+      --ambient-2: rgba(0, 255, 65, 0.04);
+      --ambient-3: rgba(0, 255, 65, 0.03);
+      --shadow: rgba(0, 0, 0, 0.35);
+      --inset-line: rgba(255, 255, 255, 0.03);
+      --selection: rgba(211, 168, 83, 0.25);
       --font-display: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
       --font-body: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', sans-serif;
       --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
@@ -37,14 +73,48 @@
       --bg-elevated: #eef0f4;
       --text: #1b2230;
       --text-secondary: #5b6472;
-      --text-muted: #9aa1ad;
-      --accent: #008f45;
-      --accent-dim: rgba(0, 143, 69, 0.10);
+      --text-faint: #626d7b;
       --border: #e2e6ec;
       --border-hover: #c9d0db;
+      /* 类别色 / muted / 语义色 / 面底色在亮色下必须整套换掉：暗色那批值
+         （霓虹绿 #00ff41、金 #facc15、青 rgba(62,206,180,…)）压白底全是 1.x–3.x:1。
+         下面每个值都按 WCAG 反推，对所处面底 ≥4.5，由 tools/check-theme.js 把关。 */
+      --devops: #0b6b39;
+      --cs: #0b6b39;
+      --automation: #0b6b39;
+      --tools: #0b6b39;
+      --accent: #0b6b39;
+      --accent-dim: rgba(11, 107, 57, 0.10);
+      --text-muted: #5c6674;
+      --badge-bg: rgba(11, 107, 57, 0.12);
+      --focus: #8a6100;
+      --focus-ring: rgba(138, 97, 0, 0.15);
+      --focus-strong: #6d4c00;
+      --gold: #8a6100;
+      --gold-bg: rgba(138, 97, 0, 0.08);
+      --panel-bg: rgba(27, 34, 48, 0.96);
+      --panel-border: rgba(138, 97, 0, 0.45);
+      --panel-text: #ffe9a8;
+      --bar-bg: rgba(255, 255, 255, 0.92);
+      --danger: #be123c;
+      --amber: #92620a;
+      --teal: rgba(13, 110, 103, 0.85);
+      --teal-bg: rgba(13, 110, 103, 0.08);
+      --teal-border: rgba(13, 110, 103, 0.35);
+      --hairline: #e2e6ec;
+      --hm-l1: #9fd6b4;
+      --hm-l2: #57b57e;
+      --hm-l3: #1f8a4c;
+      --hm-l4: #14532d;
+      --ambient-1: rgba(11, 107, 57, 0.05);
+      --ambient-2: rgba(11, 107, 57, 0.04);
+      --ambient-3: rgba(11, 107, 57, 0.03);
+      --shadow: rgba(15, 23, 42, 0.10);
+      --inset-line: rgba(15, 23, 42, 0.05);
+      --selection: rgba(11, 107, 57, 0.18);
     }
     html[data-theme="light"] body::before { opacity: 0.55; }
-    html[data-theme="light"] .card-star:hover { color: #ca8a04; }
+    #navView .card-star:hover { color: var(--gold); }
 
     html { scroll-behavior: smooth; }
 
@@ -64,23 +134,23 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0, 255, 65, 0.05), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(0, 255, 65, 0.04), transparent),
-        radial-gradient(ellipse 50% 60% at 50% 100%, rgba(0, 255, 65, 0.03), transparent);
+        radial-gradient(ellipse 80% 50% at 20% 0%, var(--ambient-1), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 10%, var(--ambient-2), transparent),
+        radial-gradient(ellipse 50% 60% at 50% 100%, var(--ambient-3), transparent);
       pointer-events: none;
       z-index: 0;
     }
 
-    .page { position: relative; z-index: 1; }
+    #navView.page { position: relative; z-index: 1; }
 
     /* ── Hero ── */
-    .hero {
+    #navView .hero {
       padding: 72px 40px 56px;
       text-align: center;
       position: relative;
     }
 
-    .theme-btn {
+    #navView .theme-btn {
       position: absolute;
       top: 24px;
       right: 24px;
@@ -97,10 +167,10 @@
       justify-content: center;
       transition: border-color 0.2s, color 0.2s, transform 0.15s;
     }
-    .theme-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.06); }
-    @media (max-width: 640px) { .theme-btn { top: 16px; right: 16px; } }
+    #navView .theme-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.06); }
+    @media (max-width: 640px) { #navView .theme-btn { top: 16px; right: 16px; } }
 
-    .hero-badge {
+    #navView .hero-badge {
       display: inline-flex;
       align-items: center;
       gap: 7px;
@@ -114,7 +184,7 @@
       animation: fadeUp 0.7s ease 0.1s forwards;
     }
 
-    .hero-badge::before, .hero-badge::after {
+    #navView .hero-badge::before, #navView .hero-badge::after {
       content: '';
       width: 20px;
       height: 1px;
@@ -122,7 +192,7 @@
       opacity: 0.5;
     }
 
-    .hero h1 {
+    #navView .hero h1 {
       font-family: var(--font-display);
       font-size: clamp(40px, 6vw, 62px);
       font-weight: 700;
@@ -133,13 +203,13 @@
       animation: fadeUp 0.7s ease 0.2s forwards;
     }
 
-    .hero h1 em {
+    #navView .hero h1 em {
       font-style: italic;
       color: var(--accent);
       font-weight: 600;
     }
 
-    .hero-sub {
+    #navView .hero-sub {
       font-size: 17px;
       color: var(--text-secondary);
       max-width: 440px;
@@ -149,7 +219,7 @@
     }
 
     /* ── Stats bar ── */
-    .stats {
+    #navView .stats {
       display: flex;
       justify-content: center;
       gap: 40px;
@@ -158,9 +228,9 @@
       animation: fadeUp 0.7s ease 0.4s forwards;
     }
 
-    .stat { text-align: center; }
+    #navView .stat { text-align: center; }
 
-    .stat-num {
+    #navView .stat-num {
       font-family: var(--font-display);
       font-size: 26px;
       font-weight: 600;
@@ -168,7 +238,7 @@
       display: block;
     }
 
-    .stat-label {
+    #navView .stat-label {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
@@ -176,7 +246,7 @@
       margin-top: 2px;
     }
 
-    .stat-divider {
+    #navView .stat-divider {
       width: 1px;
       background: var(--border);
       align-self: stretch;
@@ -191,7 +261,7 @@
     }
 
     /* ── Controls ── */
-    .controls {
+    #navView .controls {
       display: flex;
       align-items: center;
       gap: 20px;
@@ -201,14 +271,14 @@
       margin: 0 auto;
     }
 
-    .search-wrap {
+    #navView .search-wrap {
       position: relative;
       flex: 1;
       min-width: 180px;
       max-width: 260px;
     }
 
-    .search-wrap svg {
+    #navView .search-wrap svg {
       position: absolute;
       left: 12px;
       top: 50%;
@@ -219,7 +289,7 @@
       pointer-events: none;
     }
 
-    .search-input {
+    #navView .search-input {
       width: 100%;
       padding: 9px 14px 9px 36px;
       background: var(--bg-elevated);
@@ -232,13 +302,13 @@
       transition: border-color 0.25s, box-shadow 0.25s;
     }
 
-    .search-input::placeholder { color: var(--text-muted); }
-    .search-input:focus {
-      border-color: rgba(211, 168, 83, 0.4);
-      box-shadow: 0 0 0 3px rgba(211, 168, 83, 0.06);
+    #navView .search-input::placeholder { color: var(--text-muted); }
+    #navView .search-input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px var(--focus-ring);
     }
 
-    .sort-select {
+    #navView .sort-select {
       padding: 9px 12px;
       background: var(--bg-elevated);
       border: 1px solid var(--border);
@@ -250,12 +320,12 @@
       cursor: pointer;
       transition: border-color 0.25s;
     }
-    .sort-select:hover { border-color: var(--border-hover); }
-    .sort-select:focus { border-color: rgba(211, 168, 83, 0.4); }
+    #navView .sort-select:hover { border-color: var(--border-hover); }
+    #navView .sort-select:focus { border-color: var(--focus); }
 
-    .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    #navView .filters { display: flex; gap: 6px; flex-wrap: wrap; }
 
-    .pill {
+    #navView .pill {
       padding: 5px 12px;
       border-radius: 999px;
       font-size: 11px;
@@ -269,53 +339,55 @@
       user-select: none;
     }
 
-    .pill:hover {
+    #navView .pill:hover {
       border-color: var(--border-hover);
       background: var(--bg-elevated);
       color: var(--text);
     }
 
-    .pill.active {
-      border-color: rgba(211, 168, 83, 0.5);
+    #navView .pill.active {
+      border-color: var(--focus-strong);
       background: var(--accent-dim);
       color: var(--accent);
     }
 
-    .pill .count {
+    #navView .pill .count {
       display: inline-block;
       margin-left: 3px;
       font-weight: 400;
-      opacity: 0.6;
+      /* opacity: 0.6 把已经很小的 10px 数字再削一半（实测暗 4.48 / 亮 2.48:1）。
+         触屏没有 hover，这个数字会永久停在半透明状态，所以数量差改用颜色表达。 */
+      color: var(--text-faint);
       font-size: 10px;
     }
 
     /* ── Grid ── */
-    .grid-wrap {
+    #navView .grid-wrap {
       max-width: 1100px;
       margin: 0 auto;
       padding: 11px 40px 64px;
     }
 
-    .grid {
+    #navView .grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     }
 
     @media (max-width: 1000px) {
-      .grid { grid-template-columns: repeat(2, 1fr); }
-      .controls, .grid-wrap { padding-left: 24px; padding-right: 24px; }
-      .hero { padding-left: 24px; padding-right: 24px; }
+      #navView .grid { grid-template-columns: repeat(2, 1fr); }
+      #navView .controls, #navView .grid-wrap { padding-left: 24px; padding-right: 24px; }
+      #navView .hero { padding-left: 24px; padding-right: 24px; }
     }
     @media (max-width: 640px) {
-      .grid { grid-template-columns: 1fr; }
-      .controls, .grid-wrap { padding-left: 16px; padding-right: 16px; }
-      .hero { padding-left: 16px; padding-right: 16px; }
-      .stats { gap: 24px; }
+      #navView .grid { grid-template-columns: 1fr; }
+      #navView .controls, #navView .grid-wrap { padding-left: 16px; padding-right: 16px; }
+      #navView .hero { padding-left: 16px; padding-right: 16px; }
+      #navView .stats { gap: 24px; }
     }
 
     /* ── Card ── */
-    .card {
+    #navView .card {
       position: relative;
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -334,7 +406,7 @@
       overflow: hidden;
     }
 
-    .card::before {
+    #navView .card::before {
       content: '';
       position: absolute;
       top: 0; left: 24px; right: 24px;
@@ -345,56 +417,58 @@
       transition: opacity 0.3s, left 0.35s, right 0.35s;
     }
 
-    .card:hover {
+    #navView .card:hover {
       transform: translateY(-5px);
       border-color: var(--border-hover);
       box-shadow:
-        0 11px 40px rgba(0,0,0,0.35),
-        0 0 0 1px rgba(255,255,255,0.03) inset;
+        0 11px 40px var(--shadow),
+        0 0 0 1px var(--inset-line) inset;
     }
 
-    .card:hover::before {
+    #navView .card:hover::before {
       left: 0; right: 0;
       opacity: 0.8;
     }
 
-    .card-head {
+    #navView .card-head {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 18px;
     }
 
-    .card-head-right {
+    #navView .card-head-right {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .card-star {
+    #navView .card-star {
       background: transparent;
       border: none;
       cursor: pointer;
       font-size: 17px;
       line-height: 1;
-      color: var(--text-muted);
-      opacity: 0.5;
+      /* 半透明星标在触屏上永远停在 0.5（没有 hover 可解除），实测 2.12:1。
+         触屏适配段已经把命中区撑到 40px，这里把"未收藏"的视觉差交给颜色。 */
+      color: var(--text-faint);
       padding: 0;
       transition: opacity 0.2s, color 0.2s, transform 0.15s;
       position: relative;
       z-index: 2;
     }
-    .card-star:hover { opacity: 1; color: #facc15; transform: scale(1.18); }
-    .card-star.on { opacity: 1; color: #facc15; }
+    #navView .card-star:hover { opacity: 1; color: var(--gold); transform: scale(1.18); }
+    #navView .card-star.on { opacity: 1; color: var(--gold); }
+
 
     .toast-box {
       position: fixed;
       bottom: 26px;
       left: 50%;
       transform: translateX(-50%) translateY(14px);
-      background: rgba(20, 24, 34, 0.96);
-      border: 1px solid rgba(250, 204, 21, 0.45);
-      color: #fde68a;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--panel-text);
       font-size: 13px;
       padding: 10px 20px;
       border-radius: 999px;
@@ -402,11 +476,11 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.22s, transform 0.22s;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      box-shadow: 0 10px 30px var(--shadow);
     }
     .toast-box.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .badge {
+    #navView .badge {
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1px;
@@ -416,16 +490,20 @@
       line-height: 1.4;
     }
 
-    .card-idx {
+    #navView .card-idx {
       font-family: var(--font-display);
       font-size: 22px;
       font-weight: 600;
-      color: var(--text-muted);
-      opacity: 0.35;
+      /* 原来是 --text-muted + opacity: 0.35：视觉上"淡"的效果由半透明做，
+         实测暗色 1.61:1 / 亮色 1.65:1，手机上序号基本看不见。opacity 会同时
+         削弱文字与其底色，任何对比度工具都算不出可靠结果（壳层的运行时兜底
+         也刻意不看 opacity，见 ilcontrast.js），所以淡一档改用更暗的颜色值本身：
+         --text-faint 在两套主题下都按 ≥4.5 反推。 */
+      color: var(--text-faint);
       line-height: 1;
     }
 
-    .card h3 {
+    #navView .card h3 {
       font-family: var(--font-body);
       font-size: 17px;
       font-weight: 700;
@@ -434,14 +512,14 @@
       letter-spacing: -0.01em;
     }
 
-    .card-desc {
+    #navView .card-desc {
       font-size: 12px;
       color: var(--text-secondary);
       line-height: 1.65;
       flex: 1;
     }
 
-    .card-foot {
+    #navView .card-foot {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -450,14 +528,18 @@
       border-top: 1px solid var(--border);
     }
 
-    .card-meta {
+    #navView .card-meta {
       font-size: 10px;
       color: var(--text-muted);
       font-family: var(--font-mono);
       letter-spacing: 0.02em;
     }
 
-    .card-go {
+    /* 选中态的 pill 底色是 accent 的 10% 淡染，此时 --text-faint 压在淡染上
+       只剩 4.20:1（<4.5），所以计数跟随 pill 本身的前景色。 */
+    #navView .pill.active .count { color: var(--accent); }
+
+    #navView .card-go {
       font-size: 11px;
       font-weight: 600;
       color: var(--cat-color, var(--accent));
@@ -469,26 +551,26 @@
       transition: opacity 0.3s, transform 0.3s;
     }
 
-    .card:hover .card-go {
+    #navView .card:hover .card-go {
       opacity: 1;
       transform: translateX(0);
     }
 
-    .card-go svg {
+    #navView .card-go svg {
       width: 12px;
       height: 12px;
     }
 
     /* Category colors */
-    .card[data-cat="devops"]     { --cat-color: var(--devops); }
-    .card[data-cat="cs"]         { --cat-color: var(--cs); }
-    .card[data-cat="automation"] { --cat-color: var(--automation); }
-    .card[data-cat="tools"]      { --cat-color: var(--tools); }
+    #navView .card[data-cat="devops"]     { --cat-color: var(--devops); }
+    #navView .card[data-cat="cs"]         { --cat-color: var(--cs); }
+    #navView .card[data-cat="automation"] { --cat-color: var(--automation); }
+    #navView .card[data-cat="tools"]      { --cat-color: var(--tools); }
 
-    .badge[data-b="devops"]     { background: rgba(0,255,65,0.1); color: var(--devops); }
-    .badge[data-b="cs"]         { background: rgba(0,255,65,0.1); color: var(--cs); }
-    .badge[data-b="automation"] { background: rgba(0,255,65,0.1); color: var(--automation); }
-    .badge[data-b="tools"]      { background: rgba(0,255,65,0.1); color: var(--tools); }
+    .badge[data-b="devops"]     { background: var(--badge-bg); color: var(--devops); }
+    .badge[data-b="cs"]         { background: var(--badge-bg); color: var(--cs); }
+    .badge[data-b="automation"] { background: var(--badge-bg); color: var(--automation); }
+    .badge[data-b="tools"]      { background: var(--badge-bg); color: var(--tools); }
 
     /* ── Continue strip ── */
     .continue-strip {
@@ -497,7 +579,7 @@
       margin: 0 auto;
       padding: 14px 20px;
       background: var(--accent-dim);
-      border: 1px solid rgba(211, 168, 83, 0.35);
+      border: 1px solid var(--focus);
       border-radius: 12px;
       font-size: 13px;
       color: var(--text);
@@ -508,7 +590,7 @@
       transition: border-color 0.25s, transform 0.25s;
     }
     .continue-strip.show { display: flex; }
-    .continue-strip:hover { border-color: rgba(211, 168, 83, 0.6); transform: translateY(-1px); }
+    .continue-strip:hover { border-color: var(--focus-strong); transform: translateY(-1px); }
     .continue-strip .cs-title { font-weight: 700; color: var(--accent); }
     .continue-strip .cs-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
     .continue-strip .cs-go {
@@ -526,15 +608,15 @@
       display: none;
       max-width: 1100px; margin: 0 auto;
       padding: 14px 20px;
-      background: rgba(62,206,180,0.09);
-      border: 1px solid rgba(62,206,180,0.35);
+      background: var(--teal-bg);
+      border: 1px solid var(--teal-border);
       border-radius: 12px;
       font-size: 13px; color: var(--text); text-decoration: none;
       align-items: center; justify-content: space-between; gap: 12px;
       transition: border-color 0.25s, transform 0.25s;
     }
     .review-strip.show { display: flex; }
-    .review-strip:hover { border-color: rgba(62,206,180,0.65); transform: translateY(-1px); }
+    .review-strip:hover { border-color: var(--teal); transform: translateY(-1px); }
     .review-strip .rs-title { font-weight: 700; color: var(--devops); }
     .review-strip .rs-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
     .review-strip .rs-go {
@@ -546,22 +628,22 @@
     @media (max-width: 640px) { .review-wrap { padding-left: 16px; padding-right: 16px; } }
 
     /* ── Card progress ── */
-    .card-progress { margin-top: 12px; }
-    .card-progress .cp-track {
+    #navView .card-progress { margin-top: 12px; }
+    #navView .card-progress .cp-track {
       display: block; height: 4px; border-radius: 999px;
       background: var(--bg-elevated); border: 1px solid var(--border);
       overflow: hidden; margin-bottom: 5px;
     }
-    .card-progress .cp-fill {
+    #navView .card-progress .cp-fill {
       display: block; height: 100%; width: 0;
       background: var(--accent);
       border-radius: 999px; transition: width 0.5s ease;
     }
-    .card-progress .cp-label {
+    #navView .card-progress .cp-label {
       font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
       letter-spacing: 0.02em;
     }
-    .card-progress .cp-label.cp-done { color: var(--cat-color, var(--accent)); font-weight: 600; }
+    #navView .card-progress .cp-label.cp-done { color: var(--cat-color, var(--accent)); font-weight: 600; }
 
     /* ── Progress overview ── */
     .overview-wrap { padding: 6px 40px 0; }
@@ -586,15 +668,18 @@
     .overview .ov-item.ov-streak b { color: var(--devops); }
     .overview .ov-milestones { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     .overview .ov-actions { display: flex; gap: 8px; align-items: center; }
-    .overview .ov-btn {
+    /* 选择器原本是 `.overview .ov-btn`，但「今日目标」那一行是 .ov-goal（.overview 的兄弟），
+     * 于是它的「设定 / 修改」按钮从来没被样式命中过，直接渲染成浏览器原生按钮。
+     * 收到 #navView 下既修了这个，也保住命名空间不外泄到模块。 */
+    #navView .ov-btn {
       font-family: var(--font-body); font-size: 11px; font-weight: 600;
       padding: 6px 12px; border-radius: 8px; cursor: pointer;
       background: var(--bg-elevated); border: 1px solid var(--border);
       color: var(--text-secondary); transition: all 0.2s;
     }
-    .overview .ov-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #navView .ov-btn:hover { border-color: var(--accent); color: var(--accent); }
     .overview .ov-import-note { font-size: 10px; color: var(--text-muted); }
-    .overview .ov-btn.danger:hover { border-color: #ef476f; color: #ef476f; }
+    #navView .ov-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
 
     /* ── Category dashboard ── */
     .ov-cats {
@@ -636,7 +721,7 @@
       width: 150px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px;
       color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; outline: none;
     }
-    .og-input:focus { border-color: rgba(211, 168, 83, 0.4); }
+    .og-input:focus { border-color: var(--focus); }
     .og-note { font-size: 10px; color: var(--text-muted); }
     .og-bar { flex: 1; min-width: 160px; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
     .og-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.5s ease; }
@@ -667,9 +752,12 @@
       transition: border-color 0.2s, opacity 0.2s;
     }
     .badge-chip .b-ico { font-size: 14px; line-height: 1; }
-    .badge-chip.locked { opacity: 0.38; filter: grayscale(0.7); }
+    /* 未解锁徽章：以前是 opacity: 0.38 + grayscale，实测压在产品底色上只有
+       1.69:1（亮）/2.49:1（暗），字基本看不见。灰度保留（它只动图标颜色），
+       "淡"改由 --text-faint 承担，两套主题都在 4.5 以上。 */
+    .badge-chip.locked { filter: grayscale(0.7); color: var(--text-faint); border-color: var(--border); }
     .badge-chip.unlocked {
-      border-color: rgba(211,168,83,0.55); background: rgba(211,168,83,0.08);
+      border-color: var(--focus-strong); background: var(--gold-bg);
       color: var(--text);
     }
     .badge-chip:hover { border-color: var(--border-hover); }
@@ -696,10 +784,10 @@
     .hm-grid { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
     .hm-col { display: flex; flex-direction: column; gap: 3px; }
     .hm-cell { width: 11px; height: 11px; border-radius: 3px; background: var(--bg-elevated); border: 1px solid var(--border); }
-    .hm-cell.l1 { background: #0e4429; border-color: #0e4429; }
-    .hm-cell.l2 { background: #006d32; border-color: #006d32; }
-    .hm-cell.l3 { background: #26a641; border-color: #26a641; }
-    .hm-cell.l4 { background: #39d353; border-color: #39d353; }
+    .hm-cell.l1 { background: var(--hm-l1); border-color: var(--hm-l1); }
+    .hm-cell.l2 { background: var(--hm-l2); border-color: var(--hm-l2); }
+    .hm-cell.l3 { background: var(--hm-l3); border-color: var(--hm-l3); }
+    .hm-cell.l4 { background: var(--hm-l4); border-color: var(--hm-l4); }
     .hm-legend { display: flex; align-items: center; gap: 5px; margin-top: 10px; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
     .hm-legend .hm-cell { border: none; }
     @media (max-width: 1000px) { .ov-heat { margin-left: 24px; margin-right: 24px; } }
@@ -722,7 +810,7 @@
     .qz-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
     .qz-name { width: 170px; flex: none; text-align: right; font-size: 11px; font-weight: 600; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .qz-bar { flex: 1; height: 8px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
-    .qz-fill { display: block; height: 100%; width: 0; background: #00ff41; border-radius: 999px; transition: width 0.5s ease; }
+    .qz-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.5s ease; }
     .qz-num { width: 64px; flex: none; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     .qz-avg { margin-top: 4px; font-size: 11px; color: var(--devops); font-family: var(--font-mono); }
     @media (max-width: 1000px) { .ov-quiz { margin-left: 24px; margin-right: 24px; } }
@@ -732,7 +820,7 @@
     .ov-wrong {
       display: none;
       max-width: 1100px; margin: 8px auto 0;
-      background: var(--bg-card); border: 1px solid #1a2a20; border-radius: 6px;
+      background: var(--bg-card); border: 1px solid var(--hairline); border-radius: 6px;
       padding: 14px 20px;
     }
     .ov-wrong.show { display: block; }
@@ -745,18 +833,18 @@
     .ow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
     .ow-item {
       display: flex; align-items: center; gap: 10px; padding: 9px 12px;
-      background: var(--bg-elevated); border: 1px solid #1a2a20; border-radius: 6px;
+      background: var(--bg-elevated); border: 1px solid var(--hairline); border-radius: 6px;
       color: var(--text-secondary); font-size: 12px; cursor: pointer; text-decoration: none;
       transition: border-color 0.15s, color 0.15s;
     }
-    .ow-item:hover { border-color: #00ff41; color: #00ff41; }
-    .ow-item b { font-family: var(--font-mono); color: #fbbf24; font-size: 13px; margin-right: 2px; }
+    .ow-item:hover { border-color: var(--accent); color: var(--accent); }
+    .ow-item b { font-family: var(--font-mono); color: var(--amber); font-size: 13px; margin-right: 2px; }
     .ow-item .ow-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ow-item .ow-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); border: 1px solid #1a2a20; border-radius: 4px; padding: 1px 6px; }
+    .ow-item .ow-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 6px; }
     .ow-empty { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
 
     /* Hidden card animation */
-    .card.filtered-out {
+    #navView .card.filtered-out {
       opacity: 0 !important;
       transform: scale(0.96) !important;
       pointer-events: none;
@@ -765,25 +853,25 @@
     }
 
     /* ── Empty state ── */
-    .empty {
+    #navView .empty {
       grid-column: 1 / -1;
       text-align: center;
       padding: 72px 20px;
       color: var(--text-muted);
     }
 
-    .empty-icon {
+    #navView .empty-icon {
       font-size: 40px;
       margin-bottom: 16px;
       opacity: 0.4;
     }
 
-    .empty-text {
+    #navView .empty-text {
       font-size: 14px;
       color: var(--text-secondary);
     }
 
-    .empty-suggest {
+    #navView .empty-suggest {
       margin-top: 16px;
       background: transparent;
       border: 1px solid var(--accent);
@@ -795,9 +883,9 @@
       cursor: pointer;
     }
 
-    .empty-suggest:hover { background: rgba(0, 255, 65, 0.1); }
+    #navView .empty-suggest:hover { background: var(--badge-bg); }
 
-    .empty-note {
+    #navView .empty-note {
       margin-top: 10px;
       font-size: 12px;
       color: var(--text-muted);
@@ -810,7 +898,7 @@
       position: sticky; top: 0; z-index: 50;
       display: flex; align-items: center; gap: 14px;
       max-width: 1180px; margin: 0 auto; padding: 14px 40px;
-      background: rgba(12, 12, 14, 0.92); backdrop-filter: blur(10px);
+      background: var(--bar-bg); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
     .module-bar a.module-back {
@@ -840,7 +928,7 @@
     .il-quiz-append p.il-quiz-p { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
 
     /* ── Footer ── */
-    .foot {
+    #navView .foot {
       text-align: center;
       padding: 20px 40px 56px;
       font-size: 10px;
@@ -860,8 +948,35 @@
     ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+    /* ── 触屏适配（只在 pointer: coarse 的设备上生效，桌面版式一字不改）──
+     * 三件事，都是"看起来正常、实际按不到/看不清"：
+     * 1) 星标只有 17×17，而它就压在可点击的卡片上——手指根本点不准，
+     *    点歪了就变成打开卡片。用负 margin 把命中区撑到 40px 但不动视觉位置。
+     * 2) pill / 按钮 / 输入框普遍 23~28px 高，低于拇指可点下限。
+     * 3) iOS Safari 在聚焦 font-size < 16px 的输入框时会自动放大整页，
+     *    放大后不会自动缩回，搜索时屏幕就废了——所以触屏下把输入字号提到 16px。 */
+    @media (pointer: coarse) {
+      #navView .card-star {
+        width: 40px; height: 40px;
+        margin: -12px -12px -12px 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 17px;
+      }
+      #navView .pill { min-height: 40px; padding: 9px 16px; }
+      /* 「开始学习 →」原来是 opacity:0 + hover 才显形。触屏没有 hover，
+         这行字在手机上是永久不可见的（不是对比度问题，是根本没有像素）。
+         触屏下直接常显，位置也复位。 */
+      #navView .card-go { opacity: 1; transform: none; }
+      #navView .search-input { height: 44px; font-size: 16px; }
+      #navView .sort-select { min-height: 40px; font-size: 16px; }
+      #navView .ov-btn { min-height: 40px; padding: 10px 16px; font-size: 13px; }
+      .og-input { min-height: 40px; font-size: 16px; }
+      .empty-suggest { min-height: 44px; font-size: 14px; }
+      .module-bar .nav-btn { min-height: 40px; }
+      #navView .theme-btn { width: 44px; height: 44px; }
+    }
     /* ── Selection ── */
-    ::selection { background: rgba(211, 168, 83, 0.25); }
+    ::selection { background: var(--selection); }
   </style>
 </head>
 <body>
@@ -990,127 +1105,656 @@
 
   <!-- ── FreeCodeCamp-style course skin（置于模块样式之后，统一全部模块视觉） ── -->
   <style id="courseSkin">
-    /* ============ 统一变量：所有模块的强调色 → FFC 蓝 ============ */
-    :root {
-      --bg: #050507; --card: #0d0d12; --raise: #131318; --border: #1a2a20; --line: #1a2a20;
-      --text: #d6ffe0; --dim: #9fcca9; --muted: #5f7a66;
-      --bg2: #0d0d12; --bg3: #131318; --surface: #0d0d12; --surface-alt: #0d0d10;
-      --surface2: #131318; --surface3: #243a2c; --bg-secondary: #0d0d10; --surface-hover: #243a2c;
-      --card-2: #131318; --card-light: #131318; --bg-warm: #050507;
-      --accent: #00ff41; --accent2: #7dffa0; --primary: #00ff41; --primary-light: #7dffa0;
-      --primary-dark: #00d43a; --primary-bg: rgba(0, 255, 65, 0.12);
-      --indigo: #00ff41; --indigo-light: #7dffa0; --brand: #00ff41; --success: #4ade80; --green: #4ade80;
-      --k8s: #00ff41; --redis: #00ff41; --prompt: #00ff41; --tf: #00ff41; --nginx: #00ff41;
-      --netsec: #00ff41; --async: #00ff41; --ts: #00ff41; --perm: #00ff41; --compose: #00ff41;
-      --algo: #00ff41; --tx: #00ff41; --sd: #00ff41; --css: #00ff41; --sqlidx: #00ff41;
-      --rust: #00ff41; --helm: #00ff41; --prom: #00ff41; --jwt: #00ff41;
+  /* skin token：暗色为默认值，亮色在下方 html[data-theme="light"] 覆盖。
+     模块自身的 CSS 用 [data-theme="dark"] 选择器（壳层的 html 属性），
+     所以只要 skin 也跟着主题走，模块就能自然分亮/暗两套。 */
+  #moduleRoot {
+      --sk-page: #050507; --sk-card: #0d0d12; --sk-head: #0d0d10; --sk-elev: #131318;
+      --sk-border: #1a2a20; --sk-hover: #243a2c;
+      --sk-text: #d6ffe0; --sk-dim: #9fcca9; --sk-body: #c2d9c8;
+      --sk-muted: #6d8a74; --sk-faint: #6d8a74; --sk-comment: #8a8aa0;
+      --sk-accent: #00ff41; --sk-accent-hi: #00d43a; --sk-code: #7dffa0;
+      --sk-success: #4ade80; --sk-err: #d24d4d; --sk-ok: #e6ffe9; --sk-err-fg: #f8d7d7;
+      --sk-on-accent: #050507;
+      /* 代码面板专用一对：这类区块在模块源码里几乎都写死"深底浅字"
+         （docker 的 .explorer-code/.code-line/.console-output、net 的终端…），
+         亮色下若仍给深底就会和 skin 的白底页面打架（白字压白底 / 深字压深底）。
+         所以单独给一组 token：暗色=近黑底+浅字，亮色=浅灰底+深字。 */
+      --sk-code-bg: #0a0a0f; --sk-code-fg: #d6ffe0; --sk-code-bar: #131318; --sk-code-dim: #9fcca9;
+      --sk-warn-fg: #fbbf24; --sk-info-fg: #93c5fd; --sk-danger-fg: #f87171;
+      --sk-tint-08: rgba(0, 255, 65, 0.08); --sk-tint-12: rgba(0, 255, 65, 0.12);
+      --sk-tint-14: rgba(0, 255, 65, 0.14); --sk-tint-25: rgba(0, 255, 65, 0.25);
+      --sk-tint-35: rgba(0, 255, 65, 0.35); --sk-tint-40: rgba(0, 255, 65, 0.4);
+      --sk-tint-50: rgba(0, 255, 65, 0.5);  --sk-err-tint: rgba(210, 77, 77, 0.12);
+      --sk-nav-bg: rgba(5, 5, 7, 0.94);
     }
-    /* ============ 页面基调：统一背景 / 字体 / 文字 ============ */
-    body { background: #050507 !important; color: #d6ffe0; }
-    .mast, .hero, .container { max-width: 860px; }
-    h1, h2, h3, .hero h1, .hero-title, .sec-title, .section-title, .level-header, .step-header, .level-title {
-      color: #d6ffe0 !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
+
+  /* 亮色：模块默认 CSS 是亮色（45 个模块里 41 个的 :root 就是浅色值），
+     skin 若把面底写死成暗色，就出现 rgb(71,85,105) 文字压 rgb(13,13,18) = 2.5:1。
+     下面每个值按 WCAG 反推，对所处面底 ≥4.5（tools/check-theme.js 把关）。
+     必须挂在 html[data-theme="light"] 上：写成 `html[...] #moduleRoot` 会与
+     模块自己的裸 [data-theme="dark"] 选择器抢 <html> 属性，谁在后谁赢。 */
+  html[data-theme="light"] #moduleRoot {
+      --sk-page: #ffffff; --sk-card: #f7f8fa; --sk-head: #eef0f4; --sk-elev: #e6eaf0;
+      --sk-border: #dfe4ea; --sk-hover: #dbe6de;
+      --sk-text: #101725; --sk-dim: #41505f; --sk-body: #232c39;
+      --sk-muted: #5c6674; --sk-faint: #5c6674; --sk-comment: #55606f;
+      --sk-accent: #0b6b39; --sk-accent-hi: #085c2f; --sk-code: #065f32;
+      --sk-success: #126e34; --sk-err: #b91c1c; --sk-ok: #14532d; --sk-err-fg: #7f1d1d;
+      --sk-on-accent: #ffffff;
+      --sk-code-bg: #101725; --sk-code-fg: #e6edf6; --sk-code-bar: #1b2230; --sk-code-dim: #b5c1d1;
+      --sk-warn-fg: #8a5a00; --sk-info-fg: #1d4ed8; --sk-danger-fg: #b91c1c;
+      --sk-tint-08: rgba(11, 107, 57, 0.08); --sk-tint-12: rgba(11, 107, 57, 0.12);
+      --sk-tint-14: rgba(11, 107, 57, 0.14); --sk-tint-25: rgba(11, 107, 57, 0.25);
+      --sk-tint-35: rgba(11, 107, 57, 0.35); --sk-tint-40: rgba(11, 107, 57, 0.40);
+      --sk-tint-50: rgba(11, 107, 57, 0.50); --sk-err-tint: rgba(185, 28, 28, 0.10);
+      --sk-nav-bg: rgba(255, 255, 255, 0.94);
     }
-    .subtitle, .mast-count, .progress-meta, .lead, .hero-sub, .level-meta, .step-desc, .sec-desc, .section-desc, .card-desc {
-      color: #9fcca9 !important;
+
+  /* 模块内部那批变量名（--bg / --surface / --primary …）由各模块自己发明，
+     skin 统一它们：一律指向上面的 --sk-* token，于是改主题只改 token。
+     选择器要带上 html[data-theme=…] 形态：CSS 隔离后模块自己的
+     [data-theme="dark"]{--bg:#0f172a…} 被改写成 html[data-theme="dark"] #moduleRoot
+     （特异度 1,1,1），裸 #moduleRoot（1,0,0）抢不过它，暗色下这些模块会退回
+     自己的石板蓝配色。补齐同等特异度 + skin 表在后，主题切换才真正由 token 决定。 */
+  #moduleRoot,
+  html[data-theme="dark"] #moduleRoot,
+  html[data-theme="light"] #moduleRoot {
+      --bg: var(--sk-page); --card: var(--sk-card); --raise: var(--sk-elev);
+      --border: var(--sk-border); --line: var(--sk-border);
+      --text: var(--sk-text); --dim: var(--sk-dim); --muted: var(--sk-muted);
+      /* 这三个名字使用量最大（--text-muted 145 处、--text-dim 18 处、
+         --text-secondary 也在用），漏掉它们等于让 24 个模块继续用自己
+         :root 里的石板灰（#64748b/#6b7280 压在暗底上只有 3.4~4.3:1）。 */
+      --text-muted: var(--sk-muted); --text-dim: var(--sk-muted);
+      --text-secondary: var(--sk-dim); --text-body: var(--sk-body);
+      --bg2: var(--sk-card); --bg3: var(--sk-elev); --surface: var(--sk-card);
+      --surface-alt: var(--sk-head); --surface2: var(--sk-elev); --surface3: var(--sk-hover);
+      --bg-secondary: var(--sk-head); --surface-hover: var(--sk-hover);
+      --card-2: var(--sk-elev); --card-light: var(--sk-elev); --bg-warm: var(--sk-page);
+      --accent: var(--sk-accent); --accent2: var(--sk-code); --primary: var(--sk-accent);
+      --primary-light: var(--sk-code); --primary-dark: var(--sk-accent-hi);
+      --primary-bg: var(--sk-tint-12);
+      --indigo: var(--sk-accent); --indigo-light: var(--sk-code); --brand: var(--sk-accent);
+      --success: var(--sk-success); --green: var(--sk-success);
+      /* --error/--info 也是模块自造的状态色（docker/gh-actions/net 等 19 个
+         模块在用）。不映射的话切到亮色仍是 #ef4444/#3b82f6，压在浅面上
+         分别只有 3.3/3.1:1——本轮就是被 tools/check-theme.js 抓出来的。 */
+      --error: var(--sk-err); --danger: var(--sk-err);
+      --info: var(--sk-info-fg); --warning: var(--sk-warn-fg);
+      /* --warn 是 --warning 的短名（n8n 用 8 处，且全是"红色错误"语义：
+         .quiz-option.wrong / .expr-result.error / .br-item.routed-false），
+         跟 danger 走同一个 token；pid/vscode 只定义不使用，不受影响。 */
+      --warn: var(--sk-danger-fg);
+      --k8s: var(--sk-accent); --redis: var(--sk-accent); --prompt: var(--sk-accent);
+      --tf: var(--sk-accent); --nginx: var(--sk-accent); --netsec: var(--sk-accent);
+      --async: var(--sk-accent); --ts: var(--sk-accent); --perm: var(--sk-accent);
+      --compose: var(--sk-accent); --algo: var(--sk-accent); --tx: var(--sk-accent);
+      --sd: var(--sk-accent); --css: var(--sk-accent); --sqlidx: var(--sk-accent);
+      --rust: var(--sk-accent); --helm: var(--sk-accent); --prom: var(--sk-accent);
+      --jwt: var(--sk-accent);
+      /* 第二批模块自造变量（本轮由"关掉兜底"的源头审计 r17cluster.js 量化出来）：
+         --text2 用 48 处（sql 的表格正文就是它，白底上 2.52:1）、--ok/--bad/--err
+         是 --success/--error 的短名、--ink* 是 cs/vscode 那套中性墨色、
+         --code-bg/--code-text 是"代码面板"专用一对（恒定深色，不随主题翻转）。
+         一起收进 token，模块就不用各自维护第二套配色。 */
+      --text2: var(--sk-dim); --text-2: var(--sk-dim);
+      --ok: var(--sk-success); --bad: var(--sk-err); --err: var(--sk-err);
+      --ink: var(--sk-text); --ink-2: var(--sk-dim); --ink-3: var(--sk-muted);
+      --code-bg: var(--sk-code-bg); --code-text: var(--sk-code-fg);
+      --output: var(--sk-code); --surface-2: var(--sk-elev);
+      --success-bg: var(--sk-tint-12); --error-bg: var(--sk-err-tint);
+      --accent-bg: var(--sk-tint-12); --error-light: var(--sk-err);
+      --success-light: var(--sk-success); --primary-dim: var(--sk-dim);
+      --border-strong: var(--sk-border);
+      --purple: var(--sk-accent); --red: var(--sk-err);
+      /* --git / --http 这类"品牌色"绝不映射：模块把白字画在它们上面是成对的
+         （GitHub 红 #f05133、HTTP 青 #2dd4bf 配白字），一旦映射成 --sk-accent
+         就变成亮色墨绿 #0b6b39 配白字 = 1.03:1，标签整个消失。品牌色保持
+         各模块自己的常量值，standalone 与壳层一致。 */
+      --http: var(--sk-code); --logic: var(--sk-warn-fg);
+      --i-color: var(--sk-success); --d-color: var(--sk-info-fg); --p-color: var(--sk-warn-fg);
     }
-    /* ============ 徽章 / 标题号 ============ */
-    .mast .badge, .badge { background: #00ff41 !important; }
-    .num, .step-tag, .q-num, .level-num { color: #00ff41 !important; border-color: #00ff41 !important; }
-    /* ============ 进度条：统一 FFC 蓝 ============ */
-    .progress-track, .progress-bar, .progress-strip, .progress-bar-wrap { background: #131318 !important; }
-    .progress-fill { background: #00ff41 !important; }
-    .progress-strip .fill, .progress-strip span { background: #00ff41 !important; }
-    /* ============ 代码 / 面板 ============ */
-    pre, .code-block, .code-area, .code-editor, .expr-input, .expr-input-area, .sandbox-editor, .lab, .lab-body, .md-editor-pane, .md-preview-pane, .editor-area, .console, .explorer-code {
-      background: #050507 !important; border-color: #1a2a20 !important; color: #c2d9c8;
+
+
+  
+    /* 这套 skin 原本直接写死暗色 + !important，并且重定义了 :root 变量，
+       于是壳层的 html[data-theme="light"] 全部被覆盖——亮色模式下白底配
+       近白文字（.overview / .badge / 卡片分类标签）整片不可读。
+       它的职责只是"统一 45 个模块的视觉"，所以整体收进 #moduleRoot：
+       模块照旧统一，壳层交还给主题变量。 */
+
+  
+  #moduleRoot { background: var(--sk-page) !important; color: var(--sk-text); }
+  #moduleRoot .mast,
+  #moduleRoot .hero,
+  #moduleRoot .container { max-width: 860px; }
+  #moduleRoot h1,
+  #moduleRoot h2,
+  #moduleRoot h3,
+  #moduleRoot .hero h1,
+  #moduleRoot .hero-title,
+  #moduleRoot .sec-title,
+  #moduleRoot .section-title,
+  #moduleRoot .level-header,
+  #moduleRoot .step-header,
+  #moduleRoot .level-title {
+      color: var(--sk-text) !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif !important;
     }
-    pre .cmt, .code-comment, .c-cmd, .lab-hint { color: #8a8aa0; }
-    pre code, .lead code, .insight code, h3 code, .clab code, .lab code, .code-block code { color: #7dffa0; background: #0d0d12; border-color: #1a2a20; }
-    .insight, .insight-box, .warn-box, .hint-panel, .gotcha, .result, .lab-info, .rt-info, .lab-tip, .hint-reveal {
-      background: rgba(0, 255, 65, 0.08) !important; border-color: rgba(0, 255, 65, 0.35) !important;
+  #moduleRoot .subtitle,
+  #moduleRoot .mast-count,
+  #moduleRoot .progress-meta,
+  #moduleRoot .lead,
+  #moduleRoot .hero-sub,
+  #moduleRoot .level-meta,
+  #moduleRoot .step-desc,
+  #moduleRoot .sec-desc,
+  #moduleRoot .section-desc,
+  #moduleRoot .card-desc {
+      color: var(--sk-dim) !important;
     }
-    .insight strong, .insight-box strong, .warn-box strong, .lab-info strong { color: #00ff41; }
-    .c-ok, .c-warn { color: #7dffa0; }
-    /* ============ 卡片 / 面板（覆盖各代模块） ============ */
-    .card, .concept-card, .km-card, .knowledge-card, .level-card, .task-card, .aha-pane, .result-card,
-    .flip-card, .cw-card, .cm-node, .expr-challenge, .explorer-card, .sim-panel, .concept-tree, .concept-block,
-    .quiz-q, .quiz-container, .clab, .clab-head, .predict-box, .route-card, .cmp-row {
-      background: #0d0d12 !important; border-color: #1a2a20 !important; color: #c2d9c8;
+  /* .badge 一类的"小胶囊"：skin 把底色统一成 accent，但文字色仍来自模块
+     （常见 `color: var(--accent)`）——于是霓虹绿字压霓虹绿底，实测 1.00:1，
+     标签整块消失（light 17 处 + dark 21 处）。底色与前景必须成对声明。 */
+  #moduleRoot .mast .badge,
+  #moduleRoot .badge { background: var(--sk-accent) !important; color: var(--sk-on-accent) !important; }
+  #moduleRoot .badge.badge-cognition,
+  #moduleRoot .badge.badge-guided,
+  #moduleRoot .badge.badge-independent,
+  #moduleRoot .badge.badge-challenge { background: var(--sk-tint-14) !important; color: var(--sk-text) !important; }
+  /* 序号：pid/bash/git 的 `h2 .num` 自带实心底色，前景必须在模块源码里成对
+     声明并带 !important——壳层这条通用规则（`#moduleRoot .num`，特异度 1,1,0 +
+     !important）会盖掉模块里不带 !important 的字色，变成"绿字压绿底"1.00:1。
+     其余 16 个模块的 `.step h2 .num` 只是描边数字、没有底色，归这条规则管。
+     注意别再往壳层加 `#moduleRoot h2 .num{color:var(--sk-on-accent)}`：它对那
+     16 个描边数字同样成立，把字刷成白色压在卡片浅底上，实测 289 处 1.00:1，
+     比原问题更大。配对只做在模块侧。 */
+  #moduleRoot .num,
+  #moduleRoot .step-tag,
+  #moduleRoot .q-num,
+  #moduleRoot .level-num { color: var(--sk-accent) !important; border-color: var(--sk-accent) !important; }
+  #moduleRoot .progress-track,
+  #moduleRoot .progress-bar,
+  #moduleRoot .progress-strip,
+  #moduleRoot .progress-bar-wrap { background: var(--sk-elev) !important; }
+  #moduleRoot .progress-fill { background: var(--sk-accent) !important; }
+  #moduleRoot .progress-strip .fill,
+  #moduleRoot .progress-strip .prog > i,
+  #moduleRoot .progress-strip .bar > i { background: var(--sk-accent) !important; }
+  /* 以前这里是 `.progress-strip span { background: accent !important }`，本意是给
+     进度条的填充块上色，但 regex/sql 的进度条写成
+     `<div class="prog"><i></i></div><span class="plabel">0 / 9 里程碑</span>`——
+     span 是**文字标签**，被涂成实心 accent 底后，模块给它的是 var(--dim) 深字，
+     实测 1.25:1（暗色 1.32:1），里程碑计数完全看不见。改成只打真正填充块
+     （.fill / .prog>i / .bar>i），文字标签交还给主题。 */
+  #moduleRoot .progress-strip .plabel { color: var(--sk-dim); }
+  /* 代码/终端类容器：亮色主题下也保持"恒定的深色面板"。
+     这些区块在 45 个模块里普遍是"深底 + 浅色等宽字"（模块写死 #0d1117 一类），
+     以前 skin 把它们刷成页面底色（亮色=白），结果模块的浅灰语法字压白底只有
+     1.2~2.8:1，一整批 inline 语法 span（.kw/.str/.fn/.num…）全靠运行时兜底改色。
+     改成恒定的 --sk-code-bg/--sk-code-fg：面板深浅不随主题翻转，模块自己的
+     深色语法色板（JetBrains/Tomorrow 那一套浅色字）天然成立。文档站常见做法。
+     注意 .lab / .lab-body / md 面板不在这里——它们是"内容面板"，模块在里面
+     用的是 var(--text) 系，跟着主题走才对。 */
+  #moduleRoot pre,
+  #moduleRoot .code-block,
+  #moduleRoot .code-area,
+  #moduleRoot .code-editor,
+  #moduleRoot .expr-input,
+  #moduleRoot .expr-input-area,
+  #moduleRoot .sandbox-editor,
+  #moduleRoot .editor-area,
+  #moduleRoot .console {
+      background: var(--sk-code-bg) !important; border-color: var(--sk-code-bar) !important; color: var(--sk-code-fg) !important;
     }
-    .clab-head, .code-toolbar, .lab-head, .sim-header, .card-head, .cm-head { background: #0d0d10 !important; border-color: #1a2a20 !important; }
-    /* ============ 顶栏（M3 老模块） ============ */
-    .nav-bar, .sticky-nav, .top-bar, .top-nav, .header, .header-controls, .module-bar, .sidebar, .hero-nav {
-      background: #0d0d10 !important; border-color: #1a2a20 !important;
+  /* 行内 code 芯片见下方 .lead code 那一组（面板内的芯片要跟面板同系）。 */
+  #moduleRoot .lab,
+  #moduleRoot .lab-body,
+  #moduleRoot .md-editor-pane,
+  #moduleRoot .md-preview-pane {
+      background: var(--sk-page) !important; border-color: var(--sk-border) !important; color: var(--sk-body);
     }
-    .nav-bar a, .top-nav a, .top-bar a, .sticky-nav a, .nav-link, .nav-item, .step-nav a, .sidebar a {
-      color: #9fcca9 !important;
+
+  /* ── 深色孤岛必须整套换掉变量别名 ─────────────────────────────────────
+     关键机制：`--muted: var(--sk-muted)` 这类别名是在**声明它的那个元素**上做
+     var() 替换的。别名声明在 #moduleRoot 上，所以亮色主题下解析结果是深字
+     （#5c6674），之后作为"已算好的颜色"继承进 pre/.code-block/.eg 这些恒定深色
+     面板里——面板底色不随主题翻转，字色却翻了，于是深底压深字：实测
+     pre .cmt 2.81:1（184 处）、sql table.rt td 2.52:1（131 处）、
+     .eg b 2.47:1（81 处）、makefile .km-detail code 2.86:1（61 处）。
+     只重声明 --sk-* 没用（别名已经解析完了），必须在孤岛元素上把别名也重声明一遍。
+     下面每个值都用 tools/check-theme.js 同款的 WCAG 公式对着最深的面板底
+     （#0a0a0f / #0b0e14 / #101725）反推，最低的一档 ≥7:1，留出余量。 */
+  #moduleRoot pre,
+  #moduleRoot .code-block,
+  #moduleRoot .code-area,
+  #moduleRoot .code-editor,
+  #moduleRoot .expr-input,
+  #moduleRoot .expr-input-area,
+  #moduleRoot .sandbox-editor,
+  #moduleRoot .editor-area,
+  #moduleRoot .console,
+  #moduleRoot .console-output,
+  #moduleRoot .explorer-code,
+  #moduleRoot .clab-out,
+  #moduleRoot .clab,
+  #moduleRoot .clab-head,
+  #moduleRoot .quiz-q,
+  #moduleRoot .ch-task,
+  #moduleRoot .predict,
+  #moduleRoot .predict-box,
+  #moduleRoot .eg,
+  #moduleRoot #nav,
+  #moduleRoot #nav-inner,
+  #moduleRoot .nav-links {
+      --sk-page: #101725; --sk-card: #101725; --sk-head: #1b2230; --sk-elev: #16202e;
+      --sk-border: #2a3646; --sk-hover: #22303f;
+      --sk-text: #e6edf6; --sk-body: #dbe4ee; --sk-dim: #b5c1d1;
+      --sk-muted: #9aa8b8; --sk-faint: #9aa8b8; --sk-comment: #9aa8b8;
+      --sk-accent: #7ee787; --sk-accent-hi: #7ee787; --sk-code: #7ee787;
+      --sk-success: #7ee787; --sk-err: #ff9a9a; --sk-ok: #c7f0cf; --sk-err-fg: #ff9a9a;
+      --sk-on-accent: #050507;
+      --sk-warn-fg: #ffd166; --sk-info-fg: #9ecbff; --sk-danger-fg: #ff9a9a;
+      --sk-err-tint: rgba(255, 154, 154, 0.14); --sk-nav-bg: rgba(16, 23, 37, 0.94);
+      --bg: var(--sk-page); --card: var(--sk-card); --bg2: var(--sk-card); --bg3: var(--sk-elev);
+      --raise: var(--sk-elev); --surface: var(--sk-card); --surface-2: var(--sk-elev);
+      --surface2: var(--sk-elev); --surface3: var(--sk-hover); --surface-alt: var(--sk-head);
+      --surface-hover: var(--sk-hover); --bg-secondary: var(--sk-head);
+      --card-2: var(--sk-elev); --card-light: var(--sk-elev); --bg-warm: var(--sk-page);
+      --border: var(--sk-border); --line: var(--sk-border); --border-strong: #3b4a5e;
+      --text: var(--sk-text); --text2: var(--sk-dim); --text-2: var(--sk-dim);
+      --dim: var(--sk-dim); --muted: var(--sk-muted); --text-muted: var(--sk-muted);
+      --text-dim: var(--sk-muted); --text-secondary: var(--sk-dim); --text-body: var(--sk-body);
+      --ink: var(--sk-text); --ink-2: var(--sk-dim); --ink-3: var(--sk-muted);
+      --accent: var(--sk-accent); --accent2: var(--sk-code); --accent-2: var(--sk-code);
+      --primary: var(--sk-accent); --primary-light: var(--sk-code); --primary-dark: var(--sk-accent-hi);
+      --primary-bg: rgba(126, 231, 135, 0.14); --primary-dim: var(--sk-info-fg);
+      --accent-bg: rgba(126, 231, 135, 0.12);
+      --success: var(--sk-success); --ok: var(--sk-success); --green: var(--sk-success);
+      --success-bg: rgba(126, 231, 135, 0.12); --success-light: var(--sk-success);
+      --error: var(--sk-err); --err: var(--sk-err); --danger: var(--sk-err); --bad: var(--sk-err);
+      --error-bg: rgba(255, 154, 154, 0.12); --error-light: var(--sk-err); --red: var(--sk-err);
+      --info: var(--sk-info-fg); --warning: var(--sk-warn-fg); --warn: var(--sk-warn-fg);
+      --code-bg: var(--sk-code-bg); --code-text: var(--sk-code-fg); --code: var(--sk-code-fg);
+      --output: var(--sk-code); --purple: #d2a8ff; --http: var(--sk-code); --git: #ff7b5e;
     }
-    .nav-bar a:hover, .top-nav a:hover, .nav-link:hover, .step-nav a:hover, .sidebar a:hover, .nav-item:hover, .step-number.on {
-      color: #00ff41 !important;
+
+  /* 代码面板是一个例外：底和字必须成对换主题。上面那条把 .explorer-code 刷成
+     页面底色（亮色=白），而模块里 .code-line 的字是浅灰——白底白字（实测 1.23:1）。
+     这类"深底浅字"区块改走 --sk-code-* 一组：暗色近黑、亮色深蓝灰，
+     文字永远跟着底色走，两边都 ≥10:1。 */
+  #moduleRoot .explorer-code,
+  #moduleRoot .code-editor textarea,
+  #moduleRoot .console-output { background: var(--sk-code-bg) !important; color: var(--sk-code-fg); }
+  #moduleRoot .code-line { color: var(--sk-code-fg) !important; }
+  #moduleRoot .code-line:hover,
+  #moduleRoot .code-line.active,
+  #moduleRoot .code-line:focus-visible { background: var(--sk-code-bar) !important; }
+  #moduleRoot .editor-bar,
+  #moduleRoot .editor-actions { background: var(--sk-code-bar) !important; }
+  #moduleRoot .editor-bar { color: var(--sk-code-dim) !important; }
+  #moduleRoot .code-editor textarea::selection { background: var(--sk-tint-35); }
+  /* 代码块里的"复制"按钮与表头：模块用 rgba(255,255,255,.1) + var(--code-text)
+     浅字画在自己写死的深底上，但上面那条 skin 规则把 .code-block 刷成了页面底色
+     ——亮色下就是白底配近白字（gh-actions 实测 1.37:1）。既然容器底色已经交给
+     skin，按钮的底色/文字也必须成对交给 skin，不能继续叠白色半透明。 */
+  #moduleRoot .code-block .code-header,
+  #moduleRoot .code-block .copy-btn { background: var(--sk-head) !important; }
+  #moduleRoot .code-block .copy-btn { color: var(--sk-text) !important; border: 1px solid var(--sk-border) !important; }
+  #moduleRoot .code-block .copy-btn:hover { background: var(--sk-elev) !important; }
+  #moduleRoot .code-block .code-header .lang { color: var(--sk-muted) !important; }
+  #moduleRoot pre .cmt,
+  #moduleRoot pre .c,
+  #moduleRoot .code-comment,
+  #moduleRoot .c-cmd,
+  #moduleRoot .lab-hint,
+  #moduleRoot .clab-hint,
+  #moduleRoot .clab-head .txt,
+  #moduleRoot .code-content .cmt,
+  #moduleRoot .code-area .cm {
+      color: var(--sk-comment) !important; }
+  /* 芯片（行内 code / kbd）必须"底色 + 前景"成对，且两边都带 !important：
+     模块侧普遍写成 `code, .mono { background: var(--raise); color: #a7f3d0 }`
+     ——一个特异度只有 0,0,1 的规则里同时钉死了浅底和深面板语法浅字。壳层若只改
+     前景（不带 !important），模块的底色照样赢，浅字压浅底；若只改前景、底色走
+     token，恒定深色面板里的 --sk-card 已被局部换成深蓝灰，两处又自相矛盾。
+     所以这里成对声明：底色取面板当前系的 --sk-card（正文=浅卡色，深色面板内
+     =深蓝灰，自动跟随），前景取 --sk-code（同样是两套：暗=霓虹绿、亮=深墨绿、
+     面板内=#7ee787）。git .cheat-table code 实测从 1.23:1 → 5.2:1。
+     面板内的"深色字压深底"（makefile --code-bg 那类）交给上面的深色孤岛组，
+     那条特异度更高（1,1,1）+ 同样 !important，能盖过这条。 */
+  #moduleRoot code,
+  #moduleRoot .mono,
+  #moduleRoot kbd {
+      background: var(--sk-card) !important; color: var(--sk-code) !important;
+      border-color: var(--sk-border) !important;
     }
-    /* ============ 按钮：统一 FFC 蓝 ============ */
-    .clab-btn, .btn, .btn-primary, .btn-check, .btn-row button, .lab-btn, .sim-btn, .ex-actions button {
-      background: #00ff41 !important; color: #fff !important; border-color: #00ff41 !important;
+  /* 下面这些"上下文 + code"选择器已被上面那条 code 规则覆盖，保留仅为说明来源。 */
+  #moduleRoot .code-block code { color: var(--sk-code); background: var(--sk-card); border-color: var(--sk-border); }
+  #moduleRoot .insight,
+  #moduleRoot .insight-box,
+  #moduleRoot .warn-box,
+  #moduleRoot .hint-panel,
+  #moduleRoot .gotcha,
+  #moduleRoot .result,
+  #moduleRoot .lab-info,
+  #moduleRoot .rt-info,
+  #moduleRoot .lab-tip,
+  #moduleRoot .hint-reveal,
+  #moduleRoot .exercise {
+      background: var(--sk-tint-08) !important; border-color: var(--sk-tint-35) !important;
     }
-    .clab-btn:hover, .btn:hover, .btn-primary:hover, .btn-row button:hover, .ex-actions button:hover {
-      background: #00d43a !important; color: #fff !important;
+  /* .exercise（bash/git：`background:rgba(27,34,48,0.5)`）在暗色是淡淡的盒子，
+     到亮色就变成压在浅卡上的灰泥板（合成后 rgb(137,141,149)），里面 accent
+     字只剩 1.79:1。半透明的"深底"必须换成主题 tint，不能靠 0.5 的深色蒙层。 */
+  /* git 步骤圆章是品牌红 #f05133：白字压在它上只有 3.54:1（17.28px/700 够不上
+     WCAG 大字档的 18.66px，仍要 4.5）。亮色把章压深一档（白字 → 5.48:1），
+     暗色保持品牌原色。靠 data-mod 精确点名，不影响其它模块的同名类。 */
+  html[data-theme="light"] #moduleRoot[data-mod="git"] h2 .num { background: #c23616 !important; }
+  /* plc 的 .simulator 是写死的深蓝底（#0d1520），而同名类在 makefile/k8s/
+     gh-actions 里是 `var(--bg)` 跟随主题——通用规则会把后三个也刷成深色，
+     所以同样按模块点名。 */
+  #moduleRoot[data-mod="plc"] .simulator,
+  #moduleRoot[data-mod="plc"] .predict-box,
+  #moduleRoot[data-mod="plc"] .card {
+      --sk-page: #101725; --sk-card: #101725; --sk-head: #1b2230; --sk-elev: #16202e;
+      --sk-border: #2a3646; --sk-hover: #22303f;
+      --sk-text: #e6edf6; --sk-body: #dbe4ee; --sk-dim: #b5c1d1;
+      --sk-muted: #9aa8b8; --sk-faint: #9aa8b8; --sk-comment: #9aa8b8;
+      --sk-accent: #7ee787; --sk-accent-hi: #7ee787; --sk-code: #7ee787;
+      --sk-code-bg: #0a0a0f; --sk-code-fg: #e6edf6; --sk-code-bar: #131318;
+      --sk-success: #7ee787; --sk-err: #ff9a9a; --sk-err-fg: #ff9a9a; --sk-ok: #c7f0cf;
+      --sk-on-accent: #050507; --sk-warn-fg: #ffd166; --sk-info-fg: #9ecbff;
+      --sk-danger-fg: #ff9a9a; --sk-err-tint: rgba(255, 154, 154, 0.14);
+      --bg: var(--sk-page); --card: var(--sk-card); --surface: var(--sk-card);
+      --border: var(--sk-border); --text: var(--sk-text); --text2: var(--sk-dim);
+      --dim: var(--sk-dim); --muted: var(--sk-muted); --text-muted: var(--sk-muted);
+      --accent: var(--sk-accent); --primary: var(--sk-accent);
     }
-    .btn-secondary, .btn-outline, .btn-ghost, .btn-hint, .icon-btn, .theme-toggle {
-      background: #0d0d12 !important; color: #9fcca9 !important; border-color: #1a2a20 !important;
+  #moduleRoot[data-mod="plc"] .simulator,
+  #moduleRoot[data-mod="plc"] .predict-box {
+      background: var(--sk-card) !important; border-color: var(--sk-border) !important;
+      color: var(--sk-text) !important;
     }
-    .btn-secondary:hover, .btn-outline:hover, .btn-ghost:hover, .icon-btn:hover, .theme-toggle:hover {
-      border-color: #00ff41 !important; color: #00ff41 !important;
+  #moduleRoot .insight strong,
+  #moduleRoot .insight-box strong,
+  #moduleRoot .warn-box strong,
+  #moduleRoot .lab-info strong { color: var(--sk-accent); }
+  #moduleRoot .c-ok,
+  #moduleRoot .c-warn { color: var(--sk-code); }
+  #moduleRoot .card,
+  #moduleRoot .concept-card,
+  #moduleRoot .km-card,
+  #moduleRoot .knowledge-card,
+  #moduleRoot .level-card,
+  #moduleRoot .task-card,
+  #moduleRoot .aha-pane,
+  #moduleRoot .result-card,
+  #moduleRoot .flip-card,
+  #moduleRoot .cw-card,
+  #moduleRoot .cm-node,
+  #moduleRoot .expr-challenge,
+  #moduleRoot .explorer-card,
+  #moduleRoot .sim-panel,
+  #moduleRoot .concept-tree,
+  #moduleRoot .concept-block,
+  #moduleRoot .quiz-container,
+  #moduleRoot .route-card,
+  #moduleRoot .cmp-row {
+      background: var(--sk-card) !important; border-color: var(--sk-border) !important; color: var(--sk-body);
     }
-    /* ============ 选择题（统一 FFC 卡片式） ============ */
-    .opt-row, .check-label, .expr-item, .dfl-toggle, .route-input, .input-row {
-      background: #0d0d12 !important; border-color: #1a2a20 !important; color: #c2d9c8;
+  /* 一批"卡片"其实是恒定深色孤岛：14 个模块的 .clab-head（#0d0d10/#0d1117）、
+     12 个模块的 .quiz-q（#0d0d12/#161b22/#1b1b32）、30 个模块的 .clab、
+     9 个模块的 .ch-task（#0d0d12/#1b1b32）都写死深底 + 浅色题干/标题
+     （.q-title #e6edf3、h3 #101725 系）。留在上面那条主题组里，亮色就是
+     浅卡底压浅字（实测 1.11:1 / 1.07:1，题干和练习标题整片看不见）。
+     底色统一走 --sk-code-*（与代码面板同一对恒定深色 token），面板内的变量
+     别名由上面"深色孤岛"那组重声明成深色——孤岛里还有第三层"更深的选项行"
+     （css --raise、dockerfile --surface-2、helm --code-bg 各不相同），
+     不重声明就退回主题浅底。判断依据：这些类在各模块源码里 100% 写死深色
+     （没有任何一个模块把它们做成浅色），所以壳层强制深色不会和谁冲突。 */
+  #moduleRoot .clab,
+  #moduleRoot .clab-head,
+  #moduleRoot .clab-out,
+  #moduleRoot .quiz-q,
+  #moduleRoot .ch-task,
+  #moduleRoot .predict,
+  #moduleRoot .predict-box,
+  #moduleRoot .eg {
+      background: var(--sk-code-bg) !important; border-color: var(--sk-code-bar) !important;
+      color: var(--sk-code-fg) !important;
     }
-    .opt-row:hover, .check-label:hover, .expr-item:hover { border-color: #00ff41 !important; }
-    .opt-row input, .check-label input, .expr-item input { accent-color: #00ff41; }
-    .opt-row.correct { border-color: #00ff41 !important; background: rgba(0, 255, 65, 0.14) !important; }
-    .opt-row.wrong { border-color: #d24d4d !important; background: rgba(210, 77, 77, 0.12) !important; }
-    .result.ok, .check-result.ok, .quiz-score { color: #e6ffe9; }
-    .result.err, .check-result.err { color: #f8d7d7; }
-    /* ============ 实验台输入 ============ */
-    .clab-body textarea, .clab-body input, .lab-body textarea, .lab-body input, .expr-input, .route-input, .code-area, .explorer-input, .md-editor-pane {
-      background: #050507 !important; border-color: #1a2a20 !important; color: #d6ffe0;
+
+  /* 孤岛里"皮肤直接刷实心 accent"的那批规则（`.predict-ctrl button`、
+     `.ex-title .tag`…）用的还是主题的 accent：亮色 #0b6b39 配近黑字只有 3.08:1。
+     token 帮不上忙——那些规则是 `background:var(--primary) !important`，而
+     --primary 被壳层的 `#moduleRoot [class]` 组直接钉成主题 accent。
+     所以这里用同样的 !important 把孤岛内的实心 accent 底/字成对换掉：
+     底 = 面板 accent #7ee787，字 = 面板 on-accent #050507（11.7:1）。
+     选择器一律带"孤岛 + 控件"两级（≥1,2,0），稳压单级的通用 accent 规则。 */
+  #moduleRoot .predict button,
+  #moduleRoot .predict-box button,
+  #moduleRoot .clab button,
+  #moduleRoot .quiz-q button,
+  #moduleRoot .ch-task button,
+  #moduleRoot .eg button,
+  #moduleRoot .clab input[type="button"],
+  #moduleRoot .clab input[type="submit"],
+  #moduleRoot .quiz-q input[type="button"] {
+      background: var(--sk-accent) !important; color: var(--sk-on-accent) !important;
+      border-color: var(--sk-accent) !important;
     }
-    .clab-body textarea:focus, .clab-body input:focus, .expr-input:focus, .route-input:focus { border-color: #00ff41 !important; }
-    /* ============ 底部导航 / toast / footer ============ */
-    .nav, .nav-foot, .nav-inner { background: rgba(5, 5, 7, 0.94) !important; border-top-color: #1a2a20 !important; border-color: #1a2a20 !important; }
-    .nav-btn, .nav-foot a, .btn-nav { background: #0d0d12 !important; color: #9fcca9 !important; border-color: #1a2a20 !important; }
-    .nav-btn:hover, .nav-foot a:hover { border-color: #00ff41 !important; color: #00ff41 !important; }
-    .nav-label { color: #5f7a66; }
-    .toast { background: #0d0d12 !important; border-color: #00ff41 !important; color: #e6ffe9; }
-    .footer, .foot-note, .note { color: #4a5a4e; }
-    /* ============ 测验分数 ============ */
-    .score-num-big { color: #00ff41 !important; }
-    /* ============ Geek terminal accents ============ */
-    .card, .ov-cats, .ov-goal, .ov-badges, .ov-heat, .ov-quiz, .overview { border-radius: 6px; }
-    .ov-btn, .nav-btn, .clab-btn, .badge, .pill, .hm-cell { border-radius: 4px; }
-    .opt-row, .quiz-q, .result, .clab, .card-badge, .lab { border-radius: 6px; }
-    .mast h1, .step h2, .card-title, .ov-title, .foot, .q-title { font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; }
-    a { text-decoration: none; }
-    a:hover { text-shadow: 0 0 8px rgba(0, 255, 65, 0.5); }
-    .card:hover { box-shadow: 0 0 0 1px #00ff41, 0 0 14px rgba(0, 255, 65, 0.14); }
-    ::selection { background: rgba(0, 255, 65, 0.25); }
-    .progress-fill, .qz-fill, .og-fill, .ov-cat-fill { box-shadow: 0 0 10px rgba(0, 255, 65, 0.4); }
-    .mast h1 em { text-shadow: 0 0 12px rgba(0, 255, 65, 0.35); }
+  /* 导航条同理：makefile 的 `#nav` 与 n8n 的 `nav` 自己写死深蓝底
+     （rgba(15,23,42,.95) / rgba(15,15,30,.95)），但里面的链接是 --sk-muted
+     深字 → 2.71:1。这类"模块自带的顶部导航"也是恒定深色孤岛。 */
+  /* 练习标签这类"描边胶囊"：模块写 `color:var(--accent); border:1px solid rgba(…)`
+     但壳层给 .tag 的底色是主题的 --sk-accent（实心），accent 字压 accent 底
+     = 1.99:1。标签一律改成"半透明 accent 底 + accent 字"，两边都跟着主题走。 */
+  #moduleRoot .ex-title .tag,
+  #moduleRoot .exercise .tag {
+      background: var(--sk-tint-14) !important; color: var(--sk-accent) !important;
+      border-color: var(--sk-tint-35) !important;
+    }
+
+  #moduleRoot .clab-head,
+  #moduleRoot .code-toolbar,
+  #moduleRoot .lab-head,
+  #moduleRoot .sim-header,
+  #moduleRoot .card-head,
+  #moduleRoot .cm-head { background: var(--sk-head) !important; border-color: var(--sk-border) !important; }
+  #moduleRoot .nav-bar,
+  #moduleRoot .sticky-nav,
+  #moduleRoot .top-bar,
+  #moduleRoot .top-nav,
+  #moduleRoot .header,
+  #moduleRoot .header-controls,
+  #moduleRoot .module-bar,
+  #moduleRoot .sidebar,
+  #moduleRoot .hero-nav {
+      /* 底色归 skin 之后，前景也必须成对归 skin：vfd/plc 的 `.header` 原本是
+         渐变 hero + `color: white`，被刷成浅灰 sk-head 后白字只剩 1.13:1，
+         此前全靠运行时兜底把它灰化（浅灰字压浅灰底，合规但难看）。 */
+      background: var(--sk-head) !important; border-color: var(--sk-border) !important; color: var(--sk-text) !important;
+    }
+  #moduleRoot .header .icon-btn,
+  #moduleRoot .header-controls button {
+      background: var(--sk-elev) !important; color: var(--sk-text) !important; border: 1px solid var(--sk-border) !important;
+    }
+  #moduleRoot .nav-bar a,
+  #moduleRoot .top-nav a,
+  #moduleRoot .top-bar a,
+  #moduleRoot .sticky-nav a,
+  #moduleRoot .nav-link,
+  #moduleRoot .nav-item,
+  #moduleRoot .step-nav a,
+  #moduleRoot .sidebar a {
+      color: var(--sk-dim) !important;
+    }
+  #moduleRoot .nav-bar a:hover,
+  #moduleRoot .top-nav a:hover,
+  #moduleRoot .nav-link:hover,
+  #moduleRoot .step-nav a:hover,
+  #moduleRoot .sidebar a:hover,
+  #moduleRoot .nav-item:hover,
+  #moduleRoot .step-number.on {
+      color: var(--sk-accent) !important;
+    }
+  #moduleRoot .clab-btn,
+  #moduleRoot .btn,
+  #moduleRoot .btn-primary,
+  #moduleRoot .btn-check,
+  #moduleRoot .btn-row button,
+  #moduleRoot .lab-btn,
+  #moduleRoot .sim-btn,
+  #moduleRoot .ex-actions button {
+      background: var(--sk-accent) !important; color: var(--sk-on-accent) !important; border-color: var(--sk-accent) !important;
+    }
+  #moduleRoot .clab-btn:hover,
+  #moduleRoot .btn:hover,
+  #moduleRoot .btn-primary:hover,
+  #moduleRoot .btn-row button:hover,
+  #moduleRoot .ex-actions button:hover {
+      background: var(--sk-accent-hi) !important; color: var(--sk-on-accent) !important;
+    }
+  #moduleRoot .btn-secondary,
+  #moduleRoot .btn-outline,
+  #moduleRoot .btn-ghost,
+  #moduleRoot .btn-hint,
+  #moduleRoot .icon-btn,
+  #moduleRoot .theme-toggle {
+      background: var(--sk-card) !important; color: var(--sk-dim) !important; border-color: var(--sk-border) !important;
+    }
+  /* 模块自带的主题切换按钮（#themeToggle 一类）：它们把 emoji 画在 var(--surface) 上，
+     而 skin 把 --surface 统一改写成 --sk-card，emoji 的可见性只能由 skin 决定。
+     这里给它配对的"亮字+深底"（暗色）/"深字+浅底"（亮色），并用文字色兜底：
+     彩色 emoji 本身不受 color 影响，但 ♀/☀ 这类单色字形（U+2600 段）会跟着走。 */
+  #moduleRoot [id^="themeTo"],
+  #moduleRoot [class~="theme-btn"],
+  #moduleRoot [id="btnTheme"] {
+      background: var(--sk-head) !important; color: var(--sk-text) !important; border-color: var(--sk-border) !important;
+    }
+  #moduleRoot .btn-secondary:hover,
+  #moduleRoot .btn-outline:hover,
+  #moduleRoot .btn-ghost:hover,
+  #moduleRoot .icon-btn:hover,
+  #moduleRoot .theme-toggle:hover {
+      border-color: var(--sk-accent) !important; color: var(--sk-accent) !important;
+    }
+  #moduleRoot .opt-row,
+  #moduleRoot .check-label,
+  #moduleRoot .expr-item,
+  #moduleRoot .dfl-toggle,
+  #moduleRoot .route-input,
+  #moduleRoot .input-row {
+      background: var(--sk-card) !important; border-color: var(--sk-border) !important; color: var(--sk-body);
+    }
+  #moduleRoot .opt-row:hover,
+  #moduleRoot .check-label:hover,
+  #moduleRoot .expr-item:hover { border-color: var(--sk-accent) !important; }
+  #moduleRoot .opt-row input,
+  #moduleRoot .check-label input,
+  #moduleRoot .expr-item input { accent-color: var(--sk-accent); }
+  #moduleRoot .opt-row.correct { border-color: var(--sk-accent) !important; background: var(--sk-tint-14) !important; }
+  #moduleRoot .opt-row.wrong { border-color: var(--sk-err) !important; background: var(--sk-err-tint) !important; }
+  #moduleRoot .result.ok,
+  #moduleRoot .check-result.ok,
+  #moduleRoot .quiz-score { color: var(--sk-ok); }
+  #moduleRoot .result.err,
+  #moduleRoot .check-result.err { color: var(--sk-err-fg); }
+  #moduleRoot .clab-body textarea,
+  #moduleRoot .clab-body input,
+  #moduleRoot .lab-body textarea,
+  #moduleRoot .lab-body input,
+  #moduleRoot .expr-input,
+  #moduleRoot .route-input,
+  #moduleRoot .code-area,
+  #moduleRoot .explorer-input,
+  #moduleRoot .md-editor-pane {
+      background: var(--sk-page) !important; border-color: var(--sk-border) !important; color: var(--sk-text);
+    }
+  #moduleRoot .clab-body textarea:focus,
+  #moduleRoot .clab-body input:focus,
+  #moduleRoot .expr-input:focus,
+  #moduleRoot .route-input:focus { border-color: var(--sk-accent) !important; }
+  #moduleRoot .nav,
+  #moduleRoot .nav-foot,
+  #moduleRoot .nav-inner { background: var(--sk-nav-bg) !important; border-top-color: var(--sk-border) !important; border-color: var(--sk-border) !important; }
+  #moduleRoot .nav-btn,
+  #moduleRoot .nav-foot a,
+  #moduleRoot .btn-nav { background: var(--sk-card) !important; color: var(--sk-dim) !important; border-color: var(--sk-border) !important; }
+  #moduleRoot .nav-btn:hover,
+  #moduleRoot .nav-foot a:hover { border-color: var(--sk-accent) !important; color: var(--sk-accent) !important; }
+  #moduleRoot .nav-label { color: var(--sk-muted); }
+  #moduleRoot .toast { background: var(--sk-card) !important; border-color: var(--sk-accent) !important; color: var(--sk-ok); }
+  #moduleRoot .footer,
+  #moduleRoot .foot-note,
+  #moduleRoot .note { color: var(--sk-faint); }
+  #moduleRoot .score-num-big { color: var(--sk-accent) !important; }
+  #moduleRoot .card,
+  #moduleRoot .ov-cats,
+  #moduleRoot .ov-goal,
+  #moduleRoot .ov-badges,
+  #moduleRoot .ov-heat,
+  #moduleRoot .ov-quiz,
+  #moduleRoot .overview { border-radius: 6px; }
+  #moduleRoot .ov-btn,
+  #moduleRoot .nav-btn,
+  #moduleRoot .clab-btn,
+  #moduleRoot .badge,
+  #moduleRoot .pill,
+  #moduleRoot .hm-cell { border-radius: 4px; }
+  #moduleRoot .opt-row,
+  #moduleRoot .quiz-q,
+  #moduleRoot .result,
+  #moduleRoot .clab,
+  #moduleRoot .card-badge,
+  #moduleRoot .lab { border-radius: 6px; }
+  #moduleRoot .mast h1,
+  #moduleRoot .step h2,
+  #moduleRoot .card-title,
+  #moduleRoot .ov-title,
+  #moduleRoot .foot,
+  #moduleRoot .q-title { font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; }
+  #moduleRoot a { text-decoration: none; }
+  #moduleRoot a:hover { text-shadow: 0 0 8px var(--sk-tint-50); }
+  #moduleRoot .card:hover { box-shadow: 0 0 0 1px var(--sk-accent), 0 0 14px var(--sk-tint-14); }
+  #moduleRoot ::selection { background: var(--sk-tint-25); }
+  #moduleRoot .progress-fill,
+  #moduleRoot .qz-fill,
+  #moduleRoot .og-fill,
+  #moduleRoot .ov-cat-fill { box-shadow: 0 0 10px var(--sk-tint-40); }
+  #moduleRoot .mast h1 em { text-shadow: 0 0 12px var(--sk-tint-35); }
+  
+  
   </style>
 
   <script src="courses.js"></script>
   <script src="ilquiz.js"></script>
+  <script src="ilcontrast.js"></script>
   <script src="ilquizzes.js"></script>
   <script>
     (function () {
       /* ═════════ 主题切换：il_theme（light / dark / auto） ═════════ */
+      /* 对比度底线：导航页与当前模块各跑一次。ILContrast 缺席（缓存的旧页面）
+         时静默跳过，主题与阅读不受影响。 */
+      function refreshContrast() {
+        if (!window.ILContrast) return;
+        var nav = document.getElementById('navView');
+        if (nav && !nav.hidden) ILContrast.run(nav);
+        if (window.IL_MODULES && moduleRoot.innerHTML) ILContrast.run(moduleRoot);
+      }
+      document.addEventListener('il:theme', applyTheme);
+
       function applyTheme() {
         var t = 'auto';
         try { t = localStorage.getItem('il_theme') || 'auto'; } catch (e) { /* storage unavailable */ }
         var dark = t === 'dark' ||
           (t === 'auto' && (!window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches));
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        /* 主题换了，底色换了，之前推出来的前景色全部作废——重算。
+           放在这里而不是监听 il:theme：壳层按钮与模块按钮最终都会走到本函数
+           （模块按钮经 IL.setTheme → il:theme → 下面那个 listener），一处即可。 */
+        refreshContrast();
         var btn = document.getElementById('btnTheme');
         if (btn) {
           btn.textContent = t === 'light' ? '☀' : (t === 'dark' ? '☾' : '◐');
@@ -1508,16 +2152,35 @@
       });
       document.getElementById('sortSel').addEventListener('change', sortCards);
 
-      /* Keyboard shortcut: / to focus search */
+      /* Keyboard shortcut: / to focus search
+       * 这条监听挂在 document 上，而模块与壳层在同一个文档里——过去只要
+       * 按下 "/" 就 preventDefault + 抢焦点，于是模块内的输入框吃不到斜杠：
+       * bash 迷你终端打 `ls /etc` 变成 `lsetc`，regex 模块打 `\d+\/x` 丢掉 `/`。
+       * 这是"悄悄改写了用户输入"，比搜不到更糟，因为它看起来像是成功了。
+       * 所以：光标在任何可编辑字段里时完全不管；只有导航页可见时才接管。 */
+      function isTyping(el) {
+        if (!el) return false;
+        var tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+      }
+      function navShowing() {
+        var mv = document.getElementById('moduleView');
+        return !mv || mv.hidden;
+      }
       document.addEventListener('keydown', function (e) {
-        if (e.key === '/' && document.activeElement !== searchInput) {
-          e.preventDefault();
-          searchInput.focus();
-        }
+        var typing = isTyping(document.activeElement);
+        /* Esc 在搜索框里清空——这条要在 typing 判断之前，因为搜索框自己就是 INPUT */
         if (e.key === 'Escape' && document.activeElement === searchInput) {
           searchInput.value = '';
           searchInput.blur();
           filter();
+          return;
+        }
+        /* 焦点在模块的任何输入框里时，壳层完全不碰键盘 */
+        if (typing) return;
+        if (e.key === '/' && navShowing()) {
+          e.preventDefault();
+          searchInput.focus();
         }
       });
 
@@ -2115,7 +2778,124 @@
       trackListeners(window, nativeWinAdd);
       trackListeners(document, nativeDocAdd);
 
+      /* ═════════ 模块 CSS 隔离 ═════════
+       * 模块的样式表以前是整份 append 到 <head> 的，于是它们里的全局选择器
+       * 直接改写壳层。实测（45 个模块逐个访问并对比壳层计算样式）泄漏面：
+       *   :root { --bg/--border/--text … }   44 处  → 壳层读同名变量，整站换肤
+       *   body { padding-bottom:90px }       18 处  → 壳层底部出现空隙
+       *   body { overflow / margin / max-width / font-size }  6 处
+       *   .page { max-width:940px; margin:auto; padding }     git/bash → 模块视图被压窄
+       *   html { scroll-behavior } / * { … } / [data-theme="dark"] .x
+       * 模块 CSS 作者写这些选择器时，指的是"我自己这个页面"，因为源码确实是
+       * 独立 HTML；打进壳层后 html/body 却是共享的。这里在注入前把选择器改写
+       * 成以 #moduleRoot 为根，语义回到作者本意，壳层不再被穿透。
+       *
+       * 规则：
+       *   :root / html / body        → #moduleRoot（保留其伪元素）
+       *   *                          → #moduleRoot *
+       *   [data-theme="X"]           → html[data-theme="X"] #moduleRoot
+       *   [data-theme="X"] .foo      → html[data-theme="X"] #moduleRoot .foo
+       *   其余 .foo / pre / #id      → #moduleRoot <原选择器>
+       * 条件组（@media/@supports）递归处理，@keyframes 内部原样保留。 */
+      var MR = '#moduleRoot';
+      var DT_RE = /^\[\s*data-theme\s*=\s*(["'])([^"']*)\1\s*\]/;
+      var GLOBAL_RE = /^(?:root|html|body)(?![\w-])/;   /* 已去掉前导 ':' */
+      var LEAD_COMMENT = /^\s*\/\*[\s\S]*?\*\//;
+
+      /* 摘掉前导注释：`.foo` 前那句 /* ── Card ── *\/ 若留在选择器里，
+         就会挡住 :root / body 的识别，规则被拼成无效字符串直接失效
+         （Round 17 给壳层规则加 #navView 前缀时正是栽在这里）。 */
+      function splitLeadComments(s) {
+        var lead = '', body = s, m;
+        while ((m = LEAD_COMMENT.exec(body))) { lead += m[0]; body = body.slice(m[0].length); }
+        return { lead: lead, body: body.trim() };
+      }
+
+      function scopeOne(part) {
+        var s = part.trim();
+        if (!s) return s;
+        var dt = DT_RE.exec(s);
+        if (dt) {
+          var rest = s.slice(dt[0].length).trim();
+          return 'html[data-theme="' + dt[2] + '"] ' + MR + (rest ? ' ' + rest : '');
+        }
+        /* :root / html / body → #moduleRoot。伪元素尾巴（body::before 的全屏
+           背景层）一起搬过去，作者"给整页垫一层"的意思保持不变。 */
+        if (GLOBAL_RE.test(s[0] === ':' ? s.slice(1) : s)) {
+          var core = s[0] === ':' ? s.slice(1) : s;
+          var hit = GLOBAL_RE.exec(core);
+          return MR + core.slice(hit[0].length);
+        }
+        return MR + ' ' + s;
+      }
+
+      function scopeSelectorList(list) {
+        var lead = splitLeadComments(list);
+        var out = '', depth = 0, buf = '';
+        var s = lead.body;
+        for (var i = 0; i < s.length; i++) {
+          var ch = s[i];
+          if (ch === '(') depth++;
+          else if (ch === ')') depth--;
+          if (ch === ',' && depth === 0) { out += scopeOne(buf) + ','; buf = ''; continue; }
+          buf += ch;
+        }
+        return lead.lead + out + scopeOne(buf);
+      }
+
+      function skipString(css, i, q) {
+        for (var j = i + 1; j < css.length; j++) {
+          if (css[j] === '\\') { j++; continue; }
+          if (css[j] === q) return j;
+        }
+        return css.length;
+      }
+
+      /* 返回 [内部文本, 配对 } 之后的下标]；start 指向 '{' */
+      function readBlock(css, start) {
+        var depth = 0;
+        for (var i = start; i < css.length; i++) {
+          var c = css[i];
+          if (c === '"' || c === "'") { i = skipString(css, i, c); continue; }
+          if (c === '/' && css[i + 1] === '*') { var e = css.indexOf('*/', i + 2); i = e < 0 ? css.length : e + 1; continue; }
+          if (c === '{') depth++;
+          else if (c === '}') { depth--; if (depth === 0) return [css.slice(start + 1, i), i + 1]; }
+        }
+        return [css.slice(start + 1), css.length];
+      }
+
+      function scopeModuleCSS(css) {
+        if (!css) return '';
+        var out = '', i = 0, buf = '';
+        while (i < css.length) {
+          var c = css[i];
+          if (c === '/' && css[i + 1] === '*') {
+            var ce = css.indexOf('*/', i + 2);
+            if (ce < 0) ce = css.length; else ce += 2;
+            buf += css.slice(i, ce); i = ce; continue;
+          }
+          if (c === '"' || c === "'") { var se = skipString(css, i, c); buf += css.slice(i, se + 1); i = se + 1; continue; }
+          if (c === ';') { out += buf + ';'; buf = ''; i++; continue; }   /* @import / 声明串：原样 */
+          if (c === '{') {
+            var pre = splitLeadComments(buf); buf = '';
+            var blk = readBlock(css, i);
+            i = blk[1];
+            if (pre.body.charAt(0) === '@') {
+              var name = (pre.body.match(/^@([\w-]+)/) || ['', ''])[1].toLowerCase();
+              var nested = name === 'media' || name === 'supports' || name === 'layer' || name === 'container';
+              out += pre.lead + pre.body + '{' + (nested ? scopeModuleCSS(blk[0]) : blk[0]) + '}';
+            } else {
+              out += pre.lead + scopeSelectorList(pre.body) + '{' + blk[0] + '}';
+            }
+            continue;
+          }
+          buf += c; i++;
+        }
+        return out + buf;
+      }
+
       function cleanupModule() {
+        if (window.ILContrast) ILContrast.unwatch(moduleRoot);
         modEpoch++;               // 让任何仍在队列里的旧模块回调失效
         releaseModule();
         activeAssets.forEach(function (el) { if (el && el.parentNode) el.parentNode.removeChild(el); });
@@ -2134,8 +2914,14 @@
           activeAssets.push(el);
         });
         var st = document.createElement('style');
-        st.textContent = mod.css || '';
-        document.head.appendChild(st);
+        st.setAttribute('data-il-module', '1');
+        st.textContent = scopeModuleCSS(mod.css || '');
+        /* 必须插在 courseSkin 之前：skin 的职责是"统一 45 个模块的视觉"，
+           它靠 #moduleRoot 前缀取胜者通吃；模块样式若排在它后面，
+           同特异度的规则会翻盘，统一外观就散了。 */
+        var skin = document.getElementById('courseSkin');
+        if (skin && skin.parentNode === document.head) document.head.insertBefore(st, skin);
+        else document.head.appendChild(st);
         activeAssets.push(st);
       }
 
@@ -2147,6 +2933,10 @@
         /* 访问时间戳由壳层统一记录：没有里程碑体系的早期模块（17 个）也能
            进入连续学习 / 热力图 / 到期复习，不必逐个改造模块内部代码。 */
         if (window.IL) IL.touch(key);
+        /* 把当前模块 key 挂到容器上：skin 里少数"只有某个模块这么写"的规则
+           （plc 的 .simulator 深底、n8n 的翻转卡片…）可以精确点名，
+           不必用一条通用规则去盖住其它模块的同名类。 */
+        moduleRoot.dataset.mod = key;
         injectModuleAssets(mod);
         moduleRoot.innerHTML = mod.html || '';
         moduleTitle.textContent = mod.title || '';
@@ -2159,6 +2949,10 @@
           if (mod.needsReady) document.dispatchEvent(new Event('DOMContentLoaded'));
         });
         attachQuiz(key);
+        /* 模块的 DOM 已全部就位（上面的 <script> 是同步执行的），从这里开始
+           由 ILContrast 兜住写死颜色的前景色；之后的 DOM 变动由它的
+           MutationObserver 续上。 */
+        if (window.ILContrast) ILContrast.watch(moduleRoot);
         window.scrollTo(0, 0);
       }
 
@@ -2236,6 +3030,7 @@
       sortCards();
       initProgress();
       route();
+      refreshContrast();
     })();
   </script>
   <div class="toast-box" id="toastBox"></div>

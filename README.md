@@ -17,9 +17,9 @@
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动；里程碑型看全部解锁，纯测验型看测验得分率 ≥ 75% |
-| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、搜索别名与拼写建议、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体） |
+| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、搜索别名与拼写建议、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体）、运行时对比度兜底（`ILContrast`，文字压在底色上低于 AA 时原地微调） |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
-| 数据校验 | CI 的 `check` job 三重把关：`src/` ↔ `modules/` 字节一致、`courses.js` 的 `size` 属实、`tags` 每个词都能在模块源码里找到 |
+| 数据校验 | CI 的 `check` job 四重把关：`src/` ↔ `modules/` 字节一致、`courses.js` 的 `size` 属实、`tags` 每个词都能在模块源码里找到、主题 token 双主题齐备且 skin 内无写死颜色 |
 
 ---
 
@@ -30,6 +30,7 @@
 ├── index.html                         # 唯一页面：导航 + 模块容器 + hash 路由
 ├── courses.js                         # 课程数据源（卡片/计数/页脚的唯一来源）
 ├── ilquiz.js                          # 共享运行时：IL.touch / IL.mount / IL.quiz / IL.order / IL.record
+├── ilcontrast.js                      # 共享运行时：ILContrast 运行时文本对比度兜底（AA 下限）
 ├── ilquizzes.js                       # 壳层挂载测验的题库（无自测题的早期模块）
 ├── src/                               # 模块**源码**（自包含 HTML，作者直接编辑这里）
 │   ├── git-interactive.html
@@ -41,7 +42,9 @@
 │   ├── pack-modules.py                # 构建：src/<key>-interactive.html → modules/<key>.js
 │   ├── unpack-modules.js              # 反向：modules/<key>.js → src/（恢复丢失的源码层）
 │   ├── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
-│   └── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致
+│   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致
+│   ├── check-theme.js                 # 校验：主题 token 双主题齐备、skin 无写死颜色、模块变量均已映射
+│   └── check-contrast.js              # 校验：45 模块 × 亮暗双主题的真实渲染对比度（需浏览器，缺失则 SKIP）
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
 ├── .gitignore
@@ -163,13 +166,22 @@
 python3 tools/pack-modules.py   # 先在 KEYS 中登记 'xxx-interactive.html': 'xxx'
 node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check job 跑同一条）
 node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎
+node tools/check-theme.js       # 确认新模块没有把颜色写死、也没漏掉 token 映射
+node tools/check-contrast.js    # 量渲染后的实际对比度（需 Playwright + Chromium，没有则 SKIP）
+```
+
+前两条是静态检查，第三条是浏览器检查：它把模块真正渲染出来（390×844 触摸视口、按读者方式滚动、等淡入与过渡走完）再量"这个字压在这个底上"的比值。`--source` 会屏蔽运行时兜底、按"路径 + 前景色"聚合出源头簇，用来定位到底是哪条 CSS 规则出了问题：
+
+```bash
+node tools/check-contrast.js --source --keys=n8n --top=20
 ```
 
 脚本生成 `modules/<key>.js`：`window.IL_MODULES['<key>'] = { title, css, html, js, links, needsReady }`，由 `index.html` 壳页按需加载渲染。
 
-两条打包约定值得知道：
+三条打包/运行约定值得知道：
 
 - **作用域隔离**：壳层把所有模块的 `js` 追加进同一个文档，顶层 `const/let` 会在模块间互相冲突（第二轮 13 个模块因此整段失效）。打包脚本自动把模块顶层代码包进 `(function () { ... })()`，并把内联 `on*` 处理函数用到的名字挂回 `window`。源码里不需要自己写 IIFE。
+- **CSS 作用域隔离**：壳层注入模块 `<style>` 前会跑 `scopeModuleCSS()`，把每条选择器改写为 `#moduleRoot …` 限定。因此**模块 CSS 永远不能假设自己能碰到壳层的 `html` / `body` / `:root`**——依赖它做全局改写（如 `body { overflow: hidden }`、`:root { --x }`）在壳层里无效，在独立页里又会污染壳层。需要主题请读 `#moduleRoot` 上的 `--sk-*` token，或用 `IL.isDark()` / `IL.toggleTheme()`。
 - **共享运行时内联**：模块可以用 `<script src="../ilquiz.js"></script>` 引用 `IL.mount` / `IL.quiz` / `IL.order` / `IL.record`，打包时该文件内容被内联进 `js` 字段（带 `/* ilquiz:inlined */` 标记），因此 `modules/*.js` 仍然自包含；`unpack-modules.js` 会把它还原成引用。运行时带 `if (global.IL) return;` 幂等锁，壳层与模块各内联一份也只生效一次。
 
 ### 2. 注册课程数据
@@ -230,7 +242,7 @@ if (window.IL && IL.record) IL.record(MODULE_KEY, score, total, quizWrongs);  //
 ### 4. Commit 并推送
 
 ```bash
-git add index.html courses.js src/ modules/ ilquiz.js ilquizzes.js tools/
+git add index.html courses.js src/ modules/ ilquiz.js ilcontrast.js ilquizzes.js tools/
 git commit -m "feat: 添加 xxx 学习模块"
 git push origin main
 ```
@@ -258,7 +270,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 
 | Job | 作用 |
 |------|------|
-| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对 |
+| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行） |
 | **GitHub Pages** | `iroqi.github.io/interactive-learning/`，`actions/deploy-pages@v4`，无需 Secret |
 | **Cloudflare Pages** | `iroqi.pages.dev`，`wrangler-action@v3`，需 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
 
@@ -271,6 +283,16 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 - **模块自包含**：CSS 和 JS 全部内联，每个 `src/*.html` 独立可运行
 - **元数据必须有裁判**：`courses.js` 是人写的元数据，没有校验就会腐烂（Round 16 发现 44/45 条 `size` 与实际体积不符）。新增字段前先问"谁来证明它是对的"——`size`/`tags`/`total` 现在由 `tools/check-courses.js` + CI 守着
 - **搜索靠数据不靠猜**：壳层不为模块维护第二份词表，可搜文本全部来自 `courses.js` 的 `tags`，且每个词都在模块源码中验证过
+- **主题只有一个权威**：`localStorage.il_theme` + `IL.isDark()` / `IL.toggleTheme()`，切换时派发 `il:theme` 事件，壳层的 `applyTheme()` 监听它。模块自带主题按钮**必须**调 `IL.toggleTheme()`（参考 `src/docker-interactive.html:556`），不要自己写 `<html data-theme>` 或另存一份 key——`<html>` 上的这个属性是壳层和 5 个模块共用的，模块直接写会把全站主题抢走（表现为"切过一次模块主题，暗色再也回不来"）
+- **成对声明前景与底色**：给元素写 `background: var(--primary)` 这类实心色块时，前景必须一起写成 `color: var(--sk-on-accent, #fff)`。暗色 token 是霓虹绿（配深字）、亮色 token 是墨绿（配白字），写死 `#fff` 必然在其中一边破 AA。壳层外的独立页面没有 `--sk-on-accent`，走 fallback，行为不变
+- **品牌色不参与 token 映射**：`--git: #f05133`、`--http`、`--async` 这类"模块身份色"绝不能指到 `--sk-accent`。Round 17 试过把 `--git` 映射到 accent，git 页 289 个白字圆章立刻变成"白字压绿底"（1.00:1）——品牌色的职责是识别，不是对比度。需要它可读时，在模块源码里给它配一个前景（`h2 .num { color:#fff !important }`），或按下一条做主题配对
+- **恒定深色孤岛要整套换装**：`pre` / `.code-block` / `.console` / `.quiz-q` / `.clab` / `#nav` 等区块在两个主题下都是深底，靠 skin 里一段"孤岛选择器 + `--sk-*` 覆写"实现。这里有个 CSS 变量机制的坑：`--muted: var(--sk-muted)` 这种别名是在**声明它的那个元素**上完成替换的，所以只覆写 `--sk-*` 不够——孤岛必须把模块自造的别名（`--muted/--text2/--dim/…`）也一起重声明，否则别名仍带着主题值继承进深底，深字压深底。`tools/check-theme.js` 会检查孤岛块的 token 覆盖是否齐备
+- **模块 CSS 的特异度是 1,0,0**：`scopeModuleCSS()` 把 `*{…}` 改写成 `#moduleRoot *{…}`，它会**赢过共享库的类选择器**（`.ilq-opt` 只有 0,1,0）。表现是测验选项 padding 被模块 reset 抹平、整片压成 25px 高。`ilquiz.js` 因此检测到 `#moduleRoot` 存在时，额外注入一份 `#ilquiz-css-scoped` 样式表（同样加 `#moduleRoot ` 前缀）把特异度追平；独立页不注入，行为不变
+- **主题/模块配对的逃生阀**：`renderModule()` 会写 `moduleRoot.dataset.mod = key`，skin 里可以按模块精确配对，例如 `html[data-theme="light"] #moduleRoot[data-mod="git"] h2 .num { background:#c23616 !important }`、`#moduleRoot[data-mod="plc"] .simulator {…}`。模块源码里同理：壳层有 `#moduleRoot .num {…}`（1,1,0 + `!important`），模块想配对前景必须自带 `!important`，否则被壳层压过去
+- **SVG 文字用 `fill` 上色**：`color` 在 `<text>` 上根本不生效，而它的真实底色通常是同一 `<g>` 里那块 `<rect fill="#hex">`（**属性**，`backgroundColor` 看不见）。审计和兜底都必须读 `cs.fill` 并合成那块板，否则图示标签在两边都是隐形盲区；`<svg>` 根节点上的直接子元素没有 `ownerSVGElement`，找底板时不能拿它当判据。底板还可能是半透明色晕（`rgba(46,204,113,.15)`），必须继续往下层 HTML 祖先合成——把它当不透明底色会把本来清楚的浅绿字改到近黑
+- **代码面板恒定深色**：`pre` / `.code-block` / `.console` 等终端类区块在两个主题下都用 `--sk-code-bg`/`--sk-code-fg`，不随主题翻转。模块里的语法高亮色板（`.kw`/`.str`/`.fn`…）本来就是"深底浅字"配色，翻成白底会让整批 inline span 掉到 2:1 以下
+- **运行时对比度只是兜底**：`ILContrast` 在渲染后测量文字与实际合成底色，不足 AA 就沿 HSL 明度微调（保持色相/饱和度），改 `color` 或 SVG 的 `fill` 并记在 `data-ilc` 上以便撤销。它能救命，但不是修问题的地方——颜色要一直在被它改，说明源头没配对，该回去改 token。审计脚本与它**故意共用同一套合成规则**（忽略 `background-image`、不看元素 `opacity`、白色画布打底）：两边算出不同的数就会出现"审计说 1.11、运行时说 4.62"的僵局，谁也修不了
+- **手机可用性下限**：可点击目标 ≥32px 高（Android 48dp 是理想值，本轮采用 iOS 实际下限）、输入框字号 ≥16px（iOS 聚焦时不自动放大）、模块不得出现横向溢出或被 `overflow-x: hidden` 吞掉的不可达内容。这几条每轮由 Playwright 探针在 390×844 视口下量（探针脚本不进仓库，与往轮 smoke 一致），断言口径见上一段
 - **模块 JS 用 ES5**：`modules/*.js` 的 `js` 字段被当作非模块 `<script>` 执行，早期模块统一用 `var` / `function`（新模块的顶层代码由打包脚本自动隔离作用域，见上文）
 - **结构约定**：模板类模块固定 9 个编号里程碑（`<span class="num">1..9</span>`）+ 一个 `✓` 下一步章节，第 9 节为掌握度测验；迷你引擎可以是独立章节（`⚡`，置于测验前），也可以嵌在某节内
 - **字体**：通过 Google Fonts CDN 引入，仅引入字体，不引入任何 JS 框架

@@ -33,6 +33,18 @@ jobs:
       - name: Verify courses.js matches the repo (keys, size, tags, total)
         run: node tools/check-courses.js
 
+      - name: Verify theme tokens (--sk-*/--ilq-* paired, skin has no hardcoded colors)
+        run: node tools/check-theme.js
+
+      - name: Contrast audit (45 modules x 2 themes; SKIPs when no browser is available)
+        run: |
+          test -f package.json || npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund playwright >/dev/null 2>&1 \
+            || echo "playwright 安装失败 → tools/check-contrast.js 将 SKIP"
+          npx playwright install chromium >/dev/null 2>&1 \
+            || echo "chromium 下载失败 → tools/check-contrast.js 将 SKIP"
+          node tools/check-contrast.js
+
   github-pages:
     name: GitHub Pages
     needs: check

@@ -143,12 +143,12 @@ html, body {
 
 .step-item.completed .step-number {
   background: var(--success);
-  color: white;
+  color: var(--sk-on-accent, white);
 }
 
 .step-item.active .step-number {
   background: var(--primary);
-  color: white;
+  color: var(--sk-on-accent, white);
 }
 
 .sidebar-footer {
@@ -209,7 +209,7 @@ html, body {
 
 .btn-primary {
   background: var(--primary);
-  color: white;
+  color: var(--sk-on-accent, white);
 }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-primary:disabled { background: var(--border); cursor: not-allowed; }
@@ -231,13 +231,13 @@ html, body {
 
 .btn-success {
   background: var(--success);
-  color: white;
+  color: var(--sk-on-accent, white);
 }
 .btn-success:hover { background: #15803d; }
 
 .btn-warning {
   background: var(--warning);
-  color: white;
+  color: var(--sk-on-accent, white);
 }
 
 /* Cards and panels */
@@ -257,6 +257,29 @@ html, body {
 @media (max-width: 900px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .sidebar { width: 200px; }
+}
+
+@media (max-width: 640px) {
+  /* 手机宽度下"左栏 200px + 右栏"只剩 190px 内容区，而 .main-content 是
+     overflow:hidden——正文被裁掉且无法滚动，等于内容丢了。窄屏改成上下堆叠：
+     步骤导航收成一条横向可滑的窄栏，正文占满宽度并自己滚动。 */
+  #app { height: auto; min-height: 100vh; }
+  .layout { flex-direction: column; }
+  .sidebar {
+    width: 100%; border-right: none; border-bottom: 1px solid var(--border);
+    flex-direction: row; align-items: center; padding: 0;
+  }
+  .step-nav {
+    flex: 1; display: flex; gap: 4px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; padding: 8px;
+  }
+  .step-item { padding: 8px 12px; border-left: none; white-space: nowrap; flex-shrink: 0; }
+  .sidebar-footer { padding: 8px 12px; border-top: none; }
+  .main-content { overflow: visible; }
+  .step-content { overflow-y: visible; padding: 16px; }
+  .step-header, .step-actions { padding-left: 16px; padding-right: 16px; }
+  .knowledge-card { margin: 0 16px 16px; }
+  .progress-area { width: auto; }
 }
 
 /* Form elements */
@@ -810,7 +833,7 @@ window.SimData = {
         '<span class="step-number">' + icon + '</span>' +
         '<div class="step-info">' +
           '<div class="step-title">' + step.title + '</div>' +
-          '<div class="step-subtitle" style="font-size:12px;color:#6b7280;">' + step.subtitle + '</div>' +
+          '<div class="step-subtitle" style="font-size:12px;color:var(--text-secondary);">' + step.subtitle + '</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -932,7 +955,7 @@ window.SimData = {
         '</div>' +
         '<div class="card" id="tech-stack-card" style="opacity:0.6;pointer-events:none;">' +
           '<h3>第二步：选择技术方案</h3>' +
-          '<p style="color:#6b7280;margin-top:0;">根据网站类型，我们会给出推荐方案，你也可以自由选择。</p>' +
+          '<p style="color:var(--text-secondary);margin-top:0;">根据网站类型，我们会给出推荐方案，你也可以自由选择。</p>' +
           '<div class="grid-2" id="tech-stack-grid"></div>' +
           '<div id="recommendation" class="mt-2"></div>' +
         '</div>' +
@@ -990,7 +1013,7 @@ window.SimData = {
           (recommended ? '<span class="badge">推荐</span>' : '') +
         '</div>' +
         '<p>' + s.desc + '</p>' +
-        '<p style="font-size:12px;color:#6b7280;">成本：' + s.price + '</p>' +
+        '<p style="font-size:12px;color:var(--text-secondary);">成本：' + s.price + '</p>' +
       '</div>';
     }).join('');
 
@@ -1281,7 +1304,7 @@ window.SimData = {
                 (isRec ? '<span class="badge">推荐</span>' : '') +
               '</div>' +
               '<p>' + h.desc + '</p>' +
-              '<p style="font-size:13px;color:#6b7280;">参考价格：' + h.price + '</p>' +
+              '<p style="font-size:13px;color:var(--text-secondary);">参考价格：' + h.price + '</p>' +
             '</div>';
           }).join('') +
         '</div>' +
@@ -1292,7 +1315,7 @@ window.SimData = {
           '<label>服务器 IP 地址（模拟）</label>' +
           '<input type="text" id="server-ip" value="' + (state.serverIp || '192.0.2.1') + '" placeholder="例如：192.0.2.1">' +
         '</div>' +
-        '<p style="color:#6b7280;font-size:13px;">在真实场景中，主机会自动分配 IP 或提供默认域名，这里你只需确认即可。</p>' +
+        '<p style="color:var(--text-secondary);font-size:13px;">在真实场景中，主机会自动分配 IP 或提供默认域名，这里你只需确认即可。</p>' +
         '<button id="confirm-hosting" class="btn btn-primary">确认主机配置</button>' +
       '</div>';
 
@@ -1370,7 +1393,7 @@ window.SimData = {
         '</div>' +
         '<div class="card">' +
           '<h3>解析传播模拟</h3>' +
-          '<p style="color:#6b7280;">DNS 修改后，全球各地的 DNS 服务器需要一段时间才能同步。点击下方按钮模拟传播过程。</p>' +
+          '<p style="color:var(--text-secondary);">DNS 修改后，全球各地的 DNS 服务器需要一段时间才能同步。点击下方按钮模拟传播过程。</p>' +
           '<div class="dns-propagation" id="dns-propagation">' + nodeSpans + '</div>' +
           '<button id="propagate-dns" class="btn btn-warning mt-2" disabled>开始解析传播</button>' +
           '<p id="propagation-status" class="mt-2"></p>' +
@@ -1744,7 +1767,7 @@ window.SimData = {
     var viewport = document.getElementById('test-viewport');
     var results = document.getElementById('test-results');
 
-    viewport.innerHTML = '<p class="text-center pulse" style="color:#6b7280;">正在解析域名并建立安全连接...</p>';
+    viewport.innerHTML = '<p class="text-center pulse" style="color:var(--text-secondary);">正在解析域名并建立安全连接...</p>';
     results.innerHTML = '<p class="pulse">正在执行测试...</p>';
 
     setTimeout(function () {
@@ -1785,7 +1808,7 @@ window.SimData = {
           '<div style="text-align:center;padding:40px 20px;">' +
             '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
             '<h2 style="color:#dc2626;">无法访问</h2>' +
-            '<p style="color:#6b7280;">请检查域名、HTTPS、DNS 和 SSL 配置。</p>' +
+            '<p style="color:var(--text-secondary);">请检查域名、HTTPS、DNS 和 SSL 配置。</p>' +
           '</div>';
 
         var issues = [];
@@ -1821,13 +1844,13 @@ window.SimData = {
             '<div class="card" style="margin:0;">' +
               '<h4>⏱️ 可用性监控</h4>' +
               '<p style="font-size:32px;margin:12px 0;color:#16a34a;font-weight:700;">99.9%</p>' +
-              '<p style="color:#6b7280;font-size:13px;">过去 30 天正常运行时间</p>' +
+              '<p style="color:var(--text-secondary);font-size:13px;">过去 30 天正常运行时间</p>' +
               '<button id="check-uptime" class="btn btn-primary mt-2" style="width:100%;">立即探测</button>' +
             '</div>' +
             '<div class="card" style="margin:0;">' +
               '<h4>📊 今日访问</h4>' +
               '<p style="font-size:32px;margin:12px 0;color:#2563eb;font-weight:700;">1,248</p>' +
-              '<p style="color:#6b7280;font-size:13px;">独立访客数</p>' +
+              '<p style="color:var(--text-secondary);font-size:13px;">独立访客数</p>' +
               '<div class="mt-2" style="height:40px;background:#e5e7eb;border-radius:4px;overflow:hidden;">' +
                 '<div style="width:65%;height:100%;background:#3b82f6;"></div>' +
               '</div>' +
@@ -1835,7 +1858,7 @@ window.SimData = {
             '<div class="card" style="margin:0;">' +
               '<h4>💾 备份状态</h4>' +
               '<p id="backup-status" style="font-size:16px;margin:12px 0;color:#f59e0b;font-weight:600;">未备份</p>' +
-              '<p style="color:#6b7280;font-size:13px;">建议每周至少备份一次</p>' +
+              '<p style="color:var(--text-secondary);font-size:13px;">建议每周至少备份一次</p>' +
               '<button id="run-backup" class="btn btn-warning mt-2" style="width:100%;">执行备份</button>' +
             '</div>' +
           '</div>' +

@@ -58,7 +58,7 @@
   }
   h2 .num {
     background: var(--primary);
-    color: var(--bg);
+    color: var(--bg) !important;   /* 实心底 + 同页底色字，成对声明；!important 是为了不被壳层的通用 .num 刷成绿字压绿底 */
     width: 28px; height: 28px;
     border-radius: 50%;
     display: inline-flex;

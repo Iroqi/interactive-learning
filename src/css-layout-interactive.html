@@ -19,31 +19,31 @@
   .badge { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #050507; background: #00ff41; border-radius: 4px; padding: 3px 12px; }
   .mast-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #9fcca9; }
   h1 { font-size: 34px; color: #d6ffe0; font-weight: 650; line-height: 1.25; margin-bottom: 10px; }
-  h1 em { color: #00ff41; font-style: italic; font-weight: 500; }
+  h1 em { color: var(--sk-accent, #00ff41); font-style: italic; font-weight: 500; }
   .subtitle { font-size: 14px; color: #9fcca9; }
   .progress-track { height: 6px; background: #131318; border-radius: 999px; margin-top: 22px; overflow: hidden; }
   .progress-fill { display: block; height: 100%; width: 0; background: #00ff41; border-radius: 999px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(0, 255, 65, 0.4); }
   .progress-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #9fcca9; font-family: 'JetBrains Mono', monospace; }
-  .done-badge { color: #00ff41; font-weight: 700; }
+  .done-badge { color: var(--sk-accent, #00ff41); font-weight: 700; }
   .done-badge.hidden { display: none; }
   .step { max-width: 900px; margin: 0 auto; padding: 42px 28px 8px; opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
   .step.visible { opacity: 1; transform: none; }
   h2 { font-size: 20px; color: #d6ffe0; font-weight: 650; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
-  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #00ff41; border: 1px solid #00ff41; border-radius: 4px; padding: 1px 7px; }
+  .num { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--sk-accent, #00ff41); border: 1px solid #00ff41; border-radius: 4px; padding: 1px 7px; }
   .challenge { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 26px; align-items: start; margin-bottom: 8px; }
   .ch-lead { min-width: 0; }
   .ch-task { background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; padding: 18px 20px; }
-  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #00ff41; margin-bottom: 10px; }
+  .task-head { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--sk-accent, #00ff41); margin-bottom: 10px; }
   .task-list { margin: 0 0 14px; padding-left: 20px; color: #9fcca9; font-size: 13px; }
   .task-list li { margin-bottom: 6px; }
-  .task-list li::marker { color: #00ff41; }
+  .task-list li::marker { color: var(--sk-accent, #00ff41); }
   @media (max-width: 760px) { .challenge { grid-template-columns: 1fr; } }
   .lead { color: #c2d9c8; font-size: 15px; margin-bottom: 16px; }
   .lead code, pre code, .insight code, h3 code, .clab code, .opts code { font-family: 'JetBrains Mono', monospace; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: #7dffa0; }
   pre { background: #050507; border: 1px solid #1a2a20; border-radius: 6px; padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-x: auto; color: #c2d9c8; margin-bottom: 16px; line-height: 1.7; }
   pre .cmt { color: #5f7a66; }
   .insight { background: rgba(0, 255, 65, 0.07); border: 1px solid rgba(0, 255, 65, 0.35); border-radius: 6px; padding: 14px 18px; margin-bottom: 18px; font-size: 14px; }
-  .insight strong { color: #00ff41; }
+  .insight strong { color: var(--sk-accent, #00ff41); }
   h3 { font-size: 15px; color: #e6ffe9; margin: 0 0 10px; }
   .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 6px; }
   .opt-row { display: flex; align-items: flex-start; gap: 9px; padding: 10px 14px; background: #0d0d12; border: 1px solid #1a2a20; border-radius: 6px; font-size: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
@@ -79,15 +79,15 @@
   .c-warn { color: #fbbf24; }
   .flex-demo-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
   .flex-demo-label { font-size: 12px; color: #5f7a66; font-family: 'JetBrains Mono', monospace; min-width: 115px; flex: none; }
-  .flex-demo-btn { background: #0d0d12; border: 1px solid #1a2a20; color: #9fcca9; border-radius: 4px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: border-color 0.15s, color 0.15s; }
-  .flex-demo-btn:hover { border-color: #00ff41; color: #00ff41; }
-  .flex-demo-btn.active { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.1); }
+  .flex-demo-btn { background: #0d0d12; border: 1px solid #1a2a20; color: #9fcca9; border-radius: 4px; padding: 7px 12px; min-height: 32px; font-size: 12px; cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: border-color 0.15s, color 0.15s; }
+  .flex-demo-btn:hover { border-color: #00ff41; color: var(--sk-accent, #00ff41); }
+  .flex-demo-btn.active { border-color: #00ff41; color: var(--sk-accent, #00ff41); background: rgba(0,255,65,0.1); }
   .flex-demo-container { display: flex; gap: 8px; min-height: 100px; background: #050507; border: 1px solid #1a2a20; border-radius: 4px; padding: 10px; margin: 10px 0; transition: all 0.3s; }
   .flex-demo-item { color: #050507; font-weight: 700; font-size: 14px; border-radius: 4px; display: flex; align-items: center; justify-content: center; min-width: 40px; padding: 8px 16px; font-family: 'JetBrains Mono', monospace; }
   .nav { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(5, 5, 7, 0.94); backdrop-filter: blur(8px); border-top: 1px solid #1a2a20; z-index: 50; }
   .nav-inner { max-width: 900px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
   .nav-btn { background: #0d0d12; color: #9fcca9; border: 1px solid #1a2a20; border-radius: 4px; font-size: 13px; padding: 7px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
-  .nav-btn:hover { border-color: #00ff41; color: #00ff41; }
+  .nav-btn:hover { border-color: #00ff41; color: var(--sk-accent, #00ff41); }
   .nav-btn svg { width: 15px; height: 15px; }
   .nav-btn.hidden-nav { visibility: hidden; }
   .nav-label { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #5f7a66; }
@@ -228,7 +228,7 @@
         <div class="flex-demo-container" id="flexContainer">
           <div class="flex-demo-item" style="background:#00ff41">A</div>
           <div class="flex-demo-item" style="background:#7dffa0;height:50px">B</div>
-          <div class="flex-demo-item" style="background:#5f7a66">C</div>
+          <div class="flex-demo-item" style="background:#6c8a74">C</div>
         </div>
         <div class="clab-out" id="flexCode">display: flex;
 justify-content: flex-start;
@@ -449,7 +449,7 @@ C = 100 + 300 x 1/4 = <span class="c-ok">175px</span>
       &#9314; 手搓一个 flex 圣杯布局，观察 min-width:auto 导致的溢出；<br>
       &#9315; 排查一次 z-index 失效，定位到具体的层叠上下文创建者。
     </div>
-    <p class="lead">回到 <a href="index.html" style="color:#00ff41">交互式学习库导航页</a>，继续学习其他专题。</p>
+    <p class="lead">回到 <a href="index.html" style="color: var(--sk-accent, #00ff41)">交互式学习库导航页</a>，继续学习其他专题。</p>
   </section>
 </main>
 

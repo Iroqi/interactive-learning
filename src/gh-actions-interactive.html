@@ -33,7 +33,7 @@ a:hover { text-decoration: underline; }
 /* Navigation */
 .top-nav { position: sticky; top: 4px; z-index: 999; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; gap: 12px; overflow-x: auto; box-shadow: var(--shadow); flex-wrap: wrap; }
 .top-nav a { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; padding: 4px 10px; border-radius: 20px; transition: all 0.2s; }
-.top-nav a:hover, .top-nav a.active { background: var(--primary); color: white; text-decoration: none; }
+.top-nav a:hover, .top-nav a.active { background: var(--primary); color: var(--sk-on-accent, white); text-decoration: none; }
 .nav-brand { font-weight: 700; color: var(--text); font-size: 0.9rem; margin-right: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .nav-brand svg { width: 22px; height: 22px; }
 .theme-btn { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px; cursor: pointer; color: var(--text-muted); font-size: 0.8rem; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
@@ -76,7 +76,7 @@ section + section { border-top: 1px solid var(--border); }
 .flow-diagram { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 20px 0; }
 .flow-node { background: var(--surface); border: 2px solid var(--primary); border-radius: var(--radius); padding: 14px 28px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative; min-width: 200px; }
 .flow-node:hover { transform: scale(1.03); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
-.flow-node.active { background: var(--primary); color: white; }
+.flow-node.active { background: var(--primary); color: var(--sk-on-accent, white); }
 .flow-node .node-label { font-weight: 600; font-size: 0.95rem; }
 .flow-node .node-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
 .flow-node.active .node-desc { color: rgba(255,255,255,0.85); }
@@ -116,7 +116,7 @@ section + section { border-top: 1px solid var(--border); }
 
 /* Buttons */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
-.btn-primary { background: var(--primary); color: white; }
+.btn-primary { background: var(--primary); color: var(--sk-on-accent, white); }
 .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
 .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
 .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
@@ -158,10 +158,20 @@ section + section { border-top: 1px solid var(--border); }
 .glossary-item.open .def { max-height: 200px; }
 
 /* Comparison Table */
-.cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; font-size: 0.88rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
-.cmp-table th { background: var(--primary); color: white; padding: 12px 16px; text-align: left; font-weight: 600; }
+.cmp-table {
+  /* 手机宽度下三列内容超过卡片，改成表格自身横向滚动（原先被壳层 .card 的
+     overflow:hidden 遮住，壳层规则收进 #navView 后暴露出来） */
+  display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; font-size: 0.88rem; border-radius: 10px; border: 1px solid var(--border);
+}
+.cmp-table th { background: var(--primary); color: var(--sk-on-accent, white); padding: 12px 16px; text-align: left; font-weight: 600; white-space: nowrap; }
 .cmp-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); transition: background 0.2s; }
 .cmp-table tr:last-child td { border-bottom: none; }
+/* 表格自己滚动后不能再靠 overflow:hidden 修圆角，直接圆到首尾单元格 */
+.cmp-table th:first-child { border-top-left-radius: 10px; }
+.cmp-table th:last-child { border-top-right-radius: 10px; }
+.cmp-table tr:last-child td:first-child { border-bottom-left-radius: 10px; }
+.cmp-table tr:last-child td:last-child { border-bottom-right-radius: 10px; }
 .cmp-table tr:hover td { background: var(--surface-alt); }
 
 /* Task checklist */
@@ -184,13 +194,13 @@ section + section { border-top: 1px solid var(--border); }
 .wf-sim-header .repo-icon { font-size: 1.1em; }
 .wf-sim-header .repo-name { font-weight: 600; font-size: 0.95em; }
 .wf-sim-header .branch { font-size: 0.82em; color: var(--text-muted); background: rgba(110,118,129,0.15); padding: 2px 10px; border-radius: 12px; }
-.wf-sim-header .run-btn { margin-left: auto; padding: 7px 18px; border-radius: 8px; background: var(--primary); color: #fff; border: none; font-size: 0.88em; font-weight: 600; cursor: pointer; transition: all var(--transition); }
+.wf-sim-header .run-btn { margin-left: auto; padding: 7px 18px; border-radius: 8px; background: var(--primary); color: var(--sk-on-accent, #fff); border: none; font-size: 0.88em; font-weight: 600; cursor: pointer; transition: all var(--transition); }
 .wf-sim-header .run-btn:hover { filter: brightness(1.15); }
 .wf-sim-header .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .wf-event-bar { padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; }
 .wf-event-btn { padding: 5px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 0.82em; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .wf-event-btn:hover { border-color: var(--primary); color: var(--text); }
-.wf-event-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wf-event-btn.active { background: var(--primary); color: var(--sk-on-accent, #fff); border-color: var(--primary); }
 .wf-jobs-area { padding: 16px 20px; }
 .wf-job { border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; }
 .wf-job-head { padding: 10px 16px; background: var(--surface-alt); font-weight: 600; font-size: 0.9em; display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -243,7 +253,7 @@ section + section { border-top: 1px solid var(--border); }
 .matrix-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .matrix-chip { padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border); font-size: 0.82rem; cursor: pointer; transition: all 0.2s; }
 .matrix-chip:hover { border-color: var(--primary); }
-.matrix-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.matrix-chip.active { background: var(--primary); color: var(--sk-on-accent, white); border-color: var(--primary); }
 .matrix-results { padding: 16px 20px; }
 .matrix-count { font-size: 0.88rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
 .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 16px; }
@@ -1034,11 +1044,18 @@ jobs:
 <script src="../ilquiz.js"></script>
 <script>
 // ==================== THEME ====================
+function paintThemeBtn(dark) {
+  document.getElementById('themeBtn').textContent = dark ? '🌙 暗色' : '☀️ 亮色';
+}
+/* 主题走壳层的 IL：打包进壳层后 document.body 是共享的那一个，
+   模块自己翻 body[data-theme] 会把全站主题抢走。 */
 function toggleTheme() {
+  if (window.IL) { paintThemeBtn(IL.toggleTheme()); return; }
   const isDark = document.body.dataset.theme === 'dark';
   document.body.dataset.theme = isDark ? '' : 'dark';
-  document.getElementById('themeBtn').textContent = isDark ? '🌙 暗色' : '☀️ 亮色';
+  paintThemeBtn(!isDark);
 }
+if (window.IL) document.addEventListener('il:theme', (e) => paintThemeBtn(e.detail.dark));
 
 // ==================== SMOOTH NAV ====================
 function smoothNav(e) {
