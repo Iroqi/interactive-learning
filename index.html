@@ -1763,6 +1763,20 @@
   /* 用 div 冒充复选框的模块（makefile .check-box 22x22）：模块侧补不了就点名，
      与 [data-mod="git"] h2 .num 同一套"精确点名"逃生阀。 */
   #moduleRoot[data-mod="makefile"] .check-box { width: 28px; height: 28px; }
+  /* 独立成行的链接必须换盒模型，不能只靠上面那条 min-height：
+     CSS 2.1 规定 min-height **不适用**于非替换 inline 盒，所以 `a { min-height:24px }`
+     是引擎行为——沙箱的 Chrome for Testing 152 应用了（实测 24px），CI 的 Chromium
+     没应用（实测 17px），于是同一个元素本地 WARN、CI FAIL。规范内的写法是换盒模型：
+     inline-block 才真的吃得到 min-height，同时保持 shrink-to-fit（实测长文本仍会在
+     容器内换行、不产生横向溢出）。
+     选择器只能用 :only-child，而它**只看元素子节点、不看文本节点**，所以"回到
+     [链接]"这种行文里的链接也会被命中：全库实测命中 34 个，其中 33 个是导航页/
+     参考文档这类短链接（最宽 137px，祖先无一需要横滚），换成 inline-block 的唯一
+     可见差别是它自己的行盒被抬到 24px。这是这条地板的代价，不是漏网——真正需要
+     免掉的"正文行内链接"由 check-tap 的 Inline 豁免处理，两条口径不同。 */
+  #moduleRoot p > a[href]:only-child,
+  #moduleRoot div > a[href]:only-child,
+  #moduleRoot li > a[href]:only-child { display: inline-block; }
 
   </style>
 

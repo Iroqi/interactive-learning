@@ -631,7 +631,49 @@
 - **元数据**：`courses.js` size 精确同步（n8n 104、git 106、bash 96、plc 84、yaml 47、tmux 92），`check-courses` 46 模块 OK；README 计数 45→46、开发工具 10→11、新增 tmux 行，`deploy.yml` 步骤名同步。
 - **闸门固化 `tools/check-tap.js`**：触控判据从"每轮临时探针"升格为仓库内工具，与 `check-contrast.js` 同一套 SKIP 约定（仓库没有 `package.json`，不能为一个检查引入依赖清单），CI 里复用对比度那一步刚装好的 Playwright/Chromium。首跑：硬失败 0、WARN 146、exit 0。判据里写死了两条教训——只认真实可点/可输入元素（不猜类名族），以及豁免口径（行内链接、被 ≥32px label 包裹的 radio/checkbox、图注 label、range/color/hidden、disabled）。它与 `smoke18` 的 WARN 数差 8 个（154 vs 146）是刻意的：探针的选择器里带了 `[onclick]`，闸门不带——`<span onclick>` 本该改写成 `<button>`，给它算"热区"等于默认这种写法可以继续留在库里。
 - **打包器与裁判对齐**：`pack-modules.py` 原来用 `os.path.getsize(path) // 1024`（向下取整），而 `check-courses.js` 用 `Math.round(bytes/1024)`（四舍五入）——两个裁判口径不一致时，一个模块的显示体积会比声明大 1 KB 而无人报错。改成 `(bytes + 512) // 1024`，并把 README 里遗留的"±1 KB"描述一并清掉。
-- **遗留（如实）**：24–31px 那 154 个热区仍是 WARN（`git:23`、`bash:15`、`docker:24`、`regex:23`、`gh-actions:26` 为主，多为紧凑按钮与行内导航），本轮按"规范硬线 + 建议值分层"定线而未强行拉满，留给后续按模块审美逐个处理；`n8n` 的 `--svg-label` 在暗色仍是 `#8888aa`（5.55，达标但非最优）。
+- **遗留（如实）**：24–31px 那批热区仍是 WARN（补量折叠面板后为 **181** 个：`git:24`、`bash:15`、`docker:24`、`regex:24`、`gh-actions:28`、`n8n:12` 为主，多为紧凑按钮与行内导航），本轮按"规范硬线 + 建议值分层"定线而未强行拉满，留给后续按模块审美逐个处理；`n8n` 的 `--svg-label` 在暗色仍是 `#8888aa`（5.55，达标但非最优）。
 - **踩坑记录**：`div` 冒充复选框（makefile `.check-box`）、`span.key` 是语法高亮不是按键（redis/vscode/tmux）、`label` 有"图注"和"热区"两种职责——**把类名当语义是探针最常见的一类错误**，v1 的 309 个"小控件"里 137 个源于此。另一条：给 checkbox 只写 `min-height` 会得到 `13×18` 的畸形盒（浏览器按 intrinsic size 画），必须给等尺寸 `width/height`，且因 CSS 隔离后模块规则特异度更高（`#moduleRoot .complete-check input[type=checkbox]` = 1,2,1）而需要 `!important`。
 - **验证**：`verify-pack` 46 模块字节一致、`check-courses` OK（size 判据已收紧）、`check-theme` OK、`check-contrast` 出厂状态 **0 失败**（46 × 2）、源头模式 **0 簇**、`smoke18` 4/4、`smoke13` 46、`smoke14` 77、`smoke15` 33、`smoke16` 59、`smoke17` 29/0、r17clip 0/46 横溢 + 0/46 裁切、泄漏探针壳层样式一致、46 个独立页 0 pageerror。
 - **改动面**：`index.html`（skin 触控地板三组 + `trackListeners` 包装与 `modWrap` 反查）、`src/{plc,n8n,git,bash,yaml}-interactive.html` 源码修色、新增 `src/tmux-interactive.html` + `modules/tmux.js`、6 个 `modules/*.js` 重打包、`tools/pack-modules.py`（KEYS）、`tools/check-courses.js`（size 精确判据）、`courses.js`（tmux 登记 + size 同步）、`.github/workflows/deploy.yml` 与 README 计数/约定。**探针脚本仍不进仓库**（`/tmp/tapall*.js`、`/tmp/tappolicy.js`、`/tmp/smoke18.js`、`/tmp/r18*.js`），与往轮一致；触控普查这一项例外——它已固化成 `tools/check-tap.js` 进仓库并进 CI，因为它守的是 skin 里的地板规则，靠每轮手写探针保不住。
+
+## 66. Round 18 的返工：CI 抓到本地抓不到的东西（已推送 2cce38e 之后）
+
+第一次把 `tools/check-tap.js` 接进 CI，CI 就红了，而本地全绿。这不是 CI 抽风，是三条真缺陷，
+而且每一条都说明"只在沙箱里自测"这件事有多不可靠。
+
+**缺陷 1 — 地板本身写错了，只是沙箱的浏览器替我们兜住了。**
+`#moduleRoot a[href] { min-height: 24px }` 对 `cs: 访问网站` 那个链接没起作用：它是
+`<p>` 的唯一子元素、`display:inline`，而 **CSS 2.1 规定 min-height 不适用于非替换 inline 盒**。
+沙箱里 Chrome for Testing 152 宽松地把它应用了（实测 24px，判 WARN），CI 的 Chromium 严格按规范
+（实测 17px，判 FAIL）。同一个仓库、同一个元素、两个结论。
+修法必须选规范内的那条：`p/div/li > a[href]:only-child { display: inline-block }`——
+inline-block 才真的吃得到 min-height，同时保持 shrink-to-fit（实测短链接 42px 宽、长文本仍换行、
+`scrollWidth` 仍是 390，不会撑出横向溢出）。
+这里我自己写错了一次并当场改掉：原以为 `:only-child` 能精准挑出"块里只有它自己"的链接、
+行文里的链接不受影响，实测 **`:only-child` 只看元素子节点、不看文本节点**，所以"回到 [链接]"
+这类行文里的链接同样被命中（34 个命中里 33 个是这种）。于是补了 A/B 几何对照
+（同一份页面，注入 `display:inline !important` 关掉规则再量一遍）：34 个元素里只有 2 个的
+几何有变化，各 1–4px，就是那几条链接自己的行盒被抬到 24px，祖先无一需要横滚。结论是这条
+规则可用，但理由要写对——它是"把独立/近似独立的成行链接提为 inline-block"，代价可控，
+而不是"只影响独立链接"。
+顺带把闸门判据改成**按 display 判而不是按实测像素判**：inline 且无兄弟文本 ⇒ 直接 FAIL。
+这样换引擎也不会一边红一边绿（把 skin 那条规则临时注掉，闸门在宽松的 152 上照样报出
+`FAIL cs <a> 64x24 display:inline`，证明它抓的是缺陷本身而不是某台机器的读数）。
+
+**缺陷 2 — 闸门自己也在漏测，而且漏得很像"通过"。**
+本地 WARN 146、CI WARN 209，差 63 个。查出来是：首版只量"当时可见"的元素，折叠面板 / 未激活
+标签页 / `[hidden]` 里的控件全部隐身——`plc` 量到 5/86、`yaml` 9/79、`pid` 22/86，覆盖率不到
+10% 却照样打印 OK。跟 smoke17 那个"只测当前模块"的 bug 是同一个形态：**没测到 ≠ 没问题**。
+现在两遍量：先按读者方式量可见的，再把量不到元素的祖先链临时揭开（`display:block` /
+`visibility:visible` / 去掉 `hidden`）统一补量、量完按原样还原 inline style 值与优先级。
+覆盖率 4660/4662（99%+），并新增 `--cover=`（默认 90%）——低于下限直接判失败，别让"隐身"
+再伪装成绿灯。WARN 也从 146 变成真实的 181。
+
+**缺陷 3 — CI 的读数顺带纠正了本地的一组虚高。**
+CI 报 `gh-actions 30 / pid 10 / jwt 7`，本地是 26/4/2：这些模块的交互藏在 tab 面板里，补量之后
+两边终于量到同一批元素。也就是说上一轮"硬失败 47→0、WARN 154"那组数，分母本身就是不完整渲染
+状态下的数。
+
+**流程教训**：闸门要**尽早接进 CI**，哪怕当轮还不确定它稳。这一轮如果只把 `check-tap.js` 写进
+仓库、本地跑一遍就收工，这三条缺陷会一起留在 main 上，而其中缺陷 1 是"手机上真的点不准"的
+真问题。下一轮起：新闸门当轮就进 deploy.yml，并且默认它会在与沙箱不同的浏览器上跑。
