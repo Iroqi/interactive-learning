@@ -585,3 +585,53 @@
 - **审计工具自身也出过假阳性**：第一版 `svgPlate()` 拿 `parentElement.ownerSVGElement` 当判据，`<svg>` 根节点的直接子元素全被漏掉 → git 报 4 处假失败；第二版 `compose()` 把元素 `opacity` 乘进前景，正在淡入的文字被算成压页面底色 → 双主题下多报 13 行假失败，其中 4 行给出"白字压 `rgb(11,107,57)` = 1.00"这种自相矛盾的数（真实是 6.67），一眼就能看出量错了。两处都按兜底算法对齐后归零。**假阳性比漏报更贵**：它会把人引去改本来正确的代码。
 - **验证**：`verify-pack` 45 模块字节一致、`check-courses` OK、`check-theme` OK、新增 `check-contrast` 出厂状态 **0 失败**（light/dark 双主题 45 模块）、裁剪探针 0/45、壳层↔模块泄漏探针一致、45 个 `src/` 独立页零 pageerror；`smoke13` **46**、`smoke14` **77**、`smoke15` **33**、`smoke16` **59**、`smoke17` **29/0**（本轮新增：键盘不劫持、无横向溢出、内容不被裁、测验在壳层里正常展开且选项 ≥32px、可点目标仅对**控件**判 32px 下限——正文里的行内链接 20px 是排版不是缺陷）。
 - **改动面**：`index.html`（skin：孤岛调色板 + 别名 + 品牌色不映射 + 模块配对逃生阀）、`ilquiz.js`（`scopeToRoot` + `#ilquiz-css-scoped`）、新增 `ilcontrast.js`（SVG fill 通道 + 半透明底板合成）、新增 `tools/check-theme.js` 与 `tools/check-contrast.js`、`.github/workflows/deploy.yml`（两个新 checker 进 CI）、30 个 `src/*.html` 源码修色 + 45 个 `modules/*.js` 重打包、`courses.js` size 同步、README 技术约定新增 5 条。
+
+## 62. 现状盘点（Round 17 之后）
+
+- 上一轮收尾时留下两类明确的账。**账一：37 个源头对比度簇**（`--source` 模式，关掉 `ilcontrast.js` 后量），集中在 plc / n8n / git / yaml / bash 五个模块——它们都被运行时兜底盖住了，出厂审计是 0 失败，但源头比值仍在 2.4~4.5 之间。上一轮把它们列为"留待下一轮按 `--source --keys=` 逐模块清"。
+- **账二：smoke17 的触控检查有覆盖 bug**。那版把 tap 段写成"从 `location.hash` 取当前模块名"再跑一次 `evaluate`，于是每轮只量到收尾时恰好打开的那一个模块，其余 44 个模块的控件从来没被扫过——上一轮报的"可点目标仅对控件判 32px 下限、通过"其实是"一个模块通过"。这条不修，触控这一栏的绿灯没有意义。
+- 先把复现做实：`node tools/check-contrast.js --source --keys=plc,n8n,git,yaml,bash` 在当前 HEAD 复量出 **37 簇**，与上一轮记录一致（不是漂移）。同时把 tap 探针重写成"遍历 courses.js 全部模块"的版本，第一版按 `#moduleRoot button/input/select/textarea/label/.btn/.chip/.tab/.key` 扫，报出 **25 模块 / 309 个"小控件"**——里面 137 个是 `span.key`，实为 redis / vscode / tmux 的 `<pre>` 语法高亮（`pre .key { color: var(--warn) }`），不是可点目标。**探针虚报会把下一轮引去给代码着色加 padding**，于是收紧成"只认真实可点/可输入元素 + 行内豁免"，得到可信的基线：**12 个模块 47 个 <24px 真控件，11 个模块 125 个落在 24–31px**。
+- 另一条不在计划里但必须记录的现状：`git pull` 本轮两次失败（GnuTLS -110 / 443 连接超时），本地 HEAD 已是上一轮成功推送的 `2bf8c61`，`origin/main` 引用与之一致，内容侧无差异，按本地状态继续。
+
+## 63. 发散：Round 18 候选
+
+| 候选 | 价值 | 成本 | 风险 |
+|------|------|------|------|
+| **A. 清零 37 个源头簇**（按模块逐个把颜色配到源头） | 高：兜底不再是必需的拐杖，暗色那 111 次改写有明确去处 | 中（5 模块 × 多套机制） | 中（改错主题会反向破另一套） |
+| **B. SVG 标签改用 `fill="var(--svg-label)"`** | 高：一支属性同时跟随两套主题，替掉"写死一个 hex 赌运气" | 低 | 低（需先证实 Chrome 支持 var() 在呈现属性里） |
+| **C. 模块内元素级 token 换装**（把上一轮的孤岛机制下沉到模块源码） | 高：修在源头，且只影响该模块 | 中 | **中高**（写错宿主会波及跟随主题的兄弟节点） |
+| **D. 触控地板放 skin**（`min-height` 一组 + checkbox/radio 等尺寸盒） | 高：一次覆盖 46 模块，不必改十几套 CSS | 低 | 中（阈值选错会撑坏排版） |
+| E. 逐模块补 padding 到 44px | 表面最"正"：每处都按模块本意改 | 极高（16 套 CSS × 两套主题回归） | **高**——正文行内外链、代码块 `💡`、紧凑 stepper 全被拉高，排版代价远大于收益 |
+| F. 触控阈值直接取 32px 做硬判据 | 看似更严 | 低 | **中**——32/44 是厂商建议不是规范线，用它当硬线会把 149 个"能用但不理想"标成失败，等于制造红灯墙 |
+| G. 新增第 46 个模块（tmux） | 高：终端复用是这一库明显缺口，且能复用迷你引擎+9 里程碑模式 | 中高 | 低 |
+| H. 修监听器回收残留（滚动 spy 的 debounce） | 高：3 个模块稳定抛 `TypeError`，是全库唯一的运行时错误源 | 中 | **中高**（包装 add/remove 会改变模块自摘监听的行为） |
+
+> 取舍：A/B/C 是同一条主线的三层——"颜色到底该写在哪"。B 的前提是先做实验证实 Chrome 允许在 SVG 呈现属性里用 `var()`（写了 `/tmp/svgvar.js` 量过：`fill="var(--x)"` 生效），因此图示标签不再需要在源码里各写一套亮/暗 hex。C 是把上一轮 skin 里的孤岛机制**下沉到模块**：git 的 `.sim-log`、bash 的 `.term-out` 这类硬编码深面板，在模块里直接重声明自己的别名，不再依赖壳层点名。E 否掉的理由和上一轮的 F 一样：一条"看起来一次改十六个模块"的规则会碰到不需要它的那十四个。H 单列，因为它不是本轮计划里的项，是修 tap 时顺带被探针撞出来的真缺陷。
+
+## 64. 收敛：Round 18 实施项
+
+1. **37 簇按机制分五类清零**（诊断由 `/tmp/r18diag.md` 出具，A~E 类各配一种修法）：
+   - **A 类 · SVG 标签（n8n 11 处）**：`fill="#8888aa"` → `fill="var(--svg-label)"`，模块内加 `[data-theme="light"]{--svg-label:#5c6674}` / `[data-theme="dark"]{--svg-label:#8888aa}`。诊断给出的"直接改成 #5c6674"被否：亮色 5.82 通过，暗色只剩 3.26，同一支颜色在两套主题下的合格区间不重叠。
+   - **B 类 · 模块自造别名指到主题 token（n8n `--accent-2`/`--action`）**：不走 token 映射（上一轮定的规），改为模块内主题配对色板——`[data-theme="light"]{--accent-2:#7b3f9d;--action:#1668a8}`，暗色保留原值。实测紫色 5.6~6.5、蓝色 4.7~5.5。
+   - **C 类 · 恒定深色面板的字色（plc 32 处 `#64748b`、git `.sim-log/.file-chip/.ctl-label`、bash `.term-out`）**：plc 整体硬编码深底，直接把 `#64748b` 提到 `#94a3b8`（7.51 vs 4.05）；git/bash 用元素级别名重声明，**只写在那几个真正硬编码深底的元素上**。这里有一次自我纠正：第一版把别名写在共享父级，`.col` / `.term-bar` 用的是 `var(--raise)`（跟随主题），于是亮色下浅字压浅底——别名替换发生在声明元素上，宿主选错就殃及兄弟。
+   - **D 类 · 面板内语法高亮（yaml `pre.code`）**：底色是模块写死的 `#1b1d23`，但 `.k` 用 `var(--indigo)`，壳层把它映射成主题强调色（亮色墨绿 `#0b6b39`，压深底 2.71）。改成面板内 `--indigo:#818cf8` 并让 `.k` 直接取字面值（不再依赖会被主题改写的别名），`.c` 注释 `#6a6d77`(3.26) → `#8b8e99`(5.16)。
+   - **E 类 · 单点硬编码（yaml `.gotcha strong`、git/bash `.warn strong`）**：`.gotcha` 的米黄底是**半透明蒙层**，跟着面板走（亮 `rgb(228,237,235)`、暗 `rgb(12,32,22)`），一支字色无法两边都过（`#7a5606` 亮 5.57 / 暗 2.55），故按主题分色 `--amber-ink`。git/bash 的 `.warn strong` 用 `var(--bad)`（暗 `#d24d4d` 压深红底 4.24），改取壳层危险前景 token `var(--sk-danger-fg, #ff9db4)`。
+2. **触控热区分层策略**：硬地板 **24×24px**（WCAG 2.5.8 AA）+ 建议值 **32px**（WARN）。实现放在 skin 末尾三组规则：通用 `min-height:24px`（button/select/textarea/input/`a[href]`/`[role=button]`）、checkbox/radio 等尺寸盒（`width/height:24px !important` + `flex:none`）、`label:has(input){min-height:32px}`。行内链接天然豁免——`min-height` 对 `display:inline` 无效，正好对上 2.5.8 的 Inline 例外。makefile 的 `div.check-box`（22×22 假复选框）用 `[data-mod="makefile"]` 点名。
+3. **探针自身迭代三轮**（v1→v4），每轮都在削虚假信号：`.key/.chip/.pill` 类名当控件 → 语法高亮误报；`label` 全算 → 图注误报；radio/checkbox 全算 → 被 ≥32px label 包裹的热区已够。最终口径写进 `/tmp/tappolicy.js` 与 `/tmp/smoke18.js`。
+4. **新增第 46 个模块 tmux**：`src/tmux-interactive.html`（1015 行）+ 打包 `modules/tmux.js`（92 KB），沿用"迷你引擎 + 9 里程碑 + 进度追踪"。⚡ 迷你会话解析器实现 `new-session/-A`、`list-sessions`、`attach/kill/rename/has-session/source-file`，维护 session/window/pane 三级内存树，报真实 tmux 的错误串（`no sessions`、`ambiguous command`）；按键按钮覆盖 `c % " o z d x n p [`；第 9 节由 `IL.quiz` 判分解锁。`courses.js` 登记（cat=tools，9 里程碑），`pack-modules.py` 的 KEYS 增补。
+5. **监听器回收补一条链**：`trackListeners()` 在模块执行期间把回调包成"epoch 判活 + 恢复 curEpoch"的包装函数，`releaseModule()` 按包装函数摘除，并记 `modWrap`（原函数 → 包装函数）让模块自摘仍生效。堵的正是 `scroll → setTimeout(showNav, 60)` 这条 debounce：它在事件触发时 `curEpoch === null`，走原生 `setTimeout`，既不记账也不判活，切走后对着已清空的 DOM 写 `textContent`。
+6. **两个裁判口径对齐**：`tools/check-courses.js` 的 `size` 判据从 ±1 容差收紧为**精确相等**（容差导致 CI 绿、smoke16 红：yaml 46↔47、plc 83↔84）。smoke13/14/15/16 里写死的 45、44、32、288 全部改成从 `courses.js` 推导，加模块不再需要改 smoke。
+
+## 65. Round 18 执行记录（已完成并推送）
+
+- **37 → 0**：`--source --keys=plc,n8n,git,yaml,bash` 复量 **0 簇 / 0 行**（双主题）。过程中逐次收敛：37 → 7（A/B/C/D 四类落地）→ 1（E 类，仅剩 bash `.warn strong`）→ 0。出厂状态审计维持 **0 失败**（46 模块 × 2 主题）。
+- **触控热区**：硬失败 **47 个 / 12 模块 → 0 个 / 0 模块**；24–31px 区间 149→154（原 <24px 的那批被顶到 24–31，符合预期，这栏本来就是 WARN 不是失败）。`smoke18` 断言改为**遍历 46 个模块**，与 r17clip 同一套裁切判据（第一版自造的"超出视口即裁切"误报 makefile/vfd/plc 共 15 处——模块里的表格与 `pre` 本就在 `overflow-x:auto` 容器里，那是可滚动不是丢内容）。
+- **运行时错误**：全库扫描 pageerror **3 → 0**（plc / n8n / gh-actions 的 `TypeError: Cannot set properties of null`）。用 HEAD worktree（`git worktree add /tmp/base HEAD`）做对照，确认这 3 个是上一轮就存在的缺陷、本轮修掉，且包装后 spy 与方向键行为与基线**逐模块一致**（`scroll` 读数 `1 / 10 → 4 / 10` 仍动，ArrowRight 生效数 30/32 → 31/33）。
+- **新模块 tmux**：壳层内两套主题 0 溢出、测验选项 44px、0 pageerror、`IL.progress` 的 steps 正常增长；独立页 `src/tmux-interactive.html` 也进 46 页零错误普查。
+- **元数据**：`courses.js` size 精确同步（n8n 104、git 106、bash 96、plc 84、yaml 47、tmux 92），`check-courses` 46 模块 OK；README 计数 45→46、开发工具 10→11、新增 tmux 行，`deploy.yml` 步骤名同步。
+- **闸门固化 `tools/check-tap.js`**：触控判据从"每轮临时探针"升格为仓库内工具，与 `check-contrast.js` 同一套 SKIP 约定（仓库没有 `package.json`，不能为一个检查引入依赖清单），CI 里复用对比度那一步刚装好的 Playwright/Chromium。首跑：硬失败 0、WARN 146、exit 0。判据里写死了两条教训——只认真实可点/可输入元素（不猜类名族），以及豁免口径（行内链接、被 ≥32px label 包裹的 radio/checkbox、图注 label、range/color/hidden、disabled）。它与 `smoke18` 的 WARN 数差 8 个（154 vs 146）是刻意的：探针的选择器里带了 `[onclick]`，闸门不带——`<span onclick>` 本该改写成 `<button>`，给它算"热区"等于默认这种写法可以继续留在库里。
+- **打包器与裁判对齐**：`pack-modules.py` 原来用 `os.path.getsize(path) // 1024`（向下取整），而 `check-courses.js` 用 `Math.round(bytes/1024)`（四舍五入）——两个裁判口径不一致时，一个模块的显示体积会比声明大 1 KB 而无人报错。改成 `(bytes + 512) // 1024`，并把 README 里遗留的"±1 KB"描述一并清掉。
+- **遗留（如实）**：24–31px 那 154 个热区仍是 WARN（`git:23`、`bash:15`、`docker:24`、`regex:23`、`gh-actions:26` 为主，多为紧凑按钮与行内导航），本轮按"规范硬线 + 建议值分层"定线而未强行拉满，留给后续按模块审美逐个处理；`n8n` 的 `--svg-label` 在暗色仍是 `#8888aa`（5.55，达标但非最优）。
+- **踩坑记录**：`div` 冒充复选框（makefile `.check-box`）、`span.key` 是语法高亮不是按键（redis/vscode/tmux）、`label` 有"图注"和"热区"两种职责——**把类名当语义是探针最常见的一类错误**，v1 的 309 个"小控件"里 137 个源于此。另一条：给 checkbox 只写 `min-height` 会得到 `13×18` 的畸形盒（浏览器按 intrinsic size 画），必须给等尺寸 `width/height`，且因 CSS 隔离后模块规则特异度更高（`#moduleRoot .complete-check input[type=checkbox]` = 1,2,1）而需要 `!important`。
+- **验证**：`verify-pack` 46 模块字节一致、`check-courses` OK（size 判据已收紧）、`check-theme` OK、`check-contrast` 出厂状态 **0 失败**（46 × 2）、源头模式 **0 簇**、`smoke18` 4/4、`smoke13` 46、`smoke14` 77、`smoke15` 33、`smoke16` 59、`smoke17` 29/0、r17clip 0/46 横溢 + 0/46 裁切、泄漏探针壳层样式一致、46 个独立页 0 pageerror。
+- **改动面**：`index.html`（skin 触控地板三组 + `trackListeners` 包装与 `modWrap` 反查）、`src/{plc,n8n,git,bash,yaml}-interactive.html` 源码修色、新增 `src/tmux-interactive.html` + `modules/tmux.js`、6 个 `modules/*.js` 重打包、`tools/pack-modules.py`（KEYS）、`tools/check-courses.js`（size 精确判据）、`courses.js`（tmux 登记 + size 同步）、`.github/workflows/deploy.yml` 与 README 计数/约定。**探针脚本仍不进仓库**（`/tmp/tapall*.js`、`/tmp/tappolicy.js`、`/tmp/smoke18.js`、`/tmp/r18*.js`），与往轮一致；触控普查这一项例外——它已固化成 `tools/check-tap.js` 进仓库并进 CI，因为它守的是 skin 里的地板规则，靠每轮手写探针保不住。

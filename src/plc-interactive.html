@@ -34,11 +34,16 @@ body {
 }
 .tab {
   padding: 14px 28px; cursor: pointer; background: transparent;
-  border: none; color: #64748b; font-size: 1.05em;
+  border: none; color: #94a3b8; font-size: 1.05em;
   white-space: nowrap; transition: all 0.3s;
   border-bottom: 3px solid transparent; margin-bottom: -2px;
 }
 .tab:hover { color: #94a3b8; }
+/* 页签条不在写死的深板里：切到亮色时它跟着 shell 的白底走，
+   #94a3b8 只有 2.56:1。亮色换成 #475061（8.11:1）/ #b32d46（6.21:1）。 */
+[data-theme="light"] .tab { color: #475061; }
+[data-theme="light"] .tab:hover { color: #475061; }
+[data-theme="light"] .tab.active { color: #b32d46; border-bottom-color: #b32d46; }
 .tab.active { color: #e94560; border-bottom-color: #e94560; font-weight: bold; }
 
 /* Level panels */
@@ -81,7 +86,7 @@ body {
 .status-badge {
   padding: 6px 14px; border-radius: 20px;
   font-size: 0.9em; font-weight: bold;
-  background: #1a2744; color: #64748b;
+  background: #1a2744; color: #94a3b8;
 }
 .status-badge.running {
   background: #0a2e1a; color: #4ade80;
@@ -160,7 +165,7 @@ body {
 .ladder-coil.on { background: #3a0a0a; border-color: #e94560; color: #e94560; }
 .ladder-wire { width: 30px; height: 3px; background: #4ade80; }
 .ladder-label {
-  font-size: 0.8em; color: #64748b;
+  font-size: 0.8em; color: #94a3b8;
   margin-left: auto; white-space: nowrap;
 }
 
@@ -263,7 +268,7 @@ details .answer {
 #ladderBuildArea.has-items { border-style: solid; border-color: #2a4a70; }
 
 .build-hint {
-  color: #64748b; text-align: center;
+  color: #94a3b8; text-align: center;
   padding: 60px 20px; font-style: italic;
 }
 .build-hint.hidden { display: none; }
@@ -292,7 +297,7 @@ details .answer {
   border-radius: 8px; padding: 14px; text-align: center;
 }
 .metric-value { font-size: 1.6em; font-weight: bold; color: #e94560; }
-.metric-label { font-size: 0.8em; color: #64748b; margin-top: 4px; }
+.metric-label { font-size: 0.8em; color: #94a3b8; margin-top: 4px; }
 
 /* Challenge levels */
 .challenge {
@@ -306,7 +311,7 @@ details .answer {
 .challenge-title { color: #64b5f6; font-weight: bold; }
 .challenge-status {
   padding: 4px 12px; border-radius: 12px;
-  font-size: 0.85em; background: #1a2744; color: #64748b;
+  font-size: 0.85em; background: #1a2744; color: #94a3b8;
 }
 .challenge-status.pass { background: #0a2e1a; color: #4ade80; }
 .challenge-status.fail { background: #2e1a0a; color: #f87171; }
@@ -390,7 +395,7 @@ details .answer {
 <svg viewBox="0 0 560 200" style="max-width:100%;height:auto;">
   <!-- CPU -->
   <rect x="10" y="20" width="120" height="100" rx="6" fill="#1a2744" stroke="#e94560" stroke-width="2"/>
-  <text x="70" y="42" text-anchor="middle" fill="#e94560" font-size="13" font-weight="bold">CPU 模块</text>
+  <text x="70" y="42" text-anchor="middle" fill="#ff7a90" font-size="13" font-weight="bold">CPU 模块</text>
   <text x="70" y="62" text-anchor="middle" fill="#94a3b8" font-size="10">执行程序</text>
   <text x="70" y="78" text-anchor="middle" fill="#94a3b8" font-size="10">处理数据</text>
   <text x="70" y="94" text-anchor="middle" fill="#94a3b8" font-size="10">系统诊断</text>
@@ -460,11 +465,11 @@ details .answer {
         <!-- CPU -->
         <g class="plc-module" data-module="cpu" style="cursor:pointer;" transform="translate(50,30)">
           <rect x="0" y="0" width="140" height="160" rx="8" fill="#1a2744" stroke="#e94560" stroke-width="2.5"/>
-          <text x="70" y="25" text-anchor="middle" fill="#e94560" font-size="14" font-weight="bold">CPU 模块</text>
+          <text x="70" y="25" text-anchor="middle" fill="#ff7a90" font-size="14" font-weight="bold">CPU 模块</text>
           <text x="70" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">🔧 运算核心</text>
-          <text x="70" y="75" text-anchor="middle" fill="#64748b" font-size="10">执行用户程序</text>
-          <text x="70" y="95" text-anchor="middle" fill="#64748b" font-size="10">处理 I/O 数据</text>
-          <text x="70" y="115" text-anchor="middle" fill="#64748b" font-size="10">系统诊断</text>
+          <text x="70" y="75" text-anchor="middle" fill="#94a3b8" font-size="10">执行用户程序</text>
+          <text x="70" y="95" text-anchor="middle" fill="#94a3b8" font-size="10">处理 I/O 数据</text>
+          <text x="70" y="115" text-anchor="middle" fill="#94a3b8" font-size="10">系统诊断</text>
           <text x="70" y="140" text-anchor="middle" fill="#64b5f6" font-size="10">→ 扫描周期 →</text>
         </g>
         <!-- Power -->
@@ -472,9 +477,9 @@ details .answer {
           <rect x="0" y="0" width="120" height="160" rx="8" fill="#1a2744" stroke="#4ade80" stroke-width="2.5"/>
           <text x="60" y="25" text-anchor="middle" fill="#4ade80" font-size="14" font-weight="bold">电源模块</text>
           <text x="60" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">⚡ 供电核心</text>
-          <text x="60" y="75" text-anchor="middle" fill="#64748b" font-size="10">AC → DC 转换</text>
-          <text x="60" y="95" text-anchor="middle" fill="#64748b" font-size="10">24VDC 输出</text>
-          <text x="60" y="115" text-anchor="middle" fill="#64748b" font-size="10">电气隔离保护</text>
+          <text x="60" y="75" text-anchor="middle" fill="#94a3b8" font-size="10">AC → DC 转换</text>
+          <text x="60" y="95" text-anchor="middle" fill="#94a3b8" font-size="10">24VDC 输出</text>
+          <text x="60" y="115" text-anchor="middle" fill="#94a3b8" font-size="10">电气隔离保护</text>
           <text x="60" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">为所有模块供电</text>
         </g>
         <!-- IO -->
@@ -482,9 +487,9 @@ details .answer {
           <rect x="0" y="0" width="140" height="160" rx="8" fill="#1a2744" stroke="#f0c040" stroke-width="2.5"/>
           <text x="70" y="25" text-anchor="middle" fill="#f0c040" font-size="14" font-weight="bold">I/O 模块</text>
           <text x="70" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">🔌 接口枢纽</text>
-          <text x="70" y="75" text-anchor="middle" fill="#64748b" font-size="10">DI: 数字量输入</text>
-          <text x="70" y="95" text-anchor="middle" fill="#64748b" font-size="10">DO: 数字量输出</text>
-          <text x="70" y="115" text-anchor="middle" fill="#64748b" font-size="10">AI/AO: 模拟量</text>
+          <text x="70" y="75" text-anchor="middle" fill="#94a3b8" font-size="10">DI: 数字量输入</text>
+          <text x="70" y="95" text-anchor="middle" fill="#94a3b8" font-size="10">DO: 数字量输出</text>
+          <text x="70" y="115" text-anchor="middle" fill="#94a3b8" font-size="10">AI/AO: 模拟量</text>
           <text x="70" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">连接现场设备</text>
         </g>
         <!-- Programming -->
@@ -492,9 +497,9 @@ details .answer {
           <rect x="0" y="0" width="120" height="160" rx="8" fill="#1a2744" stroke="#c792ea" stroke-width="2.5"/>
           <text x="60" y="25" text-anchor="middle" fill="#c792ea" font-size="14" font-weight="bold">编程设备</text>
           <text x="60" y="55" text-anchor="middle" fill="#94a3b8" font-size="11">💻 开发工具</text>
-          <text x="60" y="75" text-anchor="middle" fill="#64748b" font-size="10">编写梯形图</text>
-          <text x="60" y="95" text-anchor="middle" fill="#64748b" font-size="10">下载到 PLC</text>
-          <text x="60" y="115" text-anchor="middle" fill="#64748b" font-size="10">监控 / 调试</text>
+          <text x="60" y="75" text-anchor="middle" fill="#94a3b8" font-size="10">编写梯形图</text>
+          <text x="60" y="95" text-anchor="middle" fill="#94a3b8" font-size="10">下载到 PLC</text>
+          <text x="60" y="115" text-anchor="middle" fill="#94a3b8" font-size="10">监控 / 调试</text>
           <text x="60" y="140" text-anchor="middle" fill="#94a3b8" font-size="10">GX Works / TIA</text>
         </g>
         <!-- Connection lines -->
@@ -660,7 +665,7 @@ details .answer {
       <span style="color:#4ade80;">┤ ├ </span> <span style="color:#a0b4c8;">常开触点（Normally Open）——输入为 ON 时导通</span>
       <span style="color:#f97316;">┤/├ </span> <span style="color:#a0b4c8;">常闭触点（Normally Closed）——输入为 OFF 时导通</span>
       <span style="color:#f87171;">( )  </span> <span style="color:#a0b4c8;">线圈（Coil）——输出端，满足条件时"得电"</span>
-      <span style="color:#64748b;">──   </span> <span style="color:#a0b4c8;">连接线</span>
+      <span style="color:#94a3b8;">──   </span> <span style="color:#a0b4c8;">连接线</span>
     </div>
 
     <h3>一个实际的例子：电机启停控制</h3>
@@ -711,7 +716,7 @@ details .answer {
 
     <div class="build-area">
       <div class="component-tray">
-        <span style="color:#64748b;font-size:0.9em;margin-right:8px;">零件库：</span>
+        <span style="color:#94a3b8;font-size:0.9em;margin-right:8px;">零件库：</span>
         <span class="component-chip" data-type="contact" data-addr="X0" onclick="addComponent(this)">┤ X0 ├ (常开触点)</span>
         <span class="component-chip" data-type="coil" data-addr="Y0" onclick="addComponent(this)">( Y0 ) (线圈)</span>
       </div>
@@ -735,25 +740,25 @@ details .answer {
       <div class="scan-step" data-step="0">
         <strong>1. 读输入</strong><br>
         <small>Read Inputs</small><br>
-        <span style="font-size:0.8em;color:#64748b;">采样所有 I/O</span>
+        <span style="font-size:0.8em;color:#94a3b8;">采样所有 I/O</span>
       </div>
       <div class="scan-arrow">→</div>
       <div class="scan-step" data-step="1">
         <strong>2. 执行程序</strong><br>
         <small>Execute</small><br>
-        <span style="font-size:0.8em;color:#64748b;">运行用户逻辑</span>
+        <span style="font-size:0.8em;color:#94a3b8;">运行用户逻辑</span>
       </div>
       <div class="scan-arrow">→</div>
       <div class="scan-step" data-step="2">
         <strong>3. 写输出</strong><br>
         <small>Write Outputs</small><br>
-        <span style="font-size:0.8em;color:#64748b;">更新输出状态</span>
+        <span style="font-size:0.8em;color:#94a3b8;">更新输出状态</span>
       </div>
       <div class="scan-arrow">→</div>
       <div class="scan-step" data-step="3">
         <strong>4. 通信服务</strong><br>
         <small>Communicate</small><br>
-        <span style="font-size:0.8em;color:#64748b;">处理通信</span>
+        <span style="font-size:0.8em;color:#94a3b8;">处理通信</span>
       </div>
     </div>
 
@@ -768,7 +773,7 @@ details .answer {
   <!-- Central cycle circle -->
   <circle cx="250" cy="80" r="55" fill="none" stroke="#e94560" stroke-width="2" stroke-dasharray="6,4"/>
   <circle cx="250" cy="80" r="42" fill="#1a1020" stroke="#e94560" stroke-width="1"/>
-  <text x="250" y="76" text-anchor="middle" fill="#e94560" font-size="11" font-weight="bold">PLC 扫描周期</text>
+  <text x="250" y="76" text-anchor="middle" fill="#ff7a90" font-size="11" font-weight="bold">PLC 扫描周期</text>
   <text x="250" y="92" text-anchor="middle" fill="#94a3b8" font-size="10">循环执行</text>
 
   <!-- Arrow indicators on circle -->
@@ -777,26 +782,26 @@ details .answer {
   <!-- Step 1: Read Inputs (top-left) -->
   <rect x="15" y="10" width="110" height="55" rx="6" fill="#1a2744" stroke="#64b5f6" stroke-width="1.5"/>
   <text x="70" y="28" text-anchor="middle" fill="#64b5f6" font-size="11" font-weight="bold">① 读输入</text>
-  <text x="70" y="44" text-anchor="middle" fill="#64748b" font-size="9">Read Inputs</text>
-  <text x="70" y="56" text-anchor="middle" fill="#64748b" font-size="9">采样所有 I/O</text>
+  <text x="70" y="44" text-anchor="middle" fill="#94a3b8" font-size="9">Read Inputs</text>
+  <text x="70" y="56" text-anchor="middle" fill="#94a3b8" font-size="9">采样所有 I/O</text>
 
   <!-- Step 2: Execute (top-right) -->
   <rect x="375" y="10" width="110" height="55" rx="6" fill="#1a2744" stroke="#f0c040" stroke-width="1.5"/>
   <text x="430" y="28" text-anchor="middle" fill="#f0c040" font-size="11" font-weight="bold">② 执行程序</text>
-  <text x="430" y="44" text-anchor="middle" fill="#64748b" font-size="9">Execute</text>
-  <text x="430" y="56" text-anchor="middle" fill="#64748b" font-size="9">运行用户逻辑</text>
+  <text x="430" y="44" text-anchor="middle" fill="#94a3b8" font-size="9">Execute</text>
+  <text x="430" y="56" text-anchor="middle" fill="#94a3b8" font-size="9">运行用户逻辑</text>
 
   <!-- Step 3: Write Outputs (bottom-right) -->
   <rect x="375" y="115" width="110" height="55" rx="6" fill="#1a2744" stroke="#f87171" stroke-width="1.5"/>
   <text x="430" y="133" text-anchor="middle" fill="#f87171" font-size="11" font-weight="bold">③ 写输出</text>
-  <text x="430" y="149" text-anchor="middle" fill="#64748b" font-size="9">Write Outputs</text>
-  <text x="430" y="161" text-anchor="middle" fill="#64748b" font-size="9">更新输出状态</text>
+  <text x="430" y="149" text-anchor="middle" fill="#94a3b8" font-size="9">Write Outputs</text>
+  <text x="430" y="161" text-anchor="middle" fill="#94a3b8" font-size="9">更新输出状态</text>
 
   <!-- Step 4: Communicate (bottom-left) -->
   <rect x="15" y="115" width="110" height="55" rx="6" fill="#1a2744" stroke="#c792ea" stroke-width="1.5"/>
   <text x="70" y="133" text-anchor="middle" fill="#c792ea" font-size="11" font-weight="bold">④ 通信服务</text>
-  <text x="70" y="149" text-anchor="middle" fill="#64748b" font-size="9">Communicate</text>
-  <text x="70" y="161" text-anchor="middle" fill="#64748b" font-size="9">处理通信/自诊断</text>
+  <text x="70" y="149" text-anchor="middle" fill="#94a3b8" font-size="9">Communicate</text>
+  <text x="70" y="161" text-anchor="middle" fill="#94a3b8" font-size="9">处理通信/自诊断</text>
 
   <!-- Flow arrows (curved) -->
   <defs>

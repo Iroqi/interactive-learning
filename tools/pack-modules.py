@@ -62,6 +62,7 @@ KEYS = {  # explicit mapping to avoid surprises
     'graphql-interactive.html': 'graphql',
     'cdn-interactive.html': 'cdn',
     'css-layout-interactive.html': 'css-layout',
+    'tmux-interactive.html': 'tmux',
 }
 
 SRC_DIR = 'src'
@@ -252,7 +253,7 @@ def emit(key, data):
     out.append('};')
     path = 'modules/%s.js' % key
     open(path, 'w', encoding='utf-8').write('\n'.join(out))
-    kb = os.path.getsize(path) // 1024
+    kb = (os.path.getsize(path) + 512) // 1024   # 四舍五入，与 check-courses.js 的 Math.round(bytes/1024) 同口径
     print('%-12s -> %-20s %3d KB  ready=%s links=%d' % (key, path, kb, data['needsReady'], len(data['links'])))
     return path
 

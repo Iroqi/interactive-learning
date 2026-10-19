@@ -110,7 +110,9 @@
     background: rgba(239,71,111,0.08); border-left: 4px solid var(--bad);
     padding: 12px 16px; margin: 12px 0; border-radius: 4px; font-size: 0.9em;
   }
-  .warn strong { color: var(--bad); }
+  /* 同 git：--bad 走壳层主题错误色（暗 #d24d4d），压 .warn 的深红底只有 4.24:1，
+   改取 shell 的危险前景 token（暗 #ff9a9a / 亮 #f87171），独立打开退回模块浅红。 */
+  .warn strong { color: var(--sk-danger-fg, #ff9db4); }
 
   code, .mono {
     font-family: var(--mono); font-size: 0.88em;
@@ -163,6 +165,15 @@
   .term-bar .dot.y { background: #f0a04b; }
   .term-bar .dot.g { background: #34d399; }
   .term-bar .title { margin-left: 8px; }
+  /* .term 的底色是模块写死的 #0a0d13，且 .term-out 自己没有背景（透明），
+     文字直接压在那块深底上。--text/--green/--muted/--dim 在壳层跟主题翻转，
+     亮色模式下变成深字压深底（输入框 1.08:1、提示符 3.06:1、注释 3.32:1）。
+     只钉在 .term-out / .term-inline 上：同级的 .term-bar 用的是 var(--raise)
+     （跟随主题的浅面板），写进同一条规则就会反向变成浅字压浅底。 */
+  .term-out,
+  .term-inline {
+    --text: #e6e9ef; --muted: #99a3b5; --dim: #99a3b5; --green: #34d399;
+  }
   .term-out {
     padding: 12px 14px; font-family: var(--mono); font-size: 0.8em; line-height: 1.65;
     min-height: 190px; max-height: 320px; overflow-y: auto; color: #c8d3e0; white-space: pre-wrap;
@@ -172,7 +183,7 @@
   .term-out .prompt { color: var(--green); font-weight: 600; }
   .term-out .ok { color: #a7f3d0; }
   .term-out .err { color: #ff9db4; }
-  .term-out .dim { color: #5c6578; }
+  .term-out .dim { color: var(--muted); }   /* 原写死 #5c6578，压 #0a0d13 只有 3.32:1 */
   .term-inline {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 14px; border-top: 1px solid var(--border); background: #0a0d13;

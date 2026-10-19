@@ -25,7 +25,23 @@
   --success: #2ecc71;
   --code-bg: #0d0d1e;
   --code-text: #d4d4e8;
+  /* 图示次级标签的默认值对应上面的暗色调色板：
+     独立打开本文件时 <html> 上没有 data-theme，靠这条兜住。 */
+  --svg-label: #8888aa;
 }
+/* n8n 的品牌色（紫 #b370d4 / 蓝 #3498db）是模块身份色，skin 故意不映射它们
+   （映射成 --sk-accent 会毁掉所有"白字压品牌色"的成对写法）。代价是这两个值
+   不随主题翻转：暗色深底上它们 ≥5:1 没问题，亮色浅卡底上只有 2.6~2.8:1。
+   所以模块自己按主题给一套——[data-theme="light"] 会被壳层改写成
+   html[data-theme="light"] #moduleRoot，独立打开时同样生效。
+   新值按 WCAG 反推：紫 #7b3f9d 在 #e6eaef/#f7f8fa/#d6eaf8 上 5.6~6.5，
+   蓝 #1668a8 在同一批底上 4.7~5.5，仍是"紫/蓝"，只是把亮度压下来。 */
+[data-theme="light"] {
+  --accent-2: #7b3f9d;
+  --action: #1668a8;
+  --svg-label: #5c6674;
+}
+[data-theme="dark"] { --svg-label: #8888aa; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   background: var(--bg);
@@ -267,7 +283,9 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
   max-height: 250px;
   overflow-y: auto;
 }
-.dfl-log .log-line { margin-bottom: 4px; }
+/* .dfl-log 的底色是恒定深色代码面板，而 --muted 亮色下解析成深灰，
+   两者叠出 3.08:1。这里在面板内部把别名钉回"浅字"，不动全局 token。 */
+.dfl-log .log-line { color: var(--code-text); margin-bottom: 4px; }
 .dfl-log .log-info { color: var(--action); }
 .dfl-log .log-exec { color: var(--logic); }
 .dfl-log .log-out { color: var(--output); }
@@ -518,11 +536,13 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
 .br-controls .ctrl-group { display: flex; align-items: center; gap: 8px; }
 .br-controls label { font-size: 0.85em; color: var(--muted); }
 .br-controls input, .br-controls select {
+  /* 底是恒定深色代码面板，前景必须用成对的 --code-text；
+     写 --text 会在亮色主题下变成深字压深底（实测 1.00:1）。 */
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 10px;
-  color: var(--text);
+  color: var(--code-text);
   font-size: 0.85em;
 }
 
@@ -681,17 +701,17 @@ footer {
     <line x1="200" y1="80" x2="600" y2="80" stroke="#2d2d5c" stroke-width="1.5" stroke-dasharray="3" opacity="0.4"/>
 
     <!-- Labels on lines -->
-    <text x="280" y="140" fill="#8888aa" font-size="11" text-anchor="middle">启动</text>
-    <text x="520" y="140" fill="#8888aa" font-size="11" text-anchor="middle">执行于</text>
-    <text x="260" y="280" fill="#8888aa" font-size="11" text-anchor="middle">引用</text>
-    <text x="420" y="300" fill="#8888aa" font-size="11" text-anchor="middle">承载</text>
-    <text x="540" y="280" fill="#8888aa" font-size="11" text-anchor="middle">治理</text>
+    <text x="280" y="140" fill="var(--svg-label)" font-size="11" text-anchor="middle">启动</text>
+    <text x="520" y="140" fill="var(--svg-label)" font-size="11" text-anchor="middle">执行于</text>
+    <text x="260" y="280" fill="var(--svg-label)" font-size="11" text-anchor="middle">引用</text>
+    <text x="420" y="300" fill="var(--svg-label)" font-size="11" text-anchor="middle">承载</text>
+    <text x="540" y="280" fill="var(--svg-label)" font-size="11" text-anchor="middle">治理</text>
 
     <!-- Center: Data Model (Key Insight) -->
     <g class="cm-node" data-node="data-model">
       <ellipse cx="400" cy="210" rx="85" ry="45" fill="rgba(155,89,182,0.2)" stroke="#9b59b6" stroke-width="3"/>
       <text x="400" y="205" font-size="15" font-weight="bold" fill="#b370d4" text-anchor="middle">数据模型</text>
-      <text x="400" y="225" font-size="11" fill="#8888aa" text-anchor="middle">★ 核心洞见</text>
+      <text x="400" y="225" font-size="11" fill="var(--svg-label)" text-anchor="middle">★ 核心洞见</text>
     </g>
     <text x="400" y="268" font-size="20" fill="#e74c3c" text-anchor="middle">⚠</text>
 
@@ -699,35 +719,35 @@ footer {
     <g class="cm-node" data-node="trigger">
       <rect x="140" y="45" width="120" height="50" rx="10" fill="rgba(46,204,113,0.15)" stroke="#2ecc71" stroke-width="2"/>
       <text x="200" y="70" fill="#2ecc71">触发器</text>
-      <text x="200" y="85" font-size="10" fill="#8888aa" text-anchor="middle">Trigger</text>
+      <text x="200" y="85" font-size="10" fill="var(--svg-label)" text-anchor="middle">Trigger</text>
     </g>
 
     <!-- Node -->
     <g class="cm-node" data-node="node">
       <rect x="540" y="45" width="120" height="50" rx="10" fill="rgba(52,152,219,0.15)" stroke="#3498db" stroke-width="2"/>
       <text x="600" y="70" fill="#3498db">节点</text>
-      <text x="600" y="85" font-size="10" fill="#8888aa" text-anchor="middle">Node</text>
+      <text x="600" y="85" font-size="10" fill="var(--svg-label)" text-anchor="middle">Node</text>
     </g>
 
     <!-- Expression -->
     <g class="cm-node" data-node="expression">
       <rect x="80" y="315" width="140" height="50" rx="10" fill="rgba(230,126,34,0.15)" stroke="#e67e22" stroke-width="2"/>
       <text x="150" y="340" fill="#e67e22">表达式</text>
-      <text x="150" y="355" font-size="10" fill="#8888aa" text-anchor="middle">Expression</text>
+      <text x="150" y="355" font-size="10" fill="var(--svg-label)" text-anchor="middle">Expression</text>
     </g>
 
     <!-- Connection -->
     <g class="cm-node" data-node="connection">
       <rect x="345" y="345" width="110" height="50" rx="10" fill="rgba(26,188,156,0.15)" stroke="#1abc9c" stroke-width="2"/>
       <text x="400" y="370" fill="#1abc9c">连接</text>
-      <text x="400" y="385" font-size="10" fill="#8888aa" text-anchor="middle">Connection</text>
+      <text x="400" y="385" font-size="10" fill="var(--svg-label)" text-anchor="middle">Connection</text>
     </g>
 
     <!-- Execution -->
     <g class="cm-node" data-node="execution">
       <rect x="580" y="315" width="140" height="50" rx="10" fill="rgba(231,76,60,0.15)" stroke="#e74c3c" stroke-width="2"/>
       <text x="650" y="340" fill="#e74c3c">执行</text>
-      <text x="650" y="355" font-size="10" fill="#8888aa" text-anchor="middle">Execution</text>
+      <text x="650" y="355" font-size="10" fill="var(--svg-label)" text-anchor="middle">Execution</text>
     </g>
   </svg>
 

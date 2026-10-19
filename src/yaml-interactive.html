@@ -20,6 +20,7 @@
   --indigo-light:rgba(74,95,193,0.08);
   --amber:#e8a838;
   --amber-bg:rgba(232,168,56,0.1);
+  --amber-ink:#8a5a00;
   --green:#2d8a5e;
   --green-bg:rgba(45,138,94,0.08);
   --red:#c94a4a;
@@ -256,8 +257,15 @@ pre.code{
   line-height:1.7;
   margin:.7rem 0;
 }
-pre.code .c{color:#6a6d77;font-style:italic}
-pre.code .k{color:var(--indigo)}
+/* pre.code 的底色是模块写死的 #1b1d23（恒定深色面板），但语法高亮用的是
+   var(--indigo) —— 它在壳层被映射成主题强调色，亮色下是墨绿 #0b6b39，
+   压在同一块深底上只有 2.71:1。面板内把别名钉回"深底专用"的那一套：
+   #818cf8 = 5.65:1、#8b8e99 = 5.16:1（原 #6a6d77 只有 3.26:1）。 */
+pre.code{--indigo:#818cf8;}
+/* 同理，.k 不能用 var(--indigo) —— 它在壳层被主题映射走（亮色 = 墨绿 #0b6b39，
+   压在本模块写死的 #1b1d23 上只有 2.71:1）。这里直接取亮紫字面值，两套主题通吃。 */
+pre.code .k{color:#818cf8}
+pre.code .c{color:#8b8e99;font-style:italic}
 pre.code .s{color:#e8a838}
 pre.code .v{color:#9ece6a}
 pre.code .n{color:#e06c75}
@@ -272,7 +280,14 @@ pre.code .n{color:#e06c75}
   margin-top:.8rem;
   line-height:1.6;
 }
-.gotcha strong{color:#9a6d0a;font-weight:600}
+/* .gotcha 的底色是半透明米黄蒙层，跟着面板走：壳层亮色合成 rgb(228,237,235)、
+   暗色合成 rgb(12,32,22)。同一支字色没法两边都过（#7a5606 亮色 5.57、暗色 2.55；
+   #fbbf24 反之），所以按主题分色。选择器会被壳层改写成
+   html[data-theme="X"] #moduleRoot，独立打开时由 :root 的亮色值兜住。
+   原 #9a6d0a 亮色只有 3.85:1。 */
+.gotcha strong{color:var(--amber-ink);font-weight:600}
+[data-theme="dark"]{--amber-ink:#fbbf24}
+[data-theme="light"]{--amber-ink:#8a5a00}
 
 /* ═══════════════════════════════════════════
    EXERCISES

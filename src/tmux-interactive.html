@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tmux 终端复用 交互式学习 · 迷你命令模拟器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0f14;
+    --card: #131720;
+    --raise: #1a1f2b;
+    --border: #252c3a;
+    --line: #333d50;
+    --text: #e2e6ee;
+    --dim: #97a1b4;
+    --muted: #5e6880;
+    --accent: #50fa7b;
+    --tmux: #50fa7b;
+    --ok: #34d399;
+    --bad: #ef476f;
+    --info: #5aa2ff;
+    --warn: #f0a04b;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    --body: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 90px;
+  }
+  .back-link {
+    display: inline-block; font-size: 13px; color: var(--dim);
+    text-decoration: none; margin-bottom: 10px;
+  }
+  .back-link:hover { color: var(--accent); }
+  .mast {
+    max-width: 920px; margin: 0 auto; padding: 40px 24px 8px;
+  }
+  .mast-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--bg); background: var(--accent); border-radius: 4px; padding: 3px 10px;
+  }
+  .mast-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .mast h1 {
+    font-family: var(--mono); font-size: clamp(26px, 5vw, 40px); font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 6px; color: var(--text);
+  }
+  .mast h1 em { font-style: italic; color: var(--accent); font-weight: 500; }
+  .subtitle { color: var(--dim); font-size: 14px; margin-bottom: 22px; }
+  .progress-track {
+    height: 6px; background: var(--raise); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: var(--accent);
+    border-radius: 999px; transition: width 0.5s ease;
+  }
+  .progress-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+  }
+  .done-badge {
+    font-size: 11px; font-weight: 700; color: var(--ok);
+    border: 1px solid rgba(52,211,153,0.4); border-radius: 999px; padding: 2px 10px;
+    background: rgba(52,211,153,0.1);
+  }
+  .done-badge.hidden { display: none; }
+
+  main { max-width: 920px; margin: 0 auto; padding: 24px 24px 40px; }
+  .step {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 28px; margin-bottom: 22px;
+    opacity: 0; transform: translateY(20px); transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+  .step.visible { opacity: 1; transform: translateY(0); }
+  .step h2 { font-size: 20px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .step h2 .num {
+    font-family: var(--mono); font-size: 13px; color: var(--bg);
+    background: var(--accent); border-radius: 4px; padding: 1px 8px;
+  }
+  .step h3 { font-size: 15px; margin: 16px 0 8px; color: var(--text); }
+  .lead { color: var(--dim); font-size: 14px; margin-bottom: 14px; }
+  .lead code, .insight code, pre code, .opts code, h3 code, .clab code {
+    font-family: var(--mono); background: var(--raise); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0 5px; font-size: 0.9em; color: var(--accent);
+  }
+  pre {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    background: #080a10; border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; color: #b8c8d8; margin: 12px 0;
+    word-break: break-all;
+  }
+  pre .cmt { color: var(--muted); }
+  pre .key { color: var(--warn); }
+  pre .val { color: var(--ok); }
+  .insight {
+    background: rgba(80,250,123,0.06); border: 1px solid rgba(80,250,123,0.25);
+    border-radius: 8px; padding: 12px 16px; font-size: 13px; color: var(--dim); margin: 12px 0;
+  }
+  .insight strong { color: var(--accent); }
+  .opts { display: grid; gap: 8px; margin: 12px 0; }
+  .opt-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+    cursor: pointer; font-size: 13.5px; transition: border-color 0.2s, background 0.2s;
+    background: var(--raise); color: var(--text);
+  }
+  .opt-row:hover { border-color: var(--line); }
+  .opt-row input { accent-color: var(--accent); margin-top: 4px; flex: none; }
+  .opt-row.correct { border-color: rgba(52,211,153,0.6); background: rgba(52,211,153,0.08); }
+  .opt-row.wrong { border-color: rgba(239,71,111,0.6); background: rgba(239,71,111,0.08); }
+  .opt-row.disabled { pointer-events: none; opacity: 0.55; }
+  .opt-row.disabled.correct { opacity: 1; }
+  .result { display: none; margin-top: 10px; font-size: 13px; border-radius: 8px; padding: 10px 14px; }
+  .result.show { display: block; }
+  .result.ok { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.35); color: #a7f3d0; }
+  .result.err { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.35); color: #fecdd3; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+  th { background: var(--raise); color: var(--dim); font-size: 11.5px; letter-spacing: 0.5px; }
+  td code { border: none; background: transparent; padding: 0; color: var(--accent); }
+
+  .clab {
+    border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 14px 0;
+    background: #080a10;
+  }
+  .clab-head {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: var(--raise); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .clab-head .dot { width: 9px; height: 9px; border-radius: 999px; background: #333b4a; }
+  .clab-head .dot:nth-child(1) { background: #ef476f; }
+  .clab-head .dot:nth-child(2) { background: #f0a04b; }
+  .clab-head .dot:nth-child(3) { background: #50fa7b; }
+  .clab-head span.txt { margin-left: 6px; }
+  .clab-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .clab-body input[type="text"] {
+    background: #0c0f14; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 16px;
+    padding: 10px 12px; outline: none; width: 100%; min-width: 0;
+  }
+  .clab-body input[type="text"]:focus { border-color: var(--accent); }
+  .clab-ctrl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .clab-btn {
+    background: var(--accent); color: var(--bg); border: none; border-radius: 6px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    padding: 8px 16px; cursor: pointer; min-height: 36px;
+  }
+  .clab-btn:hover { opacity: 0.88; }
+  .clab-hint { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .clab-out {
+    background: #080a10; border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px 14px; font-family: var(--mono); font-size: 12.5px;
+    white-space: pre-wrap; word-break: break-all; color: #b8c8d8; min-height: 40px;
+    max-height: 320px; overflow-y: auto;
+  }
+  .c-ok { color: var(--ok); }
+  .c-err { color: var(--bad); }
+  .c-warn { color: var(--warn); }
+  .c-info { color: var(--info); }
+  .c-dim { color: var(--muted); }
+
+  .key-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .key-btn {
+    background: var(--raise); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 7px 12px; cursor: pointer; min-height: 36px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .key-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .key-btn:active { background: rgba(80,250,123,0.1); }
+
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: rgba(12,15,20,0.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+  }
+  .nav-inner { max-width: 920px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--raise); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text); font-size: 13px; font-weight: 600;
+    padding: 8px 16px; cursor: pointer; min-height: 36px;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .hidden-nav { visibility: hidden; }
+  .nav-label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--raise); border: 1px solid rgba(80,250,123,0.5); color: #a7f3d0;
+    font-size: 13px; padding: 10px 18px; border-radius: 999px; z-index: 70;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .footer {
+    text-align: center; font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; padding: 4px 24px 96px;
+  }
+  @media (max-width: 640px) {
+    .step { padding: 20px 16px; }
+    main { padding-left: 12px; padding-right: 12px; }
+    .mast { padding: 32px 16px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <section class="mast">
+    <a class="back-link" href="../index.html">← 返回交互式学习库</a>
+    <div class="mast-top">
+      <span class="badge">DevOps</span>
+      <span class="mast-count" id="stepLabel">1 / 9</span>
+    </div>
+    <h1>tmux <em>终端复用器</em></h1>
+    <p class="subtitle">迷你命令模拟器 · session / window / pane · 前缀键 · 复制模式 · 配置手感 · 9 个里程碑 · 进度自动保存</p>
+    <div class="progress-track"><div class="progress-fill" id="progress"></div></div>
+    <div class="progress-meta">
+      <span id="progressLabel">0 / 9 里程碑</span>
+      <span class="done-badge hidden" id="doneBadge">✓ 已完成</span>
+    </div>
+  </section>
+
+  <!-- ═══ 1 tmux 是什么 ═══ -->
+  <section class="step">
+    <h2><span class="num">1</span>tmux 是什么 · 为什么需要它</h2>
+    <p class="lead">tmux = <strong>terminal multiplexer</strong>。它在终端里创建一个<strong>服务端管理的会话层</strong>：所有窗口、分屏、滚动缓冲都活在 tmux server 进程里，你的终端模拟器（iTerm / Terminal / SSH）只是连上去的"客户端"。SSH 断了、笔记本合盖了、网络抖了——重连后 <code>tmux attach</code>，一切还在原地。</p>
+    <pre><span class="cmt"># 没有 tmux：SSH 断开 → 进程全部 SIGHUP → 跑了 3 小时的构建没了</span>
+$ ssh server
+$ make build       <span class="cmt"># 网络断了 → 连接关闭 → 构建进程被杀</span>
+
+<span class="cmt"># 有 tmux：SSH 断开 → tmux server 还活着 → 重连 attach 即可</span>
+$ ssh server
+$ tmux new -s build
+$ make build       <span class="cmt"># 网络断了 → 重连 → tmux attach -t build → 还在跑</span></pre>
+    <p class="lead">另一个核心能力是<strong>多路复用</strong>：一个终端窗口里切分出多个 pane（分屏），或者多个 window（类似浏览器标签），不用开一堆终端窗口。</p>
+    <h3>练习：tmux 核心价值</h3>
+    <div class="opts" id="s1Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s1">tmux 把会话交给 server 进程管理，终端断开后可 attach 恢复；同时支持分屏多路复用</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s1">tmux 是一个更快的 shell 替代品，能加速命令执行</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s1">tmux 只在本地有用，SSH 场景下无法工作</label>
+    </div>
+    <div class="result" id="s1Result"></div>
+  </section>
+
+  <!-- ═══ 2 前缀键 ═══ -->
+  <section class="step">
+    <h2><span class="num">2</span>前缀键模型 · Ctrl-b 与改键</h2>
+    <p class="lead">tmux 的所有快捷键都分两步：<strong>先按前缀键</strong>（默认 <code>Ctrl-b</code>），松开后再按功能键。这样 tmux 的快捷键才不会和终端 / shell / 编辑器的快捷键冲突。设计反直觉是因为你要"告诉 tmux 接下来这句话是对你说的"。</p>
+    <pre><span class="cmt"># 操作流程：先 Ctrl-b，再按功能键</span>
+Ctrl-b c    <span class="cmt"># 新建 window</span>
+Ctrl-b %    <span class="cmt"># 左右分屏（vertical split）</span>
+Ctrl-b "    <span class="cmt"># 上下分屏（horizontal split）</span>
+Ctrl-b d    <span class="cmt"># detach（退出客户端，会话继续跑）</span>
+
+<span class="cmt"># 很多人把前缀改成 Ctrl-a（和 screen 一致，且手指更舒服）</span>
+<span class="cmt"># ~/.tmux.conf</span>
+<span class="key">unbind</span> C-b
+<span class="key">set</span> -g prefix C-a
+<span class="key">bind</span> C-a send-prefix</pre>
+    <div class="insight"><strong>为什么 Ctrl-b 反直觉？</strong>因为它在键盘左下角，小指够起来别扭。改成 <code>Ctrl-a</code> 后手掌自然搭在 home row，按起来快很多——这是 tmux 用户最常见的第一个自定义。</div>
+    <h3>练习：前缀键</h3>
+    <div class="opts" id="s2Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s2">tmux 快捷键需要先按前缀键（默认 Ctrl-b），再按功能键；可以通过 unbind + set prefix 修改</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s2">tmux 快捷键直接按就行，不需要前缀键</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s2">前缀键只能改成 Ctrl-a，不能改成其他键</label>
+    </div>
+    <div class="result" id="s2Result"></div>
+  </section>
+
+  <!-- ═══ 3 session 生命周期 ═══ -->
+  <section class="step">
+    <h2><span class="num">3</span>session 生命周期</h2>
+    <p class="lead">session 是 tmux 的最顶层容器。一个 tmux server 可以管多个 session，每个 session 有自己的 window 列表。常用命令：</p>
+    <table>
+      <tr><th>命令</th><th>作用</th></tr>
+      <tr><td><code>tmux new -s name</code></td><td>创建 session 并 attach</td></tr>
+      <tr><td><code>tmux new -s name -d</code></td><td>创建但不 attach（后台）</td></tr>
+      <tr><td><code>tmux ls</code></td><td>列出所有 session</td></tr>
+      <tr><td><code>tmux attach -t name</code></td><td>attach 到指定 session</td></tr>
+      <tr><td><code>tmux kill-session -t name</code></td><td>销毁 session</td></tr>
+      <tr><td><code>tmux new -A -s name</code></td><td>存在就 attach，不存在就创建（幂等）</td></tr>
+    </table>
+    <p class="lead"><code>-A</code> 很实用：脚本里写 <code>tmux new -A -s dev</code>，不管 session 在不在都能拿到一个可用的。</p>
+    <h3>练习：session 命令</h3>
+    <div class="opts" id="s3Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s3">tmux new -A -s dev 在 session 已存在时直接 attach，不存在时创建</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s3">tmux new -s dev 每次都会创建新 session，同名会报错</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s3">tmux attach 会销毁不活跃的 session</label>
+    </div>
+    <div class="result" id="s3Result"></div>
+  </section>
+
+  <!-- ═══ 4 window ═══ -->
+  <section class="step">
+    <h2><span class="num">4</span>window · 类似浏览器标签</h2>
+    <p class="lead">每个 session 里有多个 window，底部状态栏会显示编号列表。常用操作（均先按前缀键）：</p>
+    <table>
+      <tr><th>按键</th><th>作用</th></tr>
+      <tr><td><code>c</code></td><td>新建 window</td></tr>
+      <tr><td><code>n</code> / <code>p</code></td><td>下一个 / 上一个 window</td></tr>
+      <tr><td><code>,</code></td><td>重命名当前 window</td></tr>
+      <tr><td><code>w</code></td><td>列出所有 window 供选择</td></tr>
+      <tr><td><code>0</code>~<code>9</code></td><td>跳到编号对应的 window</td></tr>
+      <tr><td><code>&amp;</code></td><td>关闭当前 window</td></tr>
+    </table>
+    <pre><span class="cmt"># 状态栏示例（* = 当前 window）</span>
+<span class="val">[dev] 0:bash* 1:vim 2:htop</span></pre>
+    <h3>练习：window 操作</h3>
+    <div class="opts" id="s4Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s4">Ctrl-b c 新建 window，Ctrl-b , 重命名，Ctrl-b w 列表选择</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s4">Ctrl-b n 新建 window，Ctrl-b p 关闭 window</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s4">window 编号固定不可变，不能重命名</label>
+    </div>
+    <div class="result" id="s4Result"></div>
+  </section>
+
+  <!-- ═══ 5 pane ═══ -->
+  <section class="step">
+    <h2><span class="num">5</span>pane · 一个 window 里的分屏</h2>
+    <p class="lead">pane 是 window 内的分割区域。每个 pane 跑一个独立的 shell。分屏方向容易混：<code>%</code> 是竖线（左右分），<code>"</code> 是横线（上下分）——记忆法：竖线把屏幕分成左右两块，横线分成上下两块。</p>
+    <table>
+      <tr><th>按键</th><th>作用</th></tr>
+      <tr><td><code>%</code></td><td>左右分屏（vertical split）</td></tr>
+      <tr><td><code>"</code></td><td>上下分屏（horizontal split）</td></tr>
+      <tr><td>方向键</td><td>在 pane 之间移动焦点</td></tr>
+      <tr><td><code>o</code></td><td>跳到下一个 pane</td></tr>
+      <tr><td><code>z</code></td><td>缩放当前 pane（再按恢复）</td></tr>
+      <tr><td><code>x</code></td><td>关闭当前 pane</td></tr>
+      <tr><td><code>!</code></td><td>把当前 pane 拆成独立 window</td></tr>
+    </table>
+    <div class="insight"><strong>调试布局推荐：</strong>左边一个大 pane 跑编辑器，右边上下两个 pane——上面跑日志 / 下面跑测试。Ctrl-b % 分左右，右边 pane 里 Ctrl-b " 再分上下。</div>
+    <h3>练习：pane 操作</h3>
+    <div class="opts" id="s5Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s5">Ctrl-b % 左右分屏，Ctrl-b " 上下分屏，Ctrl-b z 缩放当前 pane</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s5">Ctrl-b % 上下分屏，Ctrl-b " 左右分屏</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s5">pane 不能拆成独立 window，只能关闭</label>
+    </div>
+    <div class="result" id="s5Result"></div>
+  </section>
+
+  <!-- ═══ 6 复制模式 ═══ -->
+  <section class="step">
+    <h2><span class="num">6</span>复制模式 · 终端里的滚动与选择</h2>
+    <p class="lead">tmux 有自己的剪贴板（paste-buffer）。按 <code>Ctrl-b [</code> 进入复制模式：可以<strong>滚动回看历史输出</strong>、用方向键或 vi 风格移动光标、空格开始选择、回车复制。按 <code>]</code> 粘贴最近一次复制的内容。</p>
+    <pre><span class="cmt"># 进入复制模式</span>
+Ctrl-b [
+
+<span class="cmt"># 默认 emacs 风格移动；配了 vi 模式后：</span>
+h j k l       <span class="cmt"># 方向移动</span>
+Space         <span class="cmt"># 开始选择</span>
+v             <span class="cmt"># 逐字符选择（vi 模式）</span>
+Enter         <span class="cmt"># 复制到 paste-buffer</span>
+q             <span class="cmt"># 退出复制模式</span>
+
+<span class="cmt"># 粘贴</span>
+Ctrl-b ]      <span class="cmt"># 粘贴最近一次复制</span>
+
+<span class="cmt"># 多副本管理</span>
+Ctrl-b =      <span class="cmt"># 列出所有 paste-buffer，选择粘贴</span>
+<span class="key">set</span> -g history-limit 50000   <span class="cmt"># 滚动缓冲行数（默认 2000）</span></pre>
+    <p class="lead">如果配了 <code>set -g mouse on</code>，可以直接用鼠标滚轮滚动、拖选复制——但理解底层复制模式在鼠标失灵时能救命。</p>
+    <h3>练习：复制模式</h3>
+    <div class="opts" id="s6Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s6">Ctrl-b [ 进入复制模式可滚动回看，空格开始选择、回车复制、Ctrl-b ] 粘贴</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s6">复制模式只能滚动，不能选择文本</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s6">tmux 粘贴必须依赖系统剪贴板，不能用自己的 paste-buffer</label>
+    </div>
+    <div class="result" id="s6Result"></div>
+  </section>
+
+  <!-- ═══ 7 配置 ═══ -->
+  <section class="step">
+    <h2><span class="num">7</span>配置与手感 · ~/.tmux.conf</h2>
+    <p class="lead">tmux 的配置文件是 <code>~/.tmux.conf</code>，改完后在 tmux 内按 <code>Ctrl-b :</code> 输入 <code>source-file ~/.tmux.conf</code> 重载（或 <code>tmux source-file ~/.tmux.conf</code>）。常用配置：</p>
+    <pre><span class="cmt"># 改前缀为 Ctrl-a</span>
+<span class="key">unbind</span> C-b
+<span class="key">set</span> -g prefix C-a
+<span class="key">bind</span> C-a send-prefix
+
+<span class="cmt"># 启用鼠标（滚轮滚动、点击切 pane、拖拽调整 pane 大小）</span>
+<span class="key">set</span> -g mouse on
+
+<span class="cmt"># 增大滚动缓冲</span>
+<span class="key">set</span> -g history-limit 50000
+
+<span class="cmt"># 从 1 开始编号（默认从 0 开始，0 在键盘最右边不方便）</span>
+<span class="key">set</span> -g base-index 1
+
+<span class="cmt"># 更直觉的分屏快捷键</span>
+<span class="key">bind</span> | split-window -h
+<span class="key">bind</span> - split-window -v
+
+<span class="cmt"># 256 色 + true color 支持</span>
+<span class="key">set</span> -g default-terminal "screen-256color"</pre>
+    <p class="lead"><code>set -g</code> 是全局设置，<code>bind</code> 是绑定按键。配置项非常多，但上面这些覆盖了 80% 的日常需求。</p>
+    <h3>练习：配置语法</h3>
+    <div class="opts" id="s7Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s7">set -g mouse on 启用鼠标支持；bind | split-window -h 把 Ctrl-b | 绑定为左右分屏</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s7">tmux.conf 改完后必须重启 tmux server 才能生效</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s7">history-limit 控制 window 数量上限</label>
+    </div>
+    <div class="result" id="s7Result"></div>
+  </section>
+
+  <!-- ═══ 8 实战场景 ═══ -->
+  <section class="step">
+    <h2><span class="num">8</span>实战场景 · 远程长任务 / 跨窗口搬文本 / 三面板调试</h2>
+    <p class="lead"><strong>场景一：远程长任务。</strong>SSH 到服务器跑训练 / 构建 / 数据导入，动辄几小时。用 tmux 包住：网络断了不丢，回家 / 换电脑 attach 继续看。</p>
+    <pre><span class="cmt"># 到公司</span>
+ssh server
+tmux new -s train
+python train.py          <span class="cmt"># 跑着...</span>
+Ctrl-b d                 <span class="cmt"># 下班 detach 走人</span>
+
+<span class="cmt"># 回家</span>
+ssh server
+tmux attach -t train     <span class="cmt"># 进度还在，日志还在</span></pre>
+    <p class="lead"><strong>场景二：跨窗口搬文本。</strong>左边 window 看文档，右边 window 写代码。复制模式选中 → 粘贴，不用切应用。</p>
+    <p class="lead"><strong>场景三：三面板调试布局。</strong>左边编辑器，右上日志，右下测试。Ctrl-b % 分左右，右边 pane Ctrl-b " 再分上下。Ctrl-b z 可以临时放大某个 pane 看细节。</p>
+    <pre><span class="cmt"># 推荐布局：</span>
+┌──────────────┬─────────────┐
+│              │             │
+│   editor     │   logs      │
+│              ├─────────────┤
+│              │   tests     │
+└──────────────┴─────────────┘</pre>
+    <h3>练习：实战判断</h3>
+    <div class="opts" id="s8Opts">
+      <label class="opt-row" data-id="a"><input type="radio" name="s8">SSH 断开后 tmux server 仍在跑，attach 即可恢复；三面板布局用 % 分左右再 " 分上下</label>
+      <label class="opt-row" data-id="b"><input type="radio" name="s8">SSH 断开后 tmux session 也自动销毁</label>
+      <label class="opt-row" data-id="c"><input type="radio" name="s8">tmux 分屏最多只能分两个 pane</label>
+    </div>
+    <div class="result" id="s8Result"></div>
+  </section>
+
+  <!-- ═══ ⚡ 迷你引擎 ═══ -->
+  <section class="step">
+    <h2><span class="num">⚡</span>迷你 tmux 命令模拟器</h2>
+    <p class="lead">输入 tmux 命令或点击下方按键按钮，模拟 session / window / pane 的状态变化。状态机在内存里运行，刷新页面重置。</p>
+    <div class="clab">
+      <div class="clab-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="txt">tmux 模拟器</span></div>
+      <div class="clab-body">
+        <input type="text" id="tmuxInput" spellcheck="false" placeholder="输入命令，如 tmux new -s dev" autocomplete="off">
+        <div class="clab-ctrl">
+          <button type="button" class="clab-btn" id="tmuxRun">执行</button>
+          <button type="button" class="clab-btn" id="tmuxReset" style="background:var(--raise);color:var(--dim);border:1px solid var(--border)">重置</button>
+          <span class="clab-hint">试试：tmux new -s dev / tmux ls / tmux attach -t dev / tmux kill-session -t dev</span>
+        </div>
+        <h3 style="margin-top:8px">前缀键操作（模拟 Ctrl-b + 按键）</h3>
+        <div class="key-row" id="keyRow">
+          <button type="button" class="key-btn" data-key="c">c 新窗口</button>
+          <button type="button" class="key-btn" data-key="%">% 左右分</button>
+          <button type="button" class="key-btn" data-key='"'>" 上下分</button>
+          <button type="button" class="key-btn" data-key="o">o 下一pane</button>
+          <button type="button" class="key-btn" data-key="z">z 缩放</button>
+          <button type="button" class="key-btn" data-key="d">d detach</button>
+          <button type="button" class="key-btn" data-key="x">x 关pane</button>
+          <button type="button" class="key-btn" data-key="n">n 下一window</button>
+          <button type="button" class="key-btn" data-key="p">p 上一window</button>
+          <button type="button" class="key-btn" data-key="[">[ 复制模式</button>
+        </div>
+        <pre class="clab-out" id="tmuxOut">— 输入命令或点击按键开始 —</pre>
+      </div>
+    </div>
+    <div class="result" id="engineResult"></div>
+  </section>
+
+  <!-- ═══ 9 掌握度测验 ═══ -->
+  <section class="step">
+    <h2><span class="num">9</span>掌握度测验</h2>
+    <p class="lead">8 道题，答对 6 题以上解锁"完成"徽章。答题即时判分，全部答完保存进度与错题。错题下次进入优先呈现。</p>
+    <div id="quizBox"></div>
+  </section>
+
+  <!-- ═══ ✓ 下一步 ═══ -->
+  <section class="step">
+    <h2><span class="num">✓</span>下一步</h2>
+    <p class="lead">你已经走完：tmux 概念 → 前缀键 → session → window → pane → 复制模式 → 配置 → 实战 → 测验。</p>
+    <div class="insight">
+      <strong>建议的实战路线：</strong><br>
+      ① 在本地装 tmux，把前缀改成 Ctrl-a，开启 mouse on；<br>
+      ② SSH 到远程机器用 tmux 跑一个长任务，断开再 attach 验证；<br>
+      ③ 配出三面板调试布局并写进 .tmux.conf；<br>
+      ④ 试试 tmux plugin manager（tpm）装几个插件（如 tmux-resurrect 会话恢复）。
+    </div>
+    <p class="lead">回到 <a href="../index.html" style="color:var(--accent)">交互式学习库导航页</a>，继续学习其他专题。</p>
+  </section>
+</main>
+
+<!-- ═══ BOTTOM NAV ═══ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn hidden-nav" id="navPrev">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      上一节
+    </button>
+    <span class="nav-label" id="navLabel">1 / 9</span>
+    <button class="nav-btn" id="navNext">
+      下一节
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="footer">tmux 终端复用 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
+
+<script src="../ilquiz.js"></script>
+<script>
+/* 自测样例（迷你引擎状态机）：
+ *  1. tmux new -s dev → 创建 session dev，1 window(0:bash)，1 pane[0.0]，自动 attach
+ *  2. tmux ls → dev: 1 windows (attached)
+ *  3. [c] → dev 新增 window 1:bash，activeWindow=1
+ *  4. [%] → window 0 分屏 → 2 panes [0.0][0.1]
+ *  5. tmux ls → dev: 2 windows, 2 panes (attached)
+ *  6. tmux new -s work → 创建 work，自动 attach 到 work；dev 变 detached
+ *  7. tmux ls → dev(detached), work(attached)
+ *  8. tmux attach -t dev → 切换到 dev（work 变 detached）
+ *  9. tmux attach -t nope → 报错 "session 'nope' not found"
+ * 10. tmux kill-session -t dev → dev 被删除
+ * 11. tmux ls → 只剩 work
+ * 12. tmux new -s work → 报错 "session 'work' already exists"
+ * 13. [d] → detach，ls 显示 work(detached)
+ * 14. tmux kill-session -t ghost → 报错 "session 'ghost' not found"
+ * 15. tmux ls 无任何 session → 输出 "no sessions"
+ * 16. tmux new（无 -s）→ 自动命名 0，创建成功
+ * 17. ["] → 上下分屏，pane 数 +1
+ * 18. [x] → 关闭当前 pane（仅剩 1 个时提示 "cannot close last pane"）
+ * 19. [z] → 缩放切换
+ * 20. tmux new -s dev 后再 tmux new -s dev → 报错重名
+ */
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+var toastTimer = null;
+function toast(msg) {
+  var t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+}
+
+/* ═══════════════ step nav ═══════════════ */
+var steps = document.querySelectorAll('.step');
+var totalSteps = steps.length;
+var currentStep = 0;
+var navPrev = $('navPrev'), navNext = $('navNext'), navLabel = $('navLabel');
+
+function showNav() {
+  navPrev.classList.toggle('hidden-nav', currentStep === 0);
+  navNext.classList.toggle('hidden-nav', currentStep === totalSteps - 1);
+  navLabel.textContent = (currentStep + 1) + ' / ' + totalSteps;
+  $('stepLabel').textContent = (currentStep + 1) + ' / ' + totalSteps;
+}
+function scrollToStep(i) {
+  if (i < 0 || i >= totalSteps) return;
+  currentStep = i; showNav();
+  steps[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+navPrev.addEventListener('click', function () { scrollToStep(currentStep - 1); });
+navNext.addEventListener('click', function () { scrollToStep(currentStep + 1); });
+var spyTimer;
+window.addEventListener('scroll', function () {
+  clearTimeout(spyTimer);
+  spyTimer = setTimeout(function () {
+    var mid = window.scrollY + window.innerHeight * 0.4;
+    for (var i = 0; i < steps.length; i++) { if (steps[i].offsetTop <= mid) currentStep = i; }
+    showNav();
+  }, 60);
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); scrollToStep(currentStep + 1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); scrollToStep(currentStep - 1); }
+});
+
+/* ═══════════════ reveal ═══════════════ */
+var revealEls = document.querySelectorAll('.step');
+if ('IntersectionObserver' in window) {
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.1 });
+  revealEls.forEach(function (el) { observer.observe(el); });
+} else {
+  revealEls.forEach(function (el) { el.classList.add('visible'); });
+}
+
+/* ═══════════════ milestones ═══════════════ */
+var MC = IL.mount('tmux', {
+  total: 9,
+  toast: toast,
+  onCount: function (n, total) {
+    var pct = Math.round(n / total * 100);
+    $('progress').style.width = pct + '%';
+    $('progressLabel').textContent = n + ' / ' + total + ' 里程碑';
+    if (n === total) $('doneBadge').classList.remove('hidden');
+    else $('doneBadge').classList.add('hidden');
+  }
+});
+
+/* ═══════════════ 选择题绑定 ═══════════════ */
+function bindOpts(elId, rightId, resultId, rightMsg, wrongMsg, milestoneIdx) {
+  $(elId).querySelectorAll('.opt-row').forEach(function (row) {
+    row.addEventListener('click', function () {
+      if (row.classList.contains('disabled')) return;
+      var rows = $(elId).querySelectorAll('.opt-row');
+      rows.forEach(function (r) { r.classList.remove('correct', 'wrong', 'disabled'); });
+      var selected = row.dataset.id;
+      rows.forEach(function (r) { r.classList.add('disabled'); });
+      var radio = row.querySelector('input'); radio.checked = true;
+      if (selected === rightId) {
+        row.classList.add('correct');
+        $(resultId).className = 'result show ok';
+        $(resultId).innerHTML = rightMsg;
+        if (milestoneIdx >= 0) MC.complete(milestoneIdx);
+      } else {
+        row.classList.add('wrong');
+        $(resultId).className = 'result show err';
+        $(resultId).innerHTML = wrongMsg;
+      }
+    });
+  });
+}
+
+bindOpts('s1Opts', 'a', 's1Result',
+  '正确！tmux 的 server 进程管理会话，终端断开后可恢复；同时支持分屏多路复用。',
+  '不对。tmux 不加速命令执行，也不是只本地用——SSH 场景正是它的主场。', 0);
+bindOpts('s2Opts', 'a', 's2Result',
+  '正确！前缀键是 tmux 快捷键的核心机制，可以通过 unbind + set -g prefix 修改。',
+  '不对。tmux 必须先按前缀键再按功能键；前缀可以改成任意键（常见 Ctrl-a）。', 1);
+bindOpts('s3Opts', 'a', 's3Result',
+  '正确！-A 是幂等操作：存在就 attach，不存在就创建。同名 new 会报错。',
+  '不对。tmux new -s 同名会报错；attach 不会销毁 session。', 2);
+bindOpts('s4Opts', 'a', 's4Result',
+  '正确！c 新建、, 重命名、w 列表选择，n/p 前后切换。',
+  '不对。n/p 是前后切换不是新建/关闭；window 可以用 , 重命名。', 3);
+bindOpts('s5Opts', 'a', 's5Result',
+  '正确！% 竖线左右分，" 横线上下分，z 缩放当前 pane。',
+  '不对。% 是竖线（左右分），" 是横线（上下分）；pane 可以用 ! 拆成 window。', 4);
+bindOpts('s6Opts', 'a', 's6Result',
+  '正确！Ctrl-b [ 进入复制模式，空格选择、回车复制、Ctrl-b ] 粘贴。',
+  '不对。复制模式可以选择文本；tmux 有自己的 paste-buffer，不依赖系统剪贴板。', 5);
+bindOpts('s7Opts', 'a', 's7Result',
+  '正确！set -g mouse on 启用鼠标；bind 绑定按键；source-file 热重载不用重启。',
+  '不对。source-file 可以热重载；history-limit 控制滚动缓冲行数，不是 window 数量。', 6);
+bindOpts('s8Opts', 'a', 's8Result',
+  '正确！SSH 断开后 tmux server 仍存活，attach 恢复；三面板用 % 分左右再 " 分上下。',
+  '不对。SSH 断开不影响 tmux server；pane 数量没有两个的限制。', 7);
+
+/* ═══════════════ 迷你 tmux 模拟器 ═══════════════ */
+var engineState = null;
+var engineMilestones = { created: false, split: false, multiSession: false, detached: false, killed: false };
+
+function engineInit() {
+  engineState = {
+    sessions: {},
+    attached: null,
+    nextAutoId: 0,
+    copyMode: false
+  };
+  engineMilestones = { created: false, split: false, multiSession: false, detached: false, killed: false };
+}
+engineInit();
+
+function engineGetSession(name) {
+  return engineState.sessions[name] || null;
+}
+
+function engineActiveSession() {
+  if (!engineState.attached) return null;
+  return engineGetSession(engineState.attached);
+}
+
+function engineActiveWindow() {
+  var s = engineActiveSession();
+  if (!s || !s.windows.length) return null;
+  return s.windows[s.activeWindow];
+}
+
+function engineRender() {
+  var names = Object.keys(engineState.sessions);
+  if (!names.length) return '<span class="c-dim">（无 session — 试试 tmux new -s dev）</span>';
+  var lines = [];
+  for (var i = 0; i < names.length; i++) {
+    var nm = names[i];
+    var s = engineState.sessions[nm];
+    var tag = engineState.attached === nm ? '<span class="c-ok">(attached)</span>' : '<span class="c-dim">(detached)</span>';
+    var totalPanes = 0;
+    for (var w = 0; w < s.windows.length; w++) totalPanes += s.windows[w].panes.length;
+    lines.push('<span class="c-info">' + esc(nm) + '</span>: ' + s.windows.length + ' window' + (s.windows.length > 1 ? 's' : '') + ', ' + totalPanes + ' pane' + (totalPanes > 1 ? 's' : '') + ' ' + tag);
+    for (var w = 0; w < s.windows.length; w++) {
+      var win = s.windows[w];
+      var active = w === s.activeWindow && engineState.attached === nm;
+      var mark = active ? '<span class="c-ok">*</span>' : '';
+      lines.push('  window ' + w + ': ' + esc(win.name) + mark);
+      var paneStr = [];
+      for (var p = 0; p < win.panes.length; p++) {
+        var pz = win.panes[p].zoomed ? '<span class="c-warn">[Z]</span>' : '';
+        var pa = p === win.activePane ? '<span class="c-ok">●</span>' : '○';
+        paneStr.push(pa + ' ' + win.panes[p].id + pz);
+      }
+      lines.push('    ' + paneStr.join(' | '));
+    }
+  }
+  if (engineState.copyMode) lines.push('<span class="c-warn">[复制模式 — 按 q 退出]</span>');
+  return lines.join('\n');
+}
+
+function engineOut(html) {
+  $('tmuxOut').innerHTML = html;
+}
+
+function engineCheckMilestones() {
+  if (engineMilestones.created && !MC.complete(2) === false) {}
+  /* Milestone mapping for engine actions:
+     created first session → not a separate milestone (section 3 quiz handles it)
+     split pane → reinforces section 5
+     multiple sessions → reinforces section 3
+     detach → reinforces section 3/8
+     kill → reinforces section 3
+     These are bonus — the section quizzes are the primary unlock path. */
+}
+
+function engineExec(raw) {
+  var cmd = String(raw || '').replace(/^\s+|\s+$/g, '');
+  if (!cmd) { engineOut('<span class="c-err">空命令</span>'); return; }
+  var parts = cmd.split(/\s+/);
+  /* strip leading "tmux" */
+  if (parts[0] === 'tmux') parts.shift();
+  if (!parts.length) { engineOut('<span class="c-err">空命令</span>'); return; }
+
+  var sub = parts[0];
+  var out = '<span class="c-dim">$ ' + esc(cmd) + '</span>\n';
+
+  /* command aliases */
+  var ALIASES = {
+    'new': 'new-session', 'ls': 'list-sessions', 'attach': 'attach-session',
+    'kill': 'kill-session', 'rename': 'rename-session', 'has': 'has-session',
+    'selectw': 'select-window'
+  };
+  /* check for ambiguous abbreviation */
+  var CMDS = ['new-session', 'list-sessions', 'attach-session', 'kill-session',
+    'rename-session', 'has-session', 'kill-server', 'detach-client', 'source-file',
+    'select-window'];
+  var expanded = ALIASES[sub] || sub;
+  if (!ALIASES[sub]) {
+    var matches = [];
+    for (var ci = 0; ci < CMDS.length; ci++) {
+      if (CMDS[ci].indexOf(sub) === 0) matches.push(CMDS[ci]);
+    }
+    if (matches.length === 0 && sub.indexOf('-') === -1) {
+      out += '<span class="c-err">unknown command: "' + esc(sub) + '"</span>';
+      engineOut(out); return;
+    }
+    if (matches.length > 1) {
+      out += '<span class="c-err">ambiguous command: "' + esc(sub) + '" could be ' + matches.join(', ') + '</span>';
+      engineOut(out); return;
+    }
+    if (matches.length === 1) expanded = matches[0];
+  }
+
+  /* parse -t / -s flags */
+  function getFlag(args, flag) {
+    for (var fi = 0; fi < args.length; fi++) {
+      if (args[fi] === flag && fi + 1 < args.length) return args[fi + 1];
+    }
+    return null;
+  }
+
+  if (expanded === 'new-session') {
+    var name = getFlag(parts, '-s');
+    var detach = parts.indexOf('-d') !== -1;
+    if (!name) {
+      name = String(engineState.nextAutoId);
+      engineState.nextAutoId++;
+    }
+    if (engineGetSession(name)) {
+      out += '<span class="c-err">duplicate session: "' + esc(name) + '"</span>';
+      engineOut(out); return;
+    }
+    engineState.sessions[name] = {
+      windows: [{ name: 'bash', panes: [{ id: name + '.0', zoomed: false }], activePane: 0 }],
+      activeWindow: 0
+    };
+    if (!detach) engineState.attached = name;
+    out += '<span class="c-ok">created session "' + esc(name) + '"</span>' + (detach ? '' : ' and attached');
+    if (!engineMilestones.created) { engineMilestones.created = true; }
+  } else if (expanded === 'list-sessions') {
+    var names = Object.keys(engineState.sessions);
+    if (!names.length) {
+      out += '<span class="c-err">no sessions</span>';
+    } else {
+      for (var si = 0; si < names.length; si++) {
+        var sn = names[si];
+        var ss = engineState.sessions[sn];
+        var tp = 0;
+        for (var sw = 0; sw < ss.windows.length; sw++) tp += ss.windows[sw].panes.length;
+        var atag = engineState.attached === sn ? ' (attached)' : ' (detached)';
+        out += esc(sn) + ': ' + ss.windows.length + ' windows [' + tp + ' panes]' + atag + '\n';
+      }
+    }
+  } else if (expanded === 'attach-session') {
+    var target = getFlag(parts, '-t');
+    if (!target) {
+      var allNames = Object.keys(engineState.sessions);
+      if (!allNames.length) {
+        out += '<span class="c-err">no sessions</span>';
+        engineOut(out); return;
+      }
+      target = allNames[allNames.length - 1];
+    }
+    if (!engineGetSession(target)) {
+      out += '<span class="c-err">session "' + esc(target) + '" not found</span>';
+      engineOut(out); return;
+    }
+    engineState.attached = target;
+    out += '<span class="c-ok">attached to "' + esc(target) + '"</span>';
+  } else if (expanded === 'detach-client') {
+    if (!engineState.attached) {
+      out += '<span class="c-err">no session is attached</span>';
+      engineOut(out); return;
+    }
+    out += '<span class="c-ok">detached from "' + esc(engineState.attached) + '"</span>';
+    engineState.attached = null;
+    if (!engineMilestones.detached) { engineMilestones.detached = true; }
+  } else if (expanded === 'kill-session') {
+    var ktarget = getFlag(parts, '-t');
+    if (!ktarget) {
+      out += '<span class="c-err">missing -t target</span>';
+      engineOut(out); return;
+    }
+    if (!engineGetSession(ktarget)) {
+      out += '<span class="c-err">session "' + esc(ktarget) + '" not found</span>';
+      engineOut(out); return;
+    }
+    delete engineState.sessions[ktarget];
+    if (engineState.attached === ktarget) engineState.attached = null;
+    out += '<span class="c-ok">killed session "' + esc(ktarget) + '"</span>';
+    if (!engineMilestones.killed) { engineMilestones.killed = true; }
+  } else if (expanded === 'kill-server') {
+    engineState.sessions = {};
+    engineState.attached = null;
+    out += '<span class="c-ok">killed all sessions</span>';
+  } else if (expanded === 'rename-session') {
+    var oldN = getFlag(parts, '-t');
+    var newN = parts[parts.length - 1];
+    if (!oldN || !newN || oldN === newN) {
+      out += '<span class="c-err">usage: rename-session -t old new</span>';
+      engineOut(out); return;
+    }
+    if (!engineGetSession(oldN)) {
+      out += '<span class="c-err">session "' + esc(oldN) + '" not found</span>';
+      engineOut(out); return;
+    }
+    if (engineGetSession(newN)) {
+      out += '<span class="c-err">duplicate session: "' + esc(newN) + '"</span>';
+      engineOut(out); return;
+    }
+    engineState.sessions[newN] = engineState.sessions[oldN];
+    delete engineState.sessions[oldN];
+    if (engineState.attached === oldN) engineState.attached = newN;
+    out += '<span class="c-ok">renamed "' + esc(oldN) + '" → "' + esc(newN) + '"</span>';
+  } else if (expanded === 'has-session') {
+    var ht = getFlag(parts, '-t');
+    if (!ht) { out += '<span class="c-err">missing -t</span>'; engineOut(out); return; }
+    if (engineGetSession(ht)) {
+      out += '<span class="c-ok">session "' + esc(ht) + '" exists</span>';
+    } else {
+      out += '<span class="c-err">session "' + esc(ht) + '" not found</span>';
+    }
+  } else if (expanded === 'source-file') {
+    out += '<span class="c-ok">config reloaded (simulated)</span>';
+  } else {
+    out += '<span class="c-err">unknown command: "' + esc(sub) + '"</span>\n';
+    out += '<span class="c-dim">支持：new-session / list-sessions / attach-session / kill-session / kill-server / detach-client / rename-session / has-session</span>';
+  }
+
+  engineOut(out + '\n\n<span class="c-dim">── 当前状态 ──</span>\n' + engineRender());
+  engineCheckMilestones();
+}
+
+function engineKeyAction(key) {
+  var s = engineActiveSession();
+  if (!s) {
+    engineOut('<span class="c-err">no attached session — 先 tmux new -s &lt;name&gt;</span>');
+    return;
+  }
+  var win = engineActiveWindow();
+  if (!win) {
+    engineOut('<span class="c-err">no active window</span>');
+    return;
+  }
+  var out = '<span class="c-dim">Ctrl-b ' + esc(key) + '</span>\n';
+  var sname = engineState.attached;
+
+  if (key === 'c') {
+    var idx = s.windows.length;
+    s.windows.push({ name: 'bash', panes: [{ id: sname + '.' + idx + '.0', zoomed: false }], activePane: 0 });
+    s.activeWindow = idx;
+    out += '<span class="c-ok">new window ' + idx + ' created</span>';
+  } else if (key === '%') {
+    var pidx = win.panes.length;
+    var prefix = sname + '.' + s.activeWindow;
+    win.panes.push({ id: prefix + '.' + pidx, zoomed: false });
+    win.activePane = pidx;
+    out += '<span class="c-ok">split vertical (左右分屏) → pane ' + prefix + '.' + pidx + '</span>';
+    if (!engineMilestones.split) { engineMilestones.split = true; }
+  } else if (key === '"') {
+    var pidx2 = win.panes.length;
+    var prefix2 = sname + '.' + s.activeWindow;
+    win.panes.push({ id: prefix2 + '.' + pidx2, zoomed: false });
+    win.activePane = pidx2;
+    out += '<span class="c-ok">split horizontal (上下分屏) → pane ' + prefix2 + '.' + pidx2 + '</span>';
+    if (!engineMilestones.split) { engineMilestones.split = true; }
+  } else if (key === 'o') {
+    win.activePane = (win.activePane + 1) % win.panes.length;
+    out += '<span class="c-ok">focus → pane ' + win.panes[win.activePane].id + '</span>';
+  } else if (key === 'z') {
+    var cur = win.panes[win.activePane];
+    cur.zoomed = !cur.zoomed;
+    out += cur.zoomed ? '<span class="c-ok">zoomed in (再按 z 恢复)</span>' : '<span class="c-ok">zoom restored</span>';
+  } else if (key === 'd') {
+    out += '<span class="c-ok">detached from "' + esc(sname) + '"</span>';
+    engineState.attached = null;
+    if (!engineMilestones.detached) { engineMilestones.detached = true; }
+  } else if (key === 'x') {
+    if (win.panes.length <= 1) {
+      out += '<span class="c-err">cannot close last pane in window (use Ctrl-b & to kill window)</span>';
+    } else {
+      var closed = win.panes.splice(win.activePane, 1);
+      if (win.activePane >= win.panes.length) win.activePane = win.panes.length - 1;
+      out += '<span class="c-ok">closed pane ' + closed[0].id + '</span>';
+    }
+  } else if (key === 'n') {
+    if (s.windows.length <= 1) {
+      out += '<span class="c-dim">only one window</span>';
+    } else {
+      s.activeWindow = (s.activeWindow + 1) % s.windows.length;
+      out += '<span class="c-ok">→ window ' + s.activeWindow + ': ' + esc(s.windows[s.activeWindow].name) + '</span>';
+    }
+  } else if (key === 'p') {
+    if (s.windows.length <= 1) {
+      out += '<span class="c-dim">only one window</span>';
+    } else {
+      s.activeWindow = (s.activeWindow - 1 + s.windows.length) % s.windows.length;
+      out += '<span class="c-ok">→ window ' + s.activeWindow + ': ' + esc(s.windows[s.activeWindow].name) + '</span>';
+    }
+  } else if (key === '[') {
+    engineState.copyMode = !engineState.copyMode;
+    out += engineState.copyMode ? '<span class="c-warn">entered copy-mode (scroll / select / copy)</span>' : '<span class="c-ok">exited copy-mode</span>';
+  } else {
+    out += '<span class="c-dim">unknown key: ' + esc(key) + '</span>';
+  }
+
+  engineOut(out + '\n\n<span class="c-dim">── 当前状态 ──</span>\n' + engineRender());
+  engineCheckMilestones();
+}
+
+$('tmuxRun').addEventListener('click', function () {
+  engineExec($('tmuxInput').value);
+  $('tmuxInput').value = '';
+});
+$('tmuxInput').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); engineExec($('tmuxInput').value); $('tmuxInput').value = ''; }
+});
+$('tmuxReset').addEventListener('click', function () {
+  engineInit();
+  engineOut('<span class="c-dim">— 状态已重置 —</span>');
+});
+
+var keyBtns = document.querySelectorAll('#keyRow .key-btn');
+for (var ki = 0; ki < keyBtns.length; ki++) {
+  keyBtns[ki].addEventListener('click', function () {
+    engineKeyAction(this.dataset.key);
+  });
+}
+
+/* ═══════════════ 掌握度测验 ═══════════════ */
+var quizData = [
+  { q: 'tmux 在 SSH 断开后能恢复会话，核心原因是？', opts: ['SSH 协议本身支持断点续传', 'tmux server 进程独立于客户端运行，终端只是连接上去的显示层', 'tmux 把命令执行结果存到了磁盘文件', 'tmux 会重发所有之前执行过的命令'], right: 1, expl: 'tmux server 进程活在服务器端，客户端断开不影响它；attach 只是重新连上。' },
+  { q: 'tmux 默认前缀键是什么？改成 Ctrl-a 需要哪两条关键配置？', opts: ['默认 Ctrl-a；只需 set -g prefix C-a', '默认 Ctrl-b；需要 unbind C-b + set -g prefix C-a + bind C-a send-prefix', '默认 Alt；需要 set -g prefix M-a', '默认 Esc；无法修改'], right: 1, expl: '默认 Ctrl-b；改键需要 unbind 旧的、set 新的、bind send-prefix 让前缀本身也能转发。' },
+  { q: 'tmux new -A -s dev 的行为是？', opts: ['每次都创建新 session，同名报错', 'session dev 存在就 attach，不存在就创建', '只创建不 attach', '删除已有的 dev session 再创建'], right: 1, expl: '-A 是幂等操作：存在就 attach，不存在就 new。脚本里特别好用。' },
+  { q: 'Ctrl-b c、Ctrl-b n、Ctrl-b , 分别做什么？', opts: ['新建 window / 下一个 window / 重命名当前 window', '关闭 window / 上一个 window / 新建 window', '新建 window / 重命名 / 切换 window', '三个都是新建 window'], right: 0, expl: 'c = create, n = next, , = rename（助记：逗号像在编辑名字）。' },
+  { q: 'Ctrl-b % 和 Ctrl-b " 的分屏方向分别是？', opts: ['% 上下分、" 左右分', '% 左右分（竖线）、" 上下分（横线）', '两者完全相同', '% 关闭分屏、" 新建分屏'], right: 1, expl: '% 是竖线符号 → 左右分；" 是横线 → 上下分。' },
+  { q: '进入复制模式后，正确的操作流程是？', opts: ['Ctrl-b [ → 方向键移动 → Space 开始选择 → Enter 复制 → Ctrl-b ] 粘贴', 'Ctrl-b [ → 自动复制全部内容 → 直接粘贴', '复制模式只能滚动查看，不能选择文本', '必须依赖系统剪贴板，Ctrl-b [ 会调用 xclip'], right: 0, expl: '复制模式用 tmux 自己的 paste-buffer，不依赖系统剪贴板。' },
+  { q: 'set -g mouse on 和 set -g history-limit 50000 分别控制什么？', opts: ['鼠标开关 / 滚动缓冲行数', '鼠标灵敏度 / window 数量上限', '触控板支持 / paste-buffer 大小', '自动分屏 / 终端颜色数'], right: 0, expl: 'mouse on 启用鼠标滚动/点击/拖拽；history-limit 控制每个 pane 的滚动缓冲行数（默认 2000）。' },
+  { q: '远程服务器跑 3 小时训练任务，正确的 tmux 工作流是？', opts: ['直接 ssh 跑，断开后重新 ssh 任务还在', 'ssh → tmux new -s train → 跑任务 → Ctrl-b d detach → 回家后 ssh → tmux attach -t train', 'ssh → screen -r（和 tmux 无关）→ 跑任务', 'tmux 不支持 SSH 场景，只能本地用'], right: 1, expl: 'tmux 包住长任务 → detach 走人 → 重连 attach 恢复，这正是 tmux 的核心价值。' }
+];
+
+IL.quiz({
+  key: 'tmux',
+  box: 'quizBox',
+  data: quizData,
+  title: 'tmux 终端复用',
+  pass: 6,
+  onPass: function () { MC.complete(8); }
+});
+
+/* ═══════════════ init ═══════════════ */
+showNav();
+</script>
+</body>
+</html>

@@ -94,7 +94,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'n8n 工作流自动化',
     desc: '从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑',
-    size: '102 KB',
+    size: '104 KB',
     tags: ['工作流', '节点', '触发器', '自动化', 'Cron']
   },
   {
@@ -126,7 +126,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'YAML 标记语言',
     desc: '缩进即结构——掌握容器编排、CI/CD 与云原生配置的核心标记语言',
-    size: '45 KB',
+    size: '47 KB',
     tags: ['缩进', '键值', '列表', '锚点']
   },
   {
@@ -142,7 +142,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'Git 版本控制',
     desc: '对象模型、三区流动、提交图模拟、分支合并与团队协作的完整交互式学习',
-    size: '105 KB',
+    size: '106 KB',
     tags: ['分支', '合并', '提交', '暂存'],
     progress: 'git',
     total: 9
@@ -152,7 +152,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'Shell 脚本',
     desc: '内置迷你终端：变量、引号、管道、重定向、条件、循环与函数，动手学 Bash',
-    size: '95 KB',
+    size: '96 KB',
     tags: ['Shell', '变量', '管道', '脚本'],
     progress: 'bash',
     total: 9
@@ -162,7 +162,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'PLC 交互式学习',
     desc: '可编程逻辑控制器原理、梯形图编程与工业自动化仿真模拟',
-    size: '83 KB',
+    size: '84 KB',
     tags: ['梯形图', '继电器', '三菱', '扫描']
   },
   {
@@ -433,6 +433,16 @@ window.IL_COURSES = [
     size: '80 KB',
     tags: ['缓存', '回源', 'Cache-Control', 'ETag'],
     progress: 'cdn',
+    total: 9
+  },
+  {
+      key: 'tmux',
+    cat: 'tools',
+    title: 'tmux 终端复用',
+    desc: '迷你 tmux 会话模拟器：前缀键模型、session/window/pane 三级结构、复制模式与缓冲区、~/.tmux.conf 手感配置',
+    size: '92 KB',
+    tags: ['session', 'pane', '分屏', '复制模式', '前缀键'],
+    progress: 'tmux',
     total: 9
   },
   {

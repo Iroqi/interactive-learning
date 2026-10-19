@@ -13,7 +13,7 @@
 | 维度 | 详情 |
 |------|------|
 | 分类 | DevOps / CS 基础 / 自动化 / 开发工具 |
-| 学习专题 | 45 个（持续扩展中） |
+| 学习专题 | 46 个（持续扩展中） |
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动；里程碑型看全部解锁，纯测验型看测验得分率 ≥ 75% |
@@ -34,17 +34,18 @@
 ├── ilquizzes.js                       # 壳层挂载测验的题库（无自测题的早期模块）
 ├── src/                               # 模块**源码**（自包含 HTML，作者直接编辑这里）
 │   ├── git-interactive.html
-│   └── ...                            # 共 45 个源码页，可单独用浏览器打开
+│   └── ...                            # 共 46 个源码页，可单独用浏览器打开
 ├── modules/                           # 构建产物：数据文件（按需加载）
 │   ├── git.js                         # 每条 = { title, css, html, js, links, needsReady }
-│   └── ...                            # 共 45 个模块，由 src/ 打包生成
+│   └── ...                            # 共 46 个模块，由 src/ 打包生成
 ├── tools/
 │   ├── pack-modules.py                # 构建：src/<key>-interactive.html → modules/<key>.js
 │   ├── unpack-modules.js              # 反向：modules/<key>.js → src/（恢复丢失的源码层）
 │   ├── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
 │   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致
 │   ├── check-theme.js                 # 校验：主题 token 双主题齐备、skin 无写死颜色、模块变量均已映射
-│   └── check-contrast.js              # 校验：45 模块 × 亮暗双主题的真实渲染对比度（需浏览器，缺失则 SKIP）
+│   ├── check-contrast.js              # 校验：46 模块 × 亮暗双主题的真实渲染对比度（需浏览器，缺失则 SKIP）
+│   └── check-tap.js                   # 校验：46 模块 × 390×844 触屏视口的触控热区地板（需浏览器，缺失则 SKIP）
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
 ├── .gitignore
@@ -107,7 +108,7 @@
 | vfd | 变频器交互式学习 — 变频驱动器工作原理、参数配置与电机控制实践 |
 | plc | PLC 交互式学习 — 可编程逻辑控制器原理、梯形图编程与工业自动化仿真模拟 |
 
-### 开发工具（10 个）
+### 开发工具（11 个）
 
 | 模块 | 描述 |
 |------|------|
@@ -121,6 +122,7 @@
 | ts | TypeScript 类型系统 — 迷你判读器：类型标注、推断、interface、联合类型、函数类型、泛型与实用类型（9 个里程碑，进度自动保存） |
 | css | CSS 布局与盒模型 — 迷你布局预测器：盒模型、选择器优先级、Flexbox/Grid、居中、断点与层叠（9 个里程碑，进度自动保存） |
 | css-layout | CSS 布局系统实战 — 迷你布局计算引擎：盒模型尺寸、flex 伸缩分配、grid 轨道与区域、居中与层叠上下文（9 个里程碑，进度自动保存） |
+| tmux | tmux 终端复用 — 迷你会话模拟器：前缀键模型、session/window/pane 三级结构、复制模式与缓冲区、`~/.tmux.conf` 手感配置（9 个里程碑，进度自动保存） |
 
 > PID 专题下的 `pid-courseware/` 三讲视频课件从 PID 模块页内进入，不单独占卡片入口。
 
@@ -168,6 +170,7 @@ node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check
 node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎
 node tools/check-theme.js       # 确认新模块没有把颜色写死、也没漏掉 token 映射
 node tools/check-contrast.js    # 量渲染后的实际对比度（需 Playwright + Chromium，没有则 SKIP）
+node tools/check-tap.js         # 量渲染后的触控热区（同上，需浏览器）
 ```
 
 前两条是静态检查，第三条是浏览器检查：它把模块真正渲染出来（390×844 触摸视口、按读者方式滚动、等淡入与过渡走完）再量"这个字压在这个底上"的比值。`--source` 会屏蔽运行时兜底、按"路径 + 前景色"聚合出源头簇，用来定位到底是哪条 CSS 规则出了问题：
@@ -201,7 +204,7 @@ node tools/check-contrast.js --source --keys=n8n --top=20
 }
 ```
 
-`size` 和 `tags` 不是装饰，`node tools/check-courses.js` 会当场核对：`size` 必须等于 `modules/<key>.js` 的实际体积（±1 KB），`tags` 必须 3～6 个、不与 key 同名、**每个词都真的出现在 `src/<key>-interactive.html` 里**。这条下限很重要——写一个模块根本不讲的词，等于让搜索承诺不存在的内容。
+`size` 和 `tags` 不是装饰，`node tools/check-courses.js` 会当场核对：`size` 必须**精确等于** `modules/<key>.js` 的实际体积（判据是 `Math.round(字节数 / 1024)`，不留 ±1 容差——理由见下文"元数据必须有裁判"），`tags` 必须 3～6 个、不与 key 同名、**每个词都真的出现在 `src/<key>-interactive.html` 里**。这条下限很重要——写一个模块根本不讲的词，等于让搜索承诺不存在的内容。
 
 保存后导航页自动完成：卡片渲染、分类计数、页脚总数、进度条与「我的学习进度」总览的联动。**不再需要手动改 `index.html`。**
 
@@ -237,7 +240,7 @@ if (window.IL && IL.record) IL.record(MODULE_KEY, score, total, quizWrongs);  //
 
 题目写死在 HTML 里、答案另存 `ANSWERS[]` 的模块（`regex` / `sql`）改用 `IL.orderDom(key, cards, labelSel)`：它返回 `perm`（呈现位置 → 原始下标），按同一张表重排 `ANSWERS` 即可保持判分正确。
 
-没有自测题的模块也会被壳层自动接入：`index.html` 在进入任意模块时调用 `IL.touch(key)` 记录访问时间，因此连续学习、热力图、到期复习对全部 45 个模块生效；`ilquizzes.js` 里登记的模块还会在页尾被挂载一份共享测验（8 题），成绩与错题进入同一套 `quiz.wrongs` 协议。目前 45 个模块全部有判分测验（40 个模块自带 + 5 个壳层挂载）。
+没有自测题的模块也会被壳层自动接入：`index.html` 在进入任意模块时调用 `IL.touch(key)` 记录访问时间，因此连续学习、热力图、到期复习对全部 46 个模块生效；`ilquizzes.js` 里登记的模块还会在页尾被挂载一份共享测验（8 题），成绩与错题进入同一套 `quiz.wrongs` 协议。目前 46 个模块全部有判分测验（41 个模块自带 + 5 个壳层挂载）。
 
 ### 4. Commit 并推送
 
@@ -270,7 +273,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 
 | Job | 作用 |
 |------|------|
-| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行） |
+| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行）。再跑 `node tools/check-tap.js`：同一份浏览器、390×844 触屏视口下遍历全部模块的触控热区，硬失败（<24px）预算 0 |
 | **GitHub Pages** | `iroqi.github.io/interactive-learning/`，`actions/deploy-pages@v4`，无需 Secret |
 | **Cloudflare Pages** | `iroqi.pages.dev`，`wrangler-action@v3`，需 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
 
@@ -281,7 +284,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 ## 技术约定
 
 - **模块自包含**：CSS 和 JS 全部内联，每个 `src/*.html` 独立可运行
-- **元数据必须有裁判**：`courses.js` 是人写的元数据，没有校验就会腐烂（Round 16 发现 44/45 条 `size` 与实际体积不符）。新增字段前先问"谁来证明它是对的"——`size`/`tags`/`total` 现在由 `tools/check-courses.js` + CI 守着
+- **元数据必须有裁判**：`courses.js` 是人写的元数据，没有校验就会腐烂（Round 16 发现 44/45 条 `size` 与实际体积不符）。新增字段前先问"谁来证明它是对的"——`size`/`tags`/`total` 现在由 `tools/check-courses.js` + CI 守着。`size` 的判据本轮从 ±1 容差收紧成**精确相等**：容差让 CI 绿而本地探针红（yaml 46↔47、plc 83↔84），两个裁判口径不一致时，容差只会掩盖漂移
 - **搜索靠数据不靠猜**：壳层不为模块维护第二份词表，可搜文本全部来自 `courses.js` 的 `tags`，且每个词都在模块源码中验证过
 - **主题只有一个权威**：`localStorage.il_theme` + `IL.isDark()` / `IL.toggleTheme()`，切换时派发 `il:theme` 事件，壳层的 `applyTheme()` 监听它。模块自带主题按钮**必须**调 `IL.toggleTheme()`（参考 `src/docker-interactive.html:556`），不要自己写 `<html data-theme>` 或另存一份 key——`<html>` 上的这个属性是壳层和 5 个模块共用的，模块直接写会把全站主题抢走（表现为"切过一次模块主题，暗色再也回不来"）
 - **成对声明前景与底色**：给元素写 `background: var(--primary)` 这类实心色块时，前景必须一起写成 `color: var(--sk-on-accent, #fff)`。暗色 token 是霓虹绿（配深字）、亮色 token 是墨绿（配白字），写死 `#fff` 必然在其中一边破 AA。壳层外的独立页面没有 `--sk-on-accent`，走 fallback，行为不变
@@ -291,8 +294,10 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 - **主题/模块配对的逃生阀**：`renderModule()` 会写 `moduleRoot.dataset.mod = key`，skin 里可以按模块精确配对，例如 `html[data-theme="light"] #moduleRoot[data-mod="git"] h2 .num { background:#c23616 !important }`、`#moduleRoot[data-mod="plc"] .simulator {…}`。模块源码里同理：壳层有 `#moduleRoot .num {…}`（1,1,0 + `!important`），模块想配对前景必须自带 `!important`，否则被壳层压过去
 - **SVG 文字用 `fill` 上色**：`color` 在 `<text>` 上根本不生效，而它的真实底色通常是同一 `<g>` 里那块 `<rect fill="#hex">`（**属性**，`backgroundColor` 看不见）。审计和兜底都必须读 `cs.fill` 并合成那块板，否则图示标签在两边都是隐形盲区；`<svg>` 根节点上的直接子元素没有 `ownerSVGElement`，找底板时不能拿它当判据。底板还可能是半透明色晕（`rgba(46,204,113,.15)`），必须继续往下层 HTML 祖先合成——把它当不透明底色会把本来清楚的浅绿字改到近黑
 - **代码面板恒定深色**：`pre` / `.code-block` / `.console` 等终端类区块在两个主题下都用 `--sk-code-bg`/`--sk-code-fg`，不随主题翻转。模块里的语法高亮色板（`.kw`/`.str`/`.fn`…）本来就是"深底浅字"配色，翻成白底会让整批 inline span 掉到 2:1 以下
+- **SVG 文字可以 `fill="var(--token)"`**：Chrome 支持在 SVG 呈现属性里用 `var()`，所以图示标签想跟主题走不必写死两套 hex——模块里加 `[data-theme="light"] { --svg-label:#5c6674 }` / `[data-theme="dark"] { --svg-label:#8888aa }`，正文写 `fill="var(--svg-label)"` 即可（n8n 的 11 个标签就是这么改的）。也别为了修亮色把字色改成单一深灰：`#8888aa` 在亮色 5.82 通过、`#5c6674` 在暗色只剩 3.26，同一支颜色在两个主题下的合格区间常常不重叠，必须按主题配对
+- **模块的事件监听器由壳层包一层再注册**：`trackListeners()` 在模块脚本执行期间把 `window/document.addEventListener` 的回调包成「带 epoch 判活 + 恢复 curEpoch」的包装函数，`releaseModule()` 按包装函数摘除；另记一张 `modWrap`（原函数 → 包装函数），使模块自己 `removeEventListener(原函数)` 也能摘干净。堵的是这一类残留：模块最常见的滚动 spy 写成 `scroll → setTimeout(showNav, 60)`，回调执行时 `curEpoch` 是 `null`，那个 `setTimeout` 走原生实现、既没记账也没判活，切走之后照样跑起来，对着已经 `innerHTML=''` 的 DOM 写 `textContent`（plc / n8n / gh-actions / redis 那一族稳定抛 `TypeError`）。包一层之后，处理器内部再排的定时器会正常随模块回收
 - **运行时对比度只是兜底**：`ILContrast` 在渲染后测量文字与实际合成底色，不足 AA 就沿 HSL 明度微调（保持色相/饱和度），改 `color` 或 SVG 的 `fill` 并记在 `data-ilc` 上以便撤销。它能救命，但不是修问题的地方——颜色要一直在被它改，说明源头没配对，该回去改 token。审计脚本与它**故意共用同一套合成规则**（忽略 `background-image`、不看元素 `opacity`、白色画布打底）：两边算出不同的数就会出现"审计说 1.11、运行时说 4.62"的僵局，谁也修不了
-- **手机可用性下限**：可点击目标 ≥32px 高（Android 48dp 是理想值，本轮采用 iOS 实际下限）、输入框字号 ≥16px（iOS 聚焦时不自动放大）、模块不得出现横向溢出或被 `overflow-x: hidden` 吞掉的不可达内容。这几条每轮由 Playwright 探针在 390×844 视口下量（探针脚本不进仓库，与往轮 smoke 一致），断言口径见上一段
+- **手机可用性下限**：触控热区分两层口径——**硬地板 24×24px**（WCAG 2.5.8 AA「Minimum Target Size」，宽或高任一不足即失败，`tools/check-tap.js` 按它判 FAIL）与**建议值 32px**（iOS/Android 可用性下限，check-tap 只列 WARN，由模块作者决定）。32/44 是厂商建议而不是规范硬线：把正文行内的外链、代码块里的 `💡` 提示、紧凑 stepper 一律拉到 44px 只会撑坏既有排版，换来的只是报表好看。地板实现在 skin 末尾（`#moduleRoot button/input/select/textarea/a[href] { min-height:24px }` + checkbox/radio 等尺寸盒 + `label:has(input){min-height:32px}`），行内链接天然豁免（`min-height` 对 `display:inline` 无效，正好对上 2.5.8 的 Inline 例外）；被 ≥32px 的 label 包裹的 radio/checkbox 也豁免（热区由 label 承担）。另外两条不变：输入框字号 ≥16px（iOS 聚焦时不自动放大）、模块不得出现横向溢出或被 `overflow-x: hidden` 吞掉的不可达内容。这几条由 Playwright 在 390×844 视口下**遍历全部模块**，且已从往轮的临时探针升级为仓库内闸门 `tools/check-tap.js`（CI 与对比度审计共用同一次浏览器安装）——上一轮的 tap 检查只在哈希当前那一个模块上跑，等于其余模块的控件从来没被测过
 - **模块 JS 用 ES5**：`modules/*.js` 的 `js` 字段被当作非模块 `<script>` 执行，早期模块统一用 `var` / `function`（新模块的顶层代码由打包脚本自动隔离作用域，见上文）
 - **结构约定**：模板类模块固定 9 个编号里程碑（`<span class="num">1..9</span>`）+ 一个 `✓` 下一步章节，第 9 节为掌握度测验；迷你引擎可以是独立章节（`⚡`，置于测验前），也可以嵌在某节内
 - **字体**：通过 Google Fonts CDN 引入，仅引入字体，不引入任何 JS 框架

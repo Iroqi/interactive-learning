@@ -81,7 +81,10 @@ courses.forEach((c) => {
   const claim = parseInt(String(c.size || '').replace(/[^\d]/g, ''), 10);
   if (!c.size) { note(`${c.key}: 缺少 size`); return; }
   if (isNaN(claim)) { note(`${c.key}: size 无法解析（${c.size}）`); return; }
-  if (Math.abs(claim - real) > 1) note(`${c.key}: size 标 ${c.size}，实际 modules/${c.key}.js 是 ${real} KB`);
+  /* 判据收紧为"精确相等"：±1 的容差与 smoke 里那条 exact 检查互相矛盾，
+     于是 CI 绿、本地红（yaml 46 vs 47、plc 83 vs 84 就是这么溜过去的）。
+     size 本来就是脚本自动同步的，没有必须手写的理由，容差只会掩盖漂移。 */
+  if (claim !== real) note(`${c.key}: size 标 ${c.size}，实际 modules/${c.key}.js 是 ${real} KB`);
 });
 
 /* ── 4. progress / total pairing, and total must be backed by steps ── */

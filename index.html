@@ -1724,8 +1724,46 @@
   #moduleRoot .og-fill,
   #moduleRoot .ov-cat-fill { box-shadow: 0 0 10px var(--sk-tint-40); }
   #moduleRoot .mast h1 em { text-shadow: 0 0 12px var(--sk-tint-35); }
-  
-  
+
+  /* ── 触控热区地板（本轮由 46 模块普查定线）────────────────────────────
+     390×844 触屏下实测：12 个模块有 47 个真控件 <24px、11 个模块有 125 个
+     落在 24–31px。逐模块补 padding 要改十几套 CSS，而其中绝大多数只是
+     "盒子比手指窄"，不是布局问题，所以地板放在 skin 层。
+
+     为什么阈值取 24 而不是 32/44：
+       - 32/44 是 Apple HIG / Material 的建议值，不是规范硬线；对"正文行内的
+         外链""代码块里的 💡 提示""紧凑 stepper"这类元素强行拉到 44px 会撑坏
+         既有排版，换来的只是"看起来更绿"的报表。
+       - WCAG 2.5.8（AA）的判据是 **24×24 CSS 像素**，并给了 Inline 例外：
+         行内链接由周围文字控制间距时免于该尺寸。所以这里按规范线做硬地板，
+         行内链接（display:inline 的 a / span / code）一概不动。
+     仍低于 32px 的那批（修完地板后实测 146 个）交给 tools/check-tap.js 以 WARN
+     形式列出，由模块作者决定。 */
+  #moduleRoot button:not([role="link"]),
+  #moduleRoot select,
+  #moduleRoot textarea,
+  #moduleRoot input:not([type="range"]):not([type="color"]):not([type="hidden"]),
+  #moduleRoot [role="button"]:not([role="link"]),
+  #moduleRoot a[href]:not([role="link"]) { min-height: 24px; }
+  /* min-height 对 display:inline 的盒无效，所以正文里的行内 <a> 天然不受这条
+     影响（也正因如此不需要再写 "除行内链接外" 的排除条件）。 */
+  /* 原生 checkbox/radio 只设 min-height 会画成"18px 的方框占 24px 的盒"
+     （实测 13x18 / 13x13），视觉错位；直接给等尺寸盒，浏览器会缩放对勾。
+     这里必须带 !important：CSS 隔离把模块规则也前缀成 `#moduleRoot .complete-check
+     input[type="checkbox"]`（特异度 1,2,1），比这条 1,1,1 更高——cf-workers 的
+     `width:18px` 就是靠这个把 24px 顶掉的（实测宽仍是 13）。 */
+  #moduleRoot input[type="checkbox"],
+  #moduleRoot input[type="radio"] { width: 24px !important; height: 24px !important; flex: none; }
+  /* 包裹型 label（`<label><input>文字</label>`）是真正的热区，模块普遍只给它
+     0.8–0.9em 字号（docker 实测 23px、cf-workers 27px），拉到 32px 才不丢点。
+     带 for= 的标题 label（"姓名 <input id=x>"在结构上不是父级）不受影响。 */
+  #moduleRoot label:has(input),
+  #moduleRoot label:has(select),
+  #moduleRoot label:has(textarea) { min-height: 32px; }
+  /* 用 div 冒充复选框的模块（makefile .check-box 22x22）：模块侧补不了就点名，
+     与 [data-mod="git"] h2 .num 同一套"精确点名"逃生阀。 */
+  #moduleRoot[data-mod="makefile"] .check-box { width: 28px; height: 28px; }
+
   </style>
 
   <script src="courses.js"></script>
@@ -2717,6 +2755,8 @@
       var nativeRaf = window.requestAnimationFrame;
       var nativeDocAdd = document.addEventListener;
       var nativeWinAdd = window.addEventListener;
+      var nativeDocRemove = document.removeEventListener;
+      var nativeWinRemove = window.removeEventListener;
 
       function running(epoch, fn) {
         curEpoch = epoch;
@@ -2759,10 +2799,44 @@
         return id;
       };
 
-      function trackListeners(target, native) {
+      /* 记账时就给回调包一层，事件触发时把 curEpoch 恢复回去。
+       * 以前只在「脚本执行期间」和「本模块排定的计时回调里」设 curEpoch，
+       * 于是模块最常用的一条链漏了回收：
+       *   window.addEventListener('scroll', function () {
+       *     clearTimeout(t); t = setTimeout(showNav, 60);   // 滚动里的 debounce
+       *   });
+       * scroll 回调执行时 curEpoch 是 null → 这个 setTimeout 走的是原生实现，
+       * 既没进 modTimers（离开模块时不会被 clear），也没有 epoch 判活，
+       * 于是切走之后它照样跑起来，对着已经 innerHTML='' 的 DOM 写 textContent：
+       *   plc / n8n / gh-actions / redis 系（showNav 那一族）稳定抛
+       *   TypeError: Cannot set properties of null (setting 'textContent')
+       * 包一层之后，处理器内部再排的定时器会正常记账并随模块一起回收。
+       * modWrap 同时记下「原函数 → 包装函数」，好让模块自己 removeEventListener(原函数)
+       * 也能摘掉我们注册的包装（否则它会静默失配，监听器永远留在 window 上）。 */
+      var modWrap = [];
+      function trackListeners(target, nativeAdd, nativeRemove) {
         target.addEventListener = function (type, handler, opts) {
-          if (curEpoch !== null) modListeners.push({ t: target, type: type, h: handler, o: opts });
-          return native.call(target, type, handler, opts);
+          if (curEpoch === null || typeof handler !== 'function') {
+            return nativeAdd.call(target, type, handler, opts);
+          }
+          var epoch = curEpoch;
+          var wrapped = function (evt) {
+            if (epoch !== modEpoch) return;      // 模块已被替换：连事件都不必处理
+            return running(epoch, function () { return handler.call(this, evt); });
+          };
+          modListeners.push({ t: target, type: type, h: handler, w: wrapped, o: opts });
+          modWrap.push({ t: target, type: type, h: handler, w: wrapped, o: opts });
+          return nativeAdd.call(target, type, wrapped, opts);
+        };
+        target.removeEventListener = function (type, handler, opts) {
+          for (var i = modWrap.length - 1; i >= 0; i--) {
+            var rec = modWrap[i];
+            if (rec.t === target && rec.type === type && rec.h === handler) {
+              modWrap.splice(i, 1);
+              return nativeRemove.call(target, type, rec.w, opts);
+            }
+          }
+          return nativeRemove.call(target, type, handler, opts);
         };
       }
 
@@ -2770,13 +2844,15 @@
         modTimers.forEach(function (id) { clearTimeout(id); clearInterval(id); });
         modRafs.forEach(function (id) { window.cancelAnimationFrame(id); });
         modListeners.forEach(function (l) {
-          try { l.t.removeEventListener(l.type, l.h, l.o); } catch (e) { /* ignore */ }
+          /* 用记账时的包装函数摘除；顺带试一次原始 handler，
+             兼容那些把同一个函数既 add 又自行 remove 的模块。 */
+          try { l.t.removeEventListener(l.type, l.w, l.o); } catch (e) { /* ignore */ }
         });
-        modTimers = []; modRafs = []; modListeners = [];
+        modTimers = []; modRafs = []; modListeners = []; modWrap = [];
       }
 
-      trackListeners(window, nativeWinAdd);
-      trackListeners(document, nativeDocAdd);
+      trackListeners(window, nativeWinAdd, nativeWinRemove);
+      trackListeners(document, nativeDocAdd, nativeDocRemove);
 
       /* ═════════ 模块 CSS 隔离 ═════════
        * 模块的样式表以前是整份 append 到 <head> 的，于是它们里的全局选择器
