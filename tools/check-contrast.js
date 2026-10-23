@@ -32,6 +32,21 @@
  *   --keys=bash,git     a subset of modules
  *   --top=N             cluster rows to print in --source mode (default 30)
  *   --budget=N          allowed failing rows in shipped mode (default 0)
+ *   --cover=90          minimum share of text elements that must actually be measured
+ *   --no-reveal         reader state only (reproduces the pre-Round-19 behaviour)
+ *   --no-nav            skip the shell navigation page
+ *
+ * Round 19 — coverage, because "0 failures" used to mean "0 measurements".
+ * The collector dropped every element with a zero-size box or display:none and
+ * never reported how many it had dropped. Content that only appears after the
+ * reader interacts — a collapsed `<details>` hint, an inactive tab panel, the
+ * `display:none` reveal makefile writes eight times — was therefore invisible
+ * to the gate: plc measured 64 of 332 text elements (19%). That is the same
+ * shape Round 18 caught in tools/check-tap.js (plc 5/86 there), so the fix is
+ * the same shape: measure twice, reveal the ancestor chain in between, and make
+ * the coverage number a hard gate. `#navView` was an even blinder hole: the
+ * collector queried it, but the loop only ever ran with the module view open,
+ * so the navigation page had never been audited at all.
  *
  * No browser/Playwright available → the audit prints SKIP and exits 0, so CI
  * (which has neither) keeps passing while local runs stay honest.
@@ -53,6 +68,9 @@ const THEME = opt('theme', 'both');
 const ONLY = opt('keys', '');
 const TOP = parseInt(opt('top', '30'), 10);
 const BUDGET = parseInt(opt('budget', '0'), 10);
+const COVER = parseInt(opt('cover', '90'), 10);
+const REVEAL = argv.indexOf('--no-reveal') < 0;
+const NAV = argv.indexOf('--no-nav') < 0;
 
 /* ── locate Playwright + Chromium without making them a hard dependency ── */
 function loadPlaywright() {
@@ -91,7 +109,7 @@ const ratio = (a, b) => {
 };
 
 /* ── in-page collector ── */
-const COLLECT = () => {
+const COLLECT = (scope) => {
   const SYM = /^[\s\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{2000}-\u{206F}\u{00B7}\u{2022}]+$/u;
   const rgbOf = (c) => {
     const m = /rgba?\(([^)]+)\)/.exec(String(c || ''));
@@ -124,10 +142,10 @@ const COLLECT = () => {
     return s.join(' > ');
   }
   function sel(el) {
-    const inRoot = el.closest && el.closest('#moduleRoot') ? '#moduleRoot ' : '';
+    const inNav = el.closest && el.closest('#navView') ? '#navView ' : (el.closest && el.closest('#moduleRoot') ? '#moduleRoot ' : '');
     const all = (typeof el.className === 'string' && el.className.trim())
       ? '.' + el.className.trim().split(/\s+/).join('.') : '';
-    return inRoot + el.tagName.toLowerCase() + all + (el.id ? '#' + el.id : '');
+    return inNav + el.tagName.toLowerCase() + all + (el.id ? '#' + el.id : '');
   }
   /* ancestor background-color layers, nearest first; opaque layer ends the walk */
   function stack(el) {
@@ -188,19 +206,25 @@ const COLLECT = () => {
     return best;
   }
 
+  /* scope: 'nav' | 'mod'. The two views are mutually exclusive ([hidden]), so a
+     single pass over both selectors can only ever measure whichever is open —
+     that is exactly how the navigation page slipped through for two rounds. */
   const out = [];
-  document.querySelectorAll('#navView *, #moduleRoot *').forEach((el) => {
+  const root = document.getElementById(scope === 'nav' ? 'navView' : 'moduleRoot');
+  if (!root) return out;
+  root.querySelectorAll('*').forEach((el) => {
     const form = el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'radio' && el.type !== 'checkbox');
     const txt = form
       ? String(el.value || el.placeholder || '').trim()
       : Array.from(el.childNodes).filter((c) => c.nodeType === 3).map((c) => c.textContent.trim()).filter(Boolean).join(' ');
     if (!txt || SYM.test(txt)) return;
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    const c = getComputedStyle(el);
-    if (c.display === 'none' || c.visibility === 'hidden') return;
-    if (c.backgroundImage && c.backgroundImage !== 'none') return;   /* text on a pattern: not computable */
+    if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'TEMPLATE') return;
     if (el.type === 'range' || el.type === 'color') return;
+    const c = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    /* 不再"量不到就丢掉"：先记下来，由驱动层决定补量还是计入未覆盖 */
+    const hidden = c.display === 'none' || c.visibility === 'hidden' || !r.width || !r.height;
+    if (c.backgroundImage && c.backgroundImage !== 'none') return;   /* text on a pattern: not computable */
     const svg = !!el.ownerSVGElement;
     const isSvgText = svg && /^(text|tspan)$/i.test(el.tagName);
     const fg = isSvgText
@@ -214,10 +238,62 @@ const COLLECT = () => {
       size: Math.round(size * 10) / 10,
       large: size >= 24 || (size >= 18.66 && (parseInt(c.fontWeight, 10) || 400) >= 700),
       op: parseFloat(c.opacity),
+      hidden,
+      why: hidden ? (c.display === 'none' ? 'display:none' : (c.visibility === 'hidden' ? 'visibility' : 'no-box')) : '',
       txt: txt.slice(0, 28),
     });
   });
   return out;
+};
+
+/* 揭开之后必须给运行时一次"读者刚刚点开"的信号。运行时看不见 style 写入
+   （clear() 自己也在写 style，进 attributeFilter 会自激），它信的是交互事件——
+   Round 19 在 ilcontrast.js 里补了 click/keydown/toggle 通道，这里就按同一条通道
+   派发一次合成点击，让"闸门揭开的东西"和"读者点开的东西"走同一个重扫入口。
+   没有这一步，出厂模式会去判那些运行时从来没见过第二次的行——那不是缺陷，是量法不对。 */
+const PING = (scope) => {
+  const root = document.getElementById(scope === 'nav' ? 'navView' : 'moduleRoot');
+  if (root) root.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  return true;
+};
+
+/* ── in-page reveal: open what the reader has not opened yet ── */
+const REVEAL_FN = (scope) => {
+  const root = document.getElementById(scope === 'nav' ? 'navView' : 'moduleRoot');
+  if (!root) return 0;
+  const acts = [];
+  const bump = (el) => {
+    if (!el || el.nodeType !== 1) return;
+    /* <details> 不是靠 display/visibility 藏起来的：未展开时内容是"没有盒子"。
+       三条揭开路径必须都在：open 属性、[hidden]、CSS display/visibility。 */
+    if (el.tagName === 'DETAILS' && !el.open) { acts.push({ el, kind: 'open' }); el.open = true; }
+    if (el.hasAttribute('hidden')) { acts.push({ el, kind: 'hidden', v: el.getAttribute('hidden') }); el.hidden = false; }
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none') {
+      acts.push({ el, kind: 'css', prop: 'display', v: el.style.display, p: el.style.getPropertyPriority('display') });
+      el.style.setProperty('display', 'block', 'important');
+    }
+    if (cs.visibility === 'hidden') {
+      acts.push({ el, kind: 'css', prop: 'visibility', v: el.style.visibility, p: el.style.getPropertyPriority('visibility') });
+      el.style.setProperty('visibility', 'visible', 'important');
+    }
+  };
+  root.querySelectorAll('*').forEach((el) => {
+    if (el.closest('details') || el.matches('details')) { let n = el; while (n && n !== root) { bump(n); n = n.parentElement; } }
+    if (el.hasAttribute('hidden') || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') {
+      let n = el; while (n && n !== root) { bump(n); n = n.parentElement; }
+      bump(el);
+    }
+  });
+  window.__ilcUndo = () => {
+    acts.reverse().forEach((a) => {
+      if (a.kind === 'open') { a.el.open = false; return; }
+      if (a.kind === 'hidden') { a.el.hidden = true; return; }
+      if (a.v) a.el.style.setProperty(a.prop, a.v, a.p || ''); else a.el.style.removeProperty(a.prop);
+    });
+    return acts.length;
+  };
+  return acts.length;
 };
 
 const parse = (c) => {
@@ -268,8 +344,26 @@ function compose(rows) {
     try { eval(fs.readFileSync(path.join(ROOT, 'courses.js'), 'utf8')); } finally { global.window = prev; }
     return win.IL_COURSES;
   })();
-  const keys = ONLY ? ONLY.split(',').map((s) => s.trim()) : courses.map((c) => c.key);
+  const all = ONLY ? ONLY.split(',').map((s) => s.trim()) : courses.map((c) => c.key);
   const themes = THEME === 'both' ? ['light', 'dark'] : [THEME];
+  /* 一份确定的合成进度。导航页的卡片进度条、徽章、错题本、成绩趋势、热力图全部
+     只在 store 非空时渲染：空 store 下导航页只有 323 个文本元素，种了进度是 563。
+     不种进度就等于"量了壳层但没量壳层真正会显示的东西"。 */
+  const DAY = 86400000;
+  const seed = (key) => {
+    const c = courses.find((x) => x.key === key) || { total: 9 };
+    const i = courses.indexOf(c);
+    const total = c.total || 9;
+    const done = i % 3 === 0;
+    const started = i % 5 !== 0;
+    const n = done ? total : (started ? Math.max(1, i % total) : 0);
+    return {
+      steps: Array.from({ length: n }, (_, k) => k),
+      quiz: started ? { score: done ? 8 : Math.max(4, Math.round(total * 0.6)), total: 8, wrongs: [1, 3] } : {},
+      last: Date.now() - (i % 12) * DAY,
+      done,
+    };
+  };
 
   const browser = await pw.chromium.launch({
     executablePath: chromium || undefined,
@@ -288,14 +382,60 @@ function compose(rows) {
   const url = pathToFileURL(path.join(ROOT, 'index.html')).href;
   const fails = [];
   const seen = new Set();
+  let covTotal = 0, covMeasured = 0, covRevealed = 0;
+
+  /* 一行文本被"量到"= 它在读者当前状态下有盒子。absorb 把判分结果并进 fails，
+     用 path+txt 去重，所以第二遍（揭开后）只会补进第一遍没见过的行。 */
+  const freshKey = (r) => `${r.path}||${r.txt}`;
+  const absorb = (rows, scope, theme, fresh) => {
+    compose(rows.filter((r) => !r.hidden)).forEach((f) => {
+      const dedup = SOURCE ? `${f.path}|${f.fg}` : `${scope}|${theme}|${f.sel}|${f.fg}|${f.size}`;
+      if (seen.has(dedup)) return;
+      seen.add(dedup);
+      fails.push({ key: scope, theme, revealed: !!fresh, ...f });
+    });
+  };
 
   for (const theme of themes) {
-    await page.addInitScript((t) => { try { localStorage.setItem('il_theme', t); } catch (e) {} }, theme);
+    const store = {};
+    all.forEach((k) => { store[k] = seed(k); });
+    await page.addInitScript(([t, json]) => {
+      try {
+        localStorage.setItem('il_theme', t);
+        localStorage.setItem('il_progress', json);
+      } catch (e) { /* storage unavailable */ }
+    }, [theme, JSON.stringify(store)]);
     await page.goto(url);
     await page.waitForTimeout(400);
     const applied = await page.evaluate(() => document.documentElement.dataset.theme);
     if (applied !== theme) console.log(`!! 主题未生效：期望 ${theme}，实际 ${applied}`);
-    for (const key of keys) {
+
+    /* ── 壳层导航页：Round 19 之前从来没有被量过 ── */
+    if (NAV) {
+      await page.evaluate(() => { location.hash = '#/'; });
+      await page.waitForTimeout(500);
+      const r1 = await page.evaluate(COLLECT, 'nav');
+      covTotal += r1.length;
+      covMeasured += r1.filter((r) => !r.hidden).length;
+      absorb(r1, '(导航页)', theme, false);
+      if (REVEAL) {
+        await page.evaluate(REVEAL_FN, 'nav');
+        await page.evaluate(PING, 'nav');
+        /* 重扫发生在 DELAY(120) + SETTLE(620) 之后，还要给 CSS transition 留时间：
+           .pill 这类规则写着 transition: all .25s，量早了拿到的是过渡中间色。 */
+        await page.waitForTimeout(1200);
+        const r2 = await page.evaluate(COLLECT, 'nav');
+        const known = new Set(r1.filter((r) => !r.hidden).map(freshKey));
+        const fresh = r2.filter((r) => !r.hidden && !known.has(freshKey(r)));
+        covRevealed += fresh.length;
+        covMeasured += fresh.length;
+        absorb(fresh, '(导航页)', theme, true);
+        await page.evaluate(() => { if (window.__ilcUndo) window.__ilcUndo(); });
+      }
+    }
+
+    for (const key of all) {
+      await page.evaluate(() => { location.hash = '#/'; });
       await page.evaluate((k) => { location.hash = '#/m/' + k; }, key);
       await page.waitForTimeout(320);
       /* scroll like a reader: .step blocks fade in via IntersectionObserver, so
@@ -308,17 +448,31 @@ function compose(rows) {
            otherwise you sample a mid-transition colour, not what a user reads */
         await new Promise((r) => setTimeout(r, 1500));
       });
-      const rows = await page.evaluate(COLLECT);
-      compose(rows).forEach((f) => {
-        const dedup = SOURCE ? `${f.path}|${f.fg}` : `${key}|${theme}|${f.sel}|${f.fg}|${f.size}`;
-        if (seen.has(dedup)) return;
-        seen.add(dedup);
-        fails.push({ key, theme, ...f });
-      });
+      const rows = await page.evaluate(COLLECT, 'mod');
+      covTotal += rows.length;
+      const meas = rows.filter((r) => !r.hidden);
+      covMeasured += meas.length;
+      absorb(rows, key, theme, false);
+      if (REVEAL) {
+        await page.evaluate(REVEAL_FN, 'mod');
+        await page.evaluate(PING, 'mod');
+        /* DELAY 120 + SETTLE 620 + transition .25s：等运行时重算完、颜色落定再量 */
+        await page.waitForTimeout(1200);
+        const rows2 = await page.evaluate(COLLECT, 'mod');
+        const known = new Set(meas.map(freshKey));
+        const fresh = rows2.filter((r) => !r.hidden && !known.has(freshKey(r)));
+        covRevealed += fresh.length;
+        covMeasured += fresh.length;
+        absorb(fresh, key, theme, true);
+        await page.evaluate(() => { if (window.__ilcUndo) window.__ilcUndo(); });
+      }
     }
-    console.log(`${theme} pass done, cumulative fails=${fails.length}`);
+    console.log(`${theme} pass done, fails=${fails.length} 累计覆盖率=${covMeasured}/${covTotal} (${(covMeasured / covTotal * 100).toFixed(1)}%) 累计补量=${covRevealed}`);
   }
   await browser.close();
+
+  const covPct = covTotal ? covMeasured / covTotal * 100 : 0;
+  console.log(`\n文本元素 ${covTotal} / 量到 ${covMeasured} (${covPct.toFixed(1)}%) / 揭开补量 ${covRevealed} / 覆盖率下限 ${COVER}%`);
 
   fails.sort((a, b) => a.rc - b.rc);
 
@@ -328,7 +482,7 @@ function compose(rows) {
       const k = `${f.path}  ${f.fg}`;
       const e = agg.get(k);
       if (e) { e.n++; e.mods[f.key] = (e.mods[f.key] || 0) + 1; } else {
-        agg.set(k, { n: 1, mods: { [f.key]: 1 }, rc: f.rc, size: f.size, acc: f.acc, txt: f.txt });
+        agg.set(k, { n: 1, mods: { [f.key]: 1 }, rc: f.rc, size: f.size, acc: f.acc, txt: f.txt, revealed: !!f.revealed });
       }
     });
     console.log(`\n== 源头簇（--source：未启用运行时兜底，按 路径 + 前景色 聚合）`);
@@ -337,23 +491,30 @@ function compose(rows) {
       .slice(0, TOP)
       .forEach(([k, v]) => {
         const mods = Object.entries(v.mods).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([m, n]) => `${m}:${n}`).join(' ');
-        console.log(`${String(v.n).padStart(4)}  ${k}\n        ratio ${v.rc.toFixed(2)}  size ${v.size}  bg ${v.acc.join(',')}\n        例 ${JSON.stringify(v.txt)}\n        模块 ${mods}`);
+        console.log(`${String(v.n).padStart(4)}  ${v.revealed ? '[展开后] ' : ''}${k}\n        ratio ${v.rc.toFixed(2)}  size ${v.size}  bg ${v.acc.join(',')}\n        例 ${JSON.stringify(v.txt)}\n        模块 ${mods}`);
       });
-    console.log(`TOTAL clusters: ${agg.size}  (rows: ${fails.length})`);
+    const rev = fails.filter((f) => f.revealed).length;
+    console.log(`TOTAL clusters: ${agg.size}  (rows: ${fails.length}，其中 ${rev} 行来自"揭开后才露面"的内容)`);
     console.log('（--source 仅供参考：这些簇由 ilcontrast.js 在运行时兜底，不作为 CI 判据）');
-    process.exit(0);
+    process.exit(covPct >= COVER ? 0 : 1);
+  }
+
+  if (covPct < COVER) {
+    console.log(`\n覆盖率闸门失败：${covPct.toFixed(1)}% < ${COVER}%。`);
+    console.log('   闸门没量到 ≠ 没问题——Round 18 的 tap 闸门与本轮的对比度闸门都是先栽在这里。');
+    process.exit(1);
   }
 
   if (fails.length > BUDGET) {
     console.log(`\n对比度审计失败：${fails.length} 行（预算 ${BUDGET}）`);
     fails.forEach((f) => {
-      console.log(`  ${f.rc.toFixed(2).padStart(5)} (需 ${f.need}) ${f.theme.padEnd(5)} ${f.key.padEnd(12)} ${f.sel.slice(0, 52).padEnd(52)} ${f.size}px ${f.fg} bg=${f.acc.join(',')} ex=${JSON.stringify(f.txt)}`);
+      console.log(`  ${f.rc.toFixed(2).padStart(5)} (需 ${f.need}) ${f.theme.padEnd(5)} ${f.key.padEnd(12)} ${(f.revealed ? '展开后' : '读者态').padEnd(8)} ${f.sel.slice(0, 52).padEnd(52)} ${f.size}px ${f.fg} bg=${f.acc.join(',')} ex=${JSON.stringify(f.txt)}`);
     });
     console.log('\n提示：先用 `node tools/check-contrast.js --source --keys=<key>` 找到源头规则，');
     console.log('     再按 skin 的暗色孤岛约定补 token（见 index.html courseSkin 注释）。');
     process.exit(1);
   }
-  console.log(`OK: 对比度审计通过（${keys.length} 模块 × ${themes.length} 主题，${themes.join('/')}，失败 ${fails.length} ≤ 预算 ${BUDGET}）`);
+  console.log(`OK: 对比度审计通过（${all.length} 模块 + 导航页 × ${themes.length} 主题，${themes.join('/')}，失败 ${fails.length} ≤ 预算 ${BUDGET}）`);
 })().catch((e) => {
   console.log('SKIP: 浏览器审计无法运行 — ' + (e && e.message ? e.message.split('\n')[0] : e));
   process.exit(0);

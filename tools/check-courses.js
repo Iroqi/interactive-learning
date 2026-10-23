@@ -11,6 +11,9 @@
  *     in the module is a promise the module does not keep
  *   - `progress`/`total` must stay paired, and a declared `total` must be
  *     backed by a module that actually writes steps
+ *   - ids must be unique inside a module and must not shadow a shell id
+ *     (Round 19: web shipped a nested `id="test-results"` duplicate — a node
+ *     no script could ever reach)
  *
  * Usage: node tools/check-courses.js
  * Exit 0 = clean, 1 = problems listed on stdout.
@@ -147,9 +150,45 @@ CATS.forEach((cat) => {
   if (!courses.some((c) => c.cat === cat)) note(`分类 ${cat} 下没有模块`);
 });
 
+/* ── 7. id 唯一性（Round 19）──
+ * 起因：web 模块把「测试结果」卡片写成
+ *   <div id="test-results"><div id="test-results"></div></div>
+ * `getElementById` 只返回第一个，里层那个 div 是一段永远为空的死标记。
+ *
+ * 为什么不做成浏览器检查（本轮真试过，写在这是为了让下一个人别再走一遍）：
+ * 把判据挂在 check-tap 的遍历上跑全库，报 **0 处重复**——而 web 那个缺陷就在那儿。
+ * 原因是那些 DOM 是**点击之后才建**的（`go-test` 的 handler 才拼这段 HTML），
+ * 渲染态普查看不见没被点开过的分支。"闸门量不到"又一次伪装成"闸门通过"，
+ * 与上一轮 tap 覆盖率、本轮对比度覆盖率是同一个形态。
+ * 静态按文件查反而覆盖更全：JS 字符串里的模板也一并扫到（web 的缺陷正是这么发现的）。
+ *
+ * 正则要点：必须带 `(?<![-\w])`。第一版没带，把 `data-id="a"`、`aria-labelledby`
+ * 之类当成 id，一次虚报 30 个模块——虚报会把人引去改本来正确的代码。
+ *
+ * 顺带查模块 id 与壳层 id 同名：文档顺序里 `#navView` 在前，模块里的
+ * `document.getElementById('search')` 拿到的是导航页那个节点，模块自己的
+ * 同名节点永远够不着。 */
+const shellForIds = read(path.join(ROOT, 'index.html')) || '';
+const ID_RE = /(?<![-\w])id=["']([^\s"'<>]+)["']/g;
+const shellIds = new Set([...shellForIds.matchAll(ID_RE)].map((m) => m[1]));
+courses.forEach((c) => {
+  if (!c.key) return;
+  const src = read(path.join(ROOT, 'src', c.key + '-interactive.html'));
+  if (src === null) return;
+  const seen = new Map();
+  const dups = [];
+  for (const m of src.matchAll(ID_RE)) {
+    const v = m[1];
+    if (seen.has(v)) { if (seen.get(v) === 1) dups.push(v); seen.set(v, 2); }
+    else seen.set(v, 1);
+  }
+  dups.forEach((v) => note(`${c.key}: id="${v}" 出现两次（getElementById 只返回第一个，后一个是死节点）`));
+  [...seen.keys()].filter((v) => shellIds.has(v)).forEach((v) => note(`${c.key}: id="${v}" 与壳层同名（模块拿不到自己那个节点）`));
+});
+
 if (problems.length) {
   console.log('courses.js 校验失败（%d 项）:', problems.length);
   problems.forEach((p) => console.log('  - ' + p));
   process.exit(1);
 }
-console.log('OK: courses.js 一致（%d 个模块：key 唯一、src/modules 齐备、size 标签属实、tags 均可在源码中验证、progress/total 配对）', courses.length);
+console.log('OK: courses.js 一致（%d 个模块：key 唯一、src/modules 齐备、size 标签属实、tags 均可在源码中验证、progress/total 配对、id 不与壳层撞名且模块内唯一）', courses.length);

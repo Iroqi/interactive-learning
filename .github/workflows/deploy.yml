@@ -30,13 +30,16 @@ jobs:
       - name: Verify src/ packs to modules/ unchanged
         run: node tools/verify-pack.js
 
-      - name: Verify courses.js matches the repo (keys, size, tags, total)
+      - name: Verify courses.js matches the repo (keys, size, tags, total, unique ids)
         run: node tools/check-courses.js
 
       - name: Verify theme tokens (--sk-*/--ilq-* paired, skin has no hardcoded colors)
         run: node tools/check-theme.js
 
-      - name: Contrast audit (46 modules x 2 themes; SKIPs when no browser is available)
+      # 两遍量：读者当前看得见的先量，折叠面板 / <details> / [hidden] 里的揭开后补量，
+      # 并给覆盖率设 90% 下限——"0 失败"只有配上"量到了多少"才有意义。
+      # 除 46 个模块外还量导航页（带一份确定性学习进度，否则进度条/徽章根本不渲染）。
+      - name: Contrast audit (46 modules + nav x 2 themes, coverage >= 90%; SKIPs when no browser is available)
         run: |
           test -f package.json || npm init -y >/dev/null
           npm install --no-save --no-audit --no-fund playwright >/dev/null 2>&1 \
