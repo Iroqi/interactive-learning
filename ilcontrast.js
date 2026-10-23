@@ -28,6 +28,7 @@
  * 用法：
  *   ILContrast.watch(el)          观察某容器（增删节点后自动重跑）
  *   ILContrast.run(el)            立即跑一遍，返回修正列表（测试用）
+ *   ILContrast.refresh(el)        换肤专用：clear→run→等过渡走完再补一遍
  *   ILContrast.unwatch(el)
  * ============================================================ */
 (function (global) {
@@ -325,12 +326,28 @@
   function clear(root) {
     if (!root || !root.querySelectorAll) return;
     var old = root.querySelectorAll('[data-ilc]');
+    if (!old.length) return;
+    /* 两段循环 + 一次结算：每个元素各读一次 offsetWidth 的话，撤一次颜色
+       就要强制重排几十次（模块里 data-ilc 常有三四十个）。 */
+    var list = [];
     for (var i = 0; i < old.length; i++) {
+      var el = old[i];
       /* 当初写的是哪个属性，这里就撤哪个：撤错会把图示标签的 fill 留在原地，
          或者把本来没动过的 color 一起抹掉。 */
-      old[i].style.removeProperty(old[i].getAttribute('data-ilc') === 'fill' ? 'fill' : 'color');
-      old[i].removeAttribute('data-ilc');
+      var prop = el.getAttribute('data-ilc') === 'fill' ? 'fill' : 'color';
+      /* 撤的同时把 transition 关掉，读完一次样式再恢复。
+         .pill / .card 都写着 transition: all .2s~.25s：inline 一撤，computed
+         颜色不是立刻回到作者声明的值，而是从**旧值**开始过渡；紧接着的 run()
+         读到的就是刚被撤掉的那个颜色，于是把它当声明值又"修"一遍，每趟都比
+         上一趟偏一点（实测同一个 pill 在 0,122,31 / 0,116,30 / 0,117,30 之间
+         来回漂）。suppress → 强制样式结算 → 恢复，过渡就不会发生。 */
+      el.style.setProperty('transition', 'none', 'important');
+      el.style.removeProperty(prop);
+      el.removeAttribute('data-ilc');
+      list.push(el);
     }
+    void root.offsetWidth;
+    for (var j = 0; j < list.length; j++) list[j].style.removeProperty('transition');
   }
 
   /* 补一刀 trailing pass：模块普遍写了 transition: all .3s / 滚动进度改
@@ -349,11 +366,37 @@
     }, delay);
   }
 
-  /* 只观察 childList：我们自己写的是 style 属性，若同时观察 attributes
-     就会"改一次→重算→又改一次"永久循环。
+  /* 换肤时走这里，别用裸 run()。
+     壳层 applyTheme() 在同一个 task 里改 data-theme 再跑兜底，而此时带
+     transition 的属性还停在**过渡起点**：实测 light 主题启动那一趟读到的
+     .pill.active 前景是 rgb(0,255,65)（暗色 accent）压在已经翻亮的底
+     rgb(216,247,226) 上——底没有过渡所以先翻，字有 .25s 过渡所以还没翻。
+     于是兜底算出 1.19:1「得改」，把 rgb(0,122,31) 用 inline !important 永久
+     钉死；导航页当时没有 watch()，过渡结束后无人重算，读者看到的是一个比
+     源头（5.28:1）更难读的 4.41:1——兜底自己把唯一读得清的颜色改坏了。
+     所以这里先 clear（撤掉上一次推出来的颜色，回到作者声明的值），run 一遍
+     应急，再补一次 SETTLE 尾巴等过渡走完重算——和 reschedule 同一个出口。 */
+  function refresh(root) {
+    if (!root || !root.querySelectorAll) return [];
+    clear(root);
+    var fixed = run(root);
+    var state = root.__ilcState || { root: root, timer: null, timer2: null };
+    clearTimeout(state.timer2);
+    state.timer2 = setTimeout(function () { clear(root); run(root); }, SETTLE);
+    return fixed;
+  }
+
+  /* 只观察 childList + 少数属性：我们自己写的是 style 属性，若把 style 放进
+     attributeFilter 就会"改一次→重算→又改一次"永久循环（clear() 也写 style）。
      另外还要跟着滚动重算：makefile/n8n 的吸顶导航把 rgba(15,23,42,.95) 按滚动
      进度淡成 .42（模块自己的 scroll listener），底色变了、前景就必须重推；
      只算一次会在用户滚下去之后留下 1.30:1 的链接（Round 17 实测）。 */
+  var watched = [];            /* 已登记的 root 状态，滚动事件按这个列表逐个重扫 */
+  var scrollBound = false;
+  function onGlobalScroll() {
+    for (var i = 0; i < watched.length; i++) reschedule(watched[i], SCROLL_DELAY);
+  }
+
   function watch(root) {
     if (!root || root.__ilcObs) return;
     var state = { root: root, timer: null, timer2: null };
@@ -361,15 +404,31 @@
     /* childList 之外还要听 class：reveal-on-scroll 的模块（helm 的 .step）在
        渲染那一刻还是 display:none，扫描时整片被跳过；之后它只是加上 .visible
        变可见，没有任何节点增删——不监听属性的话这些区块就永远漏网（实测 1.11:1）。
-       attributeFilter 只放行 class：我们自己的写入是 style，不会自激。 */
-    obs.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+       Round 19 补 open：<details> 展开只改这一个属性，改不到 class，
+       提示面板翻开之后永远不会被重扫——审计与兜底必须盯同一批"读者自己翻开"的信号。
+       attributeFilter 仍然只放行属性名，style 不在内：不会自激。 */
+    obs.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] });
+    /* 还差一条路：模块直接写 el.style.display='block' 来揭开面板
+       （makefile 8 处，cs/plc/n8n/vscode/vfd/net/gh-actions 各 1~2 处）。
+       这条路既不增删节点、也不动 class/hidden/open，Observer 完全看不见。
+       用事件补：读者翻开面板必然有一次 click/keydown，<details> 另有 toggle
+       （toggle 不冒泡，只能 capture）。重扫走 reschedule 同一出口，连点不叠加。 */
+    var onInteract = function () { reschedule(state, DELAY); };
+    root.addEventListener('click', onInteract, true);
+    root.addEventListener('keydown', onInteract, true);
+    root.addEventListener('toggle', onInteract, true);
     /* 滚动一律走防抖：节流分支会在"最后一次滚动事件刚过就立刻算"的时机
        拿到过渡中的底色（n8n/makefile 的吸顶导航按滚动进度改 background，
-       实测审计停在 0.075 透明度时 runtime 刚按 0.95 推过色 → 2.52:1）。 */
-    var onScroll = function () { reschedule(state, SCROLL_DELAY); };
-    global.addEventListener('scroll', onScroll, { passive: true });
+       实测审计停在 0.075 透明度时 runtime 刚按 0.95 推过色 → 2.52:1）。
+       监听挂在 window 上、只挂一个：Round 19 之后导航页也 watch 了，
+       两处各挂一个的话每次停止滚动都要把两个容器全扫一遍。 */
+    watched.push(state);
+    if (!scrollBound) {
+      global.addEventListener('scroll', onGlobalScroll, { passive: true });
+      scrollBound = true;
+    }
     root.__ilcObs = obs;
-    root.__ilcScroll = onScroll;
+    root.__ilcInteract = onInteract;
     root.__ilcState = state;
     clear(root);
     run(root);
@@ -377,8 +436,24 @@
 
   function unwatch(root) {
     if (root && root.__ilcObs) { root.__ilcObs.disconnect(); root.__ilcObs = null; }
-    if (root && root.__ilcScroll) { global.removeEventListener('scroll', root.__ilcScroll); root.__ilcScroll = null; }
-    if (root && root.__ilcState) { clearTimeout(root.__ilcState.timer); clearTimeout(root.__ilcState.timer2); root.__ilcState = null; }
+    /* 这三个监听挂在模块自己的根节点上，releaseModule() 会连 DOM 一起丢掉；
+       显式摘除是为了与 watch() 对称，也防止独立页复用同一个 root 时叠监听器。 */
+    if (root && root.__ilcInteract) {
+      root.removeEventListener('click', root.__ilcInteract, true);
+      root.removeEventListener('keydown', root.__ilcInteract, true);
+      root.removeEventListener('toggle', root.__ilcInteract, true);
+      root.__ilcInteract = null;
+    }
+    if (root && root.__ilcState) {
+      var i = watched.indexOf(root.__ilcState);
+      if (i >= 0) watched.splice(i, 1);
+      clearTimeout(root.__ilcState.timer); clearTimeout(root.__ilcState.timer2);
+      if (!watched.length && scrollBound) {
+        global.removeEventListener('scroll', onGlobalScroll);
+        scrollBound = false;
+      }
+      root.__ilcState = null;
+    }
   }
 
   /* check(el)：把内部判断摊开给测试和调试用——为什么这个元素改/不改，
@@ -405,7 +480,7 @@
   }
 
   global.ILContrast = {
-    run: run, clear: clear, watch: watch, unwatch: unwatch, check: check,
+    run: run, clear: clear, watch: watch, unwatch: unwatch, check: check, refresh: refresh,
     ratio: function (fg, bg) { return ratio(parseRGB(fg) || fg, parseRGB(bg) || bg); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1788,12 +1788,19 @@
     (function () {
       /* ═════════ 主题切换：il_theme（light / dark / auto） ═════════ */
       /* 对比度底线：导航页与当前模块各跑一次。ILContrast 缺席（缓存的旧页面）
-         时静默跳过，主题与阅读不受影响。 */
+         时静默跳过，主题与阅读不受影响。
+         必须走 refresh() 而不是裸 run()：本函数是在 data-theme 刚刚改掉的同一个
+         task 里跑的，带 transition 的属性（.pill / .card 全是 .2s~.25s）此刻还停在
+         过渡起点，而底色祖先没有 transition、已经翻成新主题了——读出来是
+         "旧字 + 新底"的混合态。实测 light 启动那一趟把 .pill.active 的
+         rgb(0,255,65) 当成源色算出 1.19:1，钉成 rgb(0,122,31)（4.41:1），
+         比作者本来合格的 5.28:1 更差，而且再没人重算。refresh() 先撤销上一次
+         推出来的颜色、再等过渡走完补一遍，兜底才不会把兜底的东西改坏。 */
       function refreshContrast() {
         if (!window.ILContrast) return;
         var nav = document.getElementById('navView');
-        if (nav && !nav.hidden) ILContrast.run(nav);
-        if (window.IL_MODULES && moduleRoot.innerHTML) ILContrast.run(moduleRoot);
+        if (nav) ILContrast.refresh(nav);
+        if (window.IL_MODULES && moduleRoot.innerHTML) ILContrast.refresh(moduleRoot);
       }
       document.addEventListener('il:theme', applyTheme);
 
@@ -3120,6 +3127,11 @@
       sortCards();
       initProgress();
       route();
+      /* 导航页也交给 watch()：筛选 pill 换 .active、搜索重画卡片、进度回填徽章
+         都只是 class / 节点变动。原来这里只有启动时的一次 run()，读者点一下
+         筛选就没有任何重算——被兜底钉住的旧颜色会跟着那个元素一路带进
+         下一个状态。挂上 watch 之后属性变动与换肤后的 SETTLE 补算都会走。 */
+      if (window.ILContrast && navView) ILContrast.watch(navView);
       refreshContrast();
     })();
   </script>
