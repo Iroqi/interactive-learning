@@ -94,7 +94,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'n8n 工作流自动化',
     desc: '从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑',
-    size: '104 KB',
+    size: '105 KB',
     tags: ['工作流', '节点', '触发器', '自动化', 'Cron']
   },
   {
@@ -118,7 +118,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'VSCode 配置文件学习',
     desc: 'settings.json、快捷键、扩展管理与工作区配置的系统化学习',
-    size: '105 KB',
+    size: '106 KB',
     tags: ['settings.json', '快捷键', '扩展', '工作区', 'ESLint', '调试']
   },
   {
@@ -370,7 +370,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Dockerfile 构建',
     desc: '迷你判读器：指令语义、多阶段构建、层缓存、HEALTHCHECK 与构建步骤预测',
-    size: '45 KB',
+    size: '46 KB',
     tags: ['多阶段', '层缓存', 'HEALTHCHECK', 'FROM'],
     progress: 'dockerfile',
     total: 9
@@ -380,7 +380,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'Go 并发',
     desc: '迷你输出预测器：goroutine、channel、select、WaitGroup、Mutex 与死锁判断',
-    size: '44 KB',
+    size: '45 KB',
     tags: ['goroutine', 'channel', 'select', 'Mutex', '死锁', '协程'],
     progress: 'go',
     total: 9

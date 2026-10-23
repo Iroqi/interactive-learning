@@ -111,7 +111,10 @@ details.cmd-item summary:hover{background:var(--primary-bg)}
 .flip-front{background:var(--surface)}.flip-front h4{font-size:.95rem;font-family:var(--font-mono);color:var(--primary)}
 .flip-front .card-cat{font-size:.75rem;color:var(--text-dim);margin-top:6px}
 .flip-back{transform:rotateY(180deg);background:var(--primary-bg)}.flip-back p{font-size:.85rem}
-.flip-back .card-full{font-family:var(--font-mono);font-size:.8rem;color:var(--text-muted);margin-top:8px}
+/* 翻面之后整块底是 --primary-bg（深底），--text-muted 压上去暗色只有 4.07:1；
+   而且这一面默认背对着读者（rotateY 180°），老闸门按可见性跳过它，
+   只有"真的翻开再量"才看得见（Round 19）。卡片正文用什么色，这行就用什么色。 */
+.flip-back .card-full{font-family:var(--font-mono);font-size:.8rem;color:var(--text);margin-top:8px}
 .flip-card:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 
 /* Summary */

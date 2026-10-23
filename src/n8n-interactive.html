@@ -352,7 +352,11 @@ section .desc { color: var(--muted); margin-bottom: 30px; font-size: 0.95em; }
   border-radius: 6px;
   font-family: monospace;
   font-size: 0.85em;
-  color: var(--muted);
+  /* 和 .dfl-log 同一件事：底是恒定深色代码面板，前景必须用成对的
+     --code-text。写 --muted 的话亮色下它是深灰 #5c6674，压在 #0d0d1e 上
+     只有 3.08:1；这块面板平时 display:none，读者点开提示才露面，
+     老闸门量不到它（Round 19）。 */
+  color: var(--code-text);
   margin-top: 8px;
   display: none;
 }

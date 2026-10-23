@@ -21,7 +21,12 @@
     --warn: #ffd166;
     --ok: #06d6a0;
     --bad: #ef476f;
+    /* 图示里那三行 "⚠ P 大≠好" 的注记压在卡片底上：#ef476f 在暗色 5.5 合格，
+       亮色白卡只有 3.41。SVG 的 <text> 用 fill 上色，这里按主题配对一个 token
+       （README「SVG 文字可以 fill="var(--token)"」，n8n 的标签也是这么改的）。 */
+    --svg-warn: #ef476f;
   }
+  [data-theme="light"] { --svg-warn: #c2274a; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
@@ -330,9 +335,9 @@
     <line x1="490" y1="170" x2="450" y2="218" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrW)" opacity="0.7"/>
     <line x1="690" y1="170" x2="500" y2="218" stroke="#ffd166" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrW)" opacity="0.7"/>
     <!-- 误解警告 -->
-    <text x="290" y="95" text-anchor="middle" fill="#ef476f" font-size="10">⚠ P 大≠好</text>
-    <text x="490" y="95" text-anchor="middle" fill="#ef476f" font-size="10">⚠ I 有副作用</text>
-    <text x="690" y="95" text-anchor="middle" fill="#ef476f" font-size="10">⚠ D 放大噪声</text>
+    <text x="290" y="95" text-anchor="middle" fill="var(--svg-warn)" font-size="10">⚠ P 大≠好</text>
+    <text x="490" y="95" text-anchor="middle" fill="var(--svg-warn)" font-size="10">⚠ I 有副作用</text>
+    <text x="690" y="95" text-anchor="middle" fill="var(--svg-warn)" font-size="10">⚠ D 放大噪声</text>
   </svg>
 
   <div class="legend">

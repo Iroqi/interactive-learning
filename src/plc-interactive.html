@@ -162,7 +162,10 @@ body {
 .ladder-contact.nc { color: #f97316; }
 .ladder-contact.on { background: #0a3a6a; border-color: #4ade80; color: #4ade80; }
 .ladder-coil { background: #2a1a1a; color: #f87171; border: 2px solid #5a2a2a; }
-.ladder-coil.on { background: #3a0a0a; border-color: #e94560; color: #e94560; }
+/* 得电那一格的底是 #3a0a0a（恒定深色孤岛，两个主题都一样），
+   #e94560 压上去只有 4.47:1。字色提到 #ff8fa3（7.91:1）——顺带比未得电的
+   #f87171 更亮，"通电更亮"这层意思还在；描边继续用 #e94560 表示状态。 */
+.ladder-coil.on { background: #3a0a0a; border-color: #e94560; color: #ff8fa3; }
 .ladder-wire { width: 30px; height: 3px; background: #4ade80; }
 .ladder-label {
   font-size: 0.8em; color: #94a3b8;
