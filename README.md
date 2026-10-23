@@ -42,9 +42,9 @@
 │   ├── pack-modules.py                # 构建：src/<key>-interactive.html → modules/<key>.js
 │   ├── unpack-modules.js              # 反向：modules/<key>.js → src/（恢复丢失的源码层）
 │   ├── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
-│   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致
+│   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致，并查 id 唯一性
 │   ├── check-theme.js                 # 校验：主题 token 双主题齐备、skin 无写死颜色、模块变量均已映射
-│   ├── check-contrast.js              # 校验：46 模块 × 亮暗双主题的真实渲染对比度（需浏览器，缺失则 SKIP）
+│   ├── check-contrast.js              # 校验：46 模块 + 导航页 × 亮暗双主题的真实渲染对比度，含两遍量与覆盖率闸门（需浏览器，缺失则 SKIP）
 │   └── check-tap.js                   # 校验：46 模块 × 390×844 触屏视口的触控热区地板（需浏览器，缺失则 SKIP）
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
@@ -167,13 +167,13 @@
 ```bash
 python3 tools/pack-modules.py   # 先在 KEYS 中登记 'xxx-interactive.html': 'xxx'
 node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check job 跑同一条）
-node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎
+node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎，并查 id 是否重复/撞壳层
 node tools/check-theme.js       # 确认新模块没有把颜色写死、也没漏掉 token 映射
 node tools/check-contrast.js    # 量渲染后的实际对比度（需 Playwright + Chromium，没有则 SKIP）
 node tools/check-tap.js         # 量渲染后的触控热区（同上，需浏览器）
 ```
 
-前两条是静态检查，第三条是浏览器检查：它把模块真正渲染出来（390×844 触摸视口、按读者方式滚动、等淡入与过渡走完）再量"这个字压在这个底上"的比值。`--source` 会屏蔽运行时兜底、按"路径 + 前景色"聚合出源头簇，用来定位到底是哪条 CSS 规则出了问题：
+前两条是静态检查，第三条是浏览器检查：它把模块真正渲染出来（390×844 触摸视口、按读者方式滚动、等淡入与过渡走完）再量"这个字压在这个底上"的比值。对比度与触控两道闸门都做**两遍量**——先按读者当前能看到的东西量一遍，再把折叠面板 / `<details>` / `[hidden]` 里的内容临时揭开补量，并给出"量到的 / 页面上存在的"覆盖率，低于 `--cover=`（默认 90%）判失败：`0 失败` 只有配上"量到了多少"才有意义。对比度那一道除了 46 个模块还量**导航页**（要带一份确定性学习进度，否则进度条/徽章/错题本/热力图根本不渲染）。`--source` 会屏蔽运行时兜底、按"路径 + 前景色"聚合出源头簇，用来定位到底是哪条 CSS 规则出了问题，`[展开后]` 前缀标出那些只有揭开才露面的行：
 
 ```bash
 node tools/check-contrast.js --source --keys=n8n --top=20
@@ -273,7 +273,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 
 | Job | 作用 |
 |------|------|
-| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行）。再跑 `node tools/check-tap.js`：同一份浏览器、390×844 触屏视口下遍历全部模块的触控热区，硬失败（<24px）预算 0 |
+| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对，以及 `src/<key>-interactive.html` 里 **id 不重复、不与壳层同名**（静态扫，连 JS 拼出来的 HTML 字符串一起看——渲染态普查看不见"点击后才建"的那段 DOM）。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度，外加**导航页**一趟（带确定性进度种子），折叠内容两遍量后给出覆盖率，低于 90% 判失败（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行）。再跑 `node tools/check-tap.js`：同一份浏览器、390×844 触屏视口下遍历全部模块的触控热区，硬失败（<24px）预算 0，覆盖率同样 90% 下限 |
 | **GitHub Pages** | `iroqi.github.io/interactive-learning/`，`actions/deploy-pages@v4`，无需 Secret |
 | **Cloudflare Pages** | `iroqi.pages.dev`，`wrangler-action@v3`，需 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
 
@@ -297,6 +297,10 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 - **SVG 文字可以 `fill="var(--token)"`**：Chrome 支持在 SVG 呈现属性里用 `var()`，所以图示标签想跟主题走不必写死两套 hex——模块里加 `[data-theme="light"] { --svg-label:#5c6674 }` / `[data-theme="dark"] { --svg-label:#8888aa }`，正文写 `fill="var(--svg-label)"` 即可（n8n 的 11 个标签就是这么改的）。也别为了修亮色把字色改成单一深灰：`#8888aa` 在亮色 5.82 通过、`#5c6674` 在暗色只剩 3.26，同一支颜色在两个主题下的合格区间常常不重叠，必须按主题配对
 - **模块的事件监听器由壳层包一层再注册**：`trackListeners()` 在模块脚本执行期间把 `window/document.addEventListener` 的回调包成「带 epoch 判活 + 恢复 curEpoch」的包装函数，`releaseModule()` 按包装函数摘除；另记一张 `modWrap`（原函数 → 包装函数），使模块自己 `removeEventListener(原函数)` 也能摘干净。堵的是这一类残留：模块最常见的滚动 spy 写成 `scroll → setTimeout(showNav, 60)`，回调执行时 `curEpoch` 是 `null`，那个 `setTimeout` 走原生实现、既没记账也没判活，切走之后照样跑起来，对着已经 `innerHTML=''` 的 DOM 写 `textContent`（plc / n8n / gh-actions / redis 那一族稳定抛 `TypeError`）。包一层之后，处理器内部再排的定时器会正常随模块回收
 - **运行时对比度只是兜底**：`ILContrast` 在渲染后测量文字与实际合成底色，不足 AA 就沿 HSL 明度微调（保持色相/饱和度），改 `color` 或 SVG 的 `fill` 并记在 `data-ilc` 上以便撤销。它能救命，但不是修问题的地方——颜色要一直在被它改，说明源头没配对，该回去改 token。审计脚本与它**故意共用同一套合成规则**（忽略 `background-image`、不看元素 `opacity`、白色画布打底）：两边算出不同的数就会出现"审计说 1.11、运行时说 4.62"的僵局，谁也修不了
+- **兜底读样式必须等过渡结束**：`applyTheme()` 改完 `data-theme` 的同一个 task 里跑兜底，读到的是"旧字 + 新底"——带 `transition` 的属性（`.pill` / `.card` 全是 `all .2s~.25s`）还停在过渡起点，而没有 transition 的祖先底色已经翻成新主题了。实测 light 启动那一趟把 `.pill.active` 的暗色 accent `rgb(0,255,65)` 压在 `rgb(216,247,226)` 上算出 1.19:1，于是钉死 `rgb(0,122,31)`，**把作者本来合格的 5.28:1 改成 4.41:1**。换肤一律走 `ILContrast.refresh(root)`（`clear → run → SETTLE 再补一遍`），不要用裸 `run()`。同一处还有第二个坑：`clear()` 撤掉 inline 之后**立刻** `run()`，读到的还是刚被撤掉的那个颜色（过渡从旧值起走），于是每一轮重扫都在给自己上一轮的输出再"修"一次，实测同一个 pill 在 `0,122,31 / 0,116,30 / 0,117,30` 之间漂；`clear()` 因此要在撤的期间临时压掉 `transition`、批量强制一次样式结算再恢复
+- **导航页也是被审计对象**：`#navView` 与模块页是两个口径，`COLLECT` 里写了 `#navView` 不等于量过它——驱动只在 `#/m/<key>` 之间跳时，导航页一直 hidden，每次拿回来的都是没有盒子的行。且导航页**没有学习进度就只渲染一半**：无进度种子 323 个文本元素，按 `courses.js` 造一份确定性进度之后 563 个（进度条、掌握徽章、错题本、热力图、测验趋势全是"有进度才出现"）。种子必须确定性，否则同一个库两次跑出不同分母，闸门数字就成了噪声
+- **闸门要自证覆盖率**："0 失败"可能只是"0 次测量"。折叠面板、未激活标签页、`<details>`、`[hidden]` 里的内容同样是真交互、真像素，`tools/check-tap.js` 与 `tools/check-contrast.js` 都因此改成两遍量：先按读者方式量可见的，再把量不到的元素临时揭开补量，补量到的行**计入覆盖率分子**，低于 `--cover=`（默认 90%）直接判失败。口径要成对：闸门替读者翻开面板，就必须同时替读者触发兜底那次重扫（审计在 root 上派发一次 `click`，与 `ilcontrast.js` 的 `click/keydown/toggle` 通道对应），并等够 `DELAY(120) + SETTLE(620) + transition(.25s)` 再量——否则量到的是过期前景，子集首跑因此虚报 8 行。反过来"渲染态普查"也有盲区：点击后才拼出来的 DOM（web 的 `test-results` 卡片）在初始渲染里根本不存在，把判据挂在浏览器遍历上会全库报 0，而缺陷在场
+- **id 在模块内唯一、且不与壳层同名**：`getElementById` 只返回第一个，重复的那个是永远拿不到的死节点；模块 id 与壳层同名同样算缺陷——文档顺序里 `#navView` 在前，模块 `getElementById('search')` 拿到的是导航页那个节点。由 `tools/check-courses.js` 静态扫 `src/<key>-interactive.html` 把关（含 JS 里拼 HTML 的字符串，web 那个嵌套重复正是这么发现的），正则必须带 `(?<![-\w])`，否则 `data-id="a"` 会被当成 id 虚报 30 个模块
 - **手机可用性下限**：触控热区分两层口径——**硬地板 24×24px**（WCAG 2.5.8 AA「Minimum Target Size」，宽或高任一不足即失败，`tools/check-tap.js` 按它判 FAIL）与**建议值 32px**（iOS/Android 可用性下限，check-tap 只列 WARN，由模块作者决定）。32/44 是厂商建议而不是规范硬线：把正文行内的外链、代码块里的 `💡` 提示、紧凑 stepper 一律拉到 44px 只会撑坏既有排版，换来的只是报表好看。地板实现在 skin 末尾（`#moduleRoot button/input/select/textarea/a[href] { min-height:24px }` + checkbox/radio 等尺寸盒 + `label:has(input){min-height:32px}`）；checkbox/radio 那两条必须带 `!important`，因为 CSS 隔离把模块规则也提权到 1,2,1。被 ≥32px 的 label 包裹的 radio/checkbox 豁免（热区由 label 承担）。**行内链接不能只靠 `min-height`**：CSS 2.1 规定 `min-height` 不适用于非替换 inline 盒，所以这条地板到底能不能生效是引擎行为——沙箱的 Chrome for Testing 152 应用了（同一元素实测 24px），CI 的 Chromium 没应用（17px），于是同一个库本地绿、CI 红。规范内的写法是换盒模型，因此 skin 用 `p/div/li > a[href]:only-child { display:inline-block }` 把独立成行的链接提为 inline-block（`:only-child` 只看元素子节点、不看文本节点，所以"回到 [链接]"这种行文里的短链接也会被命中；实测全库 34 个，开关该规则只有 2 个元素的几何有变化，各 1–4px，代价是这几条链接自己的行盒被抬到 24px）。闸门对"inline 且无兄弟文本"的元素按 `display` 判 FAIL 而不是按实测像素判，就是为了换引擎也不会一边红一边绿；而真正落在行文里的链接由 2.5.8 的 Inline 豁免免掉尺寸判据。另外两条不变：输入框字号 ≥16px（iOS 聚焦时不自动放大）、模块不得出现横向溢出或被 `overflow-x: hidden` 吞掉的不可达内容。这几条由 Playwright 在 390×844 视口下**遍历全部模块**，且已从往轮的临时探针升级为仓库内闸门 `tools/check-tap.js`（CI 与对比度审计共用同一次浏览器安装）——上一轮的 tap 检查只在哈希当前那一个模块上跑，等于其余模块的控件从来没被测过
 - **模块 JS 用 ES5**：`modules/*.js` 的 `js` 字段被当作非模块 `<script>` 执行，早期模块统一用 `var` / `function`（新模块的顶层代码由打包脚本自动隔离作用域，见上文）
 - **结构约定**：模板类模块固定 9 个编号里程碑（`<span class="num">1..9</span>`）+ 一个 `✓` 下一步章节，第 9 节为掌握度测验；迷你引擎可以是独立章节（`⚡`，置于测验前），也可以嵌在某节内
