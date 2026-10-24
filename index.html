@@ -1221,7 +1221,7 @@
     /* 这套 skin 原本直接写死暗色 + !important，并且重定义了 :root 变量，
        于是壳层的 html[data-theme="light"] 全部被覆盖——亮色模式下白底配
        近白文字（.overview / .badge / 卡片分类标签）整片不可读。
-       它的职责只是"统一 45 个模块的视觉"，所以整体收进 #moduleRoot：
+       它的职责只是"统一全部模块的视觉"，所以整体收进 #moduleRoot：
        模块照旧统一，壳层交还给主题变量。 */
 
   
@@ -2118,7 +2118,7 @@
       }
 
       /* ── 掌握度派生：把两类模块归一到同一条进度语义 ──
-       * 全站 45 个模块分两种：
+       * 全站模块分两种（计数以 courses.js 为准，别在这里写死）：
        *   milestone  有 9 里程碑体系（courses.js 声明了 total，模块调 IL.mount 写 steps）
        *   assess     没有里程碑体系，只有一个判分测验（13 个：8 个自带题库
        *              cs/docker/gh-actions/makefile/net/n8n/vfd/vscode，
@@ -2471,7 +2471,7 @@
         { id: 'perfect', icon: '&#x2705;', name: '测验满分', req: '任意模块测验全对' },
         { id: 'quizAvg7', icon: '&#x1F4AF;', name: '测验学霸', req: '已完成测验的平均得分率 ≥ 7/8' },
         { id: 'halfway', icon: '&#x1F4DA;', name: '半程达成', req: '掌握模块数 ≥ 全部模块一半' },
-        { id: 'finisher', icon: '&#x1F3C1;', name: '全站通关', req: '掌握全部 45 个模块' }
+        { id: 'finisher', icon: '&#x1F3C1;', name: '全站通关', req: '掌握全部 ' + courses.length + ' 个模块' }
       ];
 
       function evaluateBadges(store) {
@@ -2668,14 +2668,70 @@
       function importProgressFile(file) {
         var r = new FileReader();
         r.onload = function () {
+          var obj;
           try {
-            var obj = JSON.parse(String(r.result));
+            obj = JSON.parse(String(r.result));
             if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('not-object');
-            localStorage.setItem('il_progress', JSON.stringify(obj));
-            location.reload();
           } catch (e) {
             alert('导入失败：文件不是有效的进度备份 JSON');
+            return;
           }
+          /* 只认"看起来是进度备份"的对象。Round 20 实测：旧实现只判"是不是 object"，
+             于是任意一份合法 JSON（编辑器顺手存的 package.json 也算）都会**整库覆盖**
+             il_progress，读者已有的进度静默消失——而 README 那时写的是"含校验"。
+             逐条校验的口径与壳层派生进度时读的字段一致：steps 是落在 [0,total) 的整数、
+             quiz 是 {score,total,wrongs} 数字、last 是数字、done 是布尔。
+             不合格的条目丢掉并计数，一个都不剩就拒收，不碰现有数据。 */
+          var known = {};
+          courses.forEach(function (c) { known[c.key] = (typeof c.total === 'number') ? c.total : null; });
+          var clean = {}, kept = 0, dropped = [];
+          /* 逐条校验，但**按文件里原本的字段顺序**写回：Round 20 的行为闸门
+             把"合法备份导出→清库→导入"当作字节相等的断言跑，第一版按固定顺序
+             重建对象，长度一样、字节不一样（读者拿两个备份做 diff 也是同样的痛）。
+             校验强度不变，认不出的字段照旧丢掉。 */
+          Object.keys(obj).forEach(function (key) {
+            var g = obj[key];
+            if (!known.hasOwnProperty(key) || !g || typeof g !== 'object') { dropped.push(key); return; }
+            var out = {};
+            var okShape = true;
+            Object.keys(g).forEach(function (field) {
+              if (!okShape) return;
+              var v = g[field];
+              if (field === 'steps') {
+                if (!Array.isArray(v) || v.some(function (i) { return typeof i !== 'number' || i % 1 !== 0 || i < 0; })) okShape = false;
+                else out.steps = v;
+              } else if (field === 'quiz') {
+                if (!v || typeof v !== 'object' || typeof v.score !== 'number' || typeof v.total !== 'number' ||
+                    (v.wrongs !== undefined && (!Array.isArray(v.wrongs) || v.wrongs.some(function (w) { return typeof w !== 'number'; })))) { okShape = false; return; }
+                var q = {};
+                Object.keys(v).forEach(function (qk) {
+                  if (qk === 'wrongs') q.wrongs = v.wrongs ? v.wrongs.slice() : [];
+                  else if (qk === 'score' || qk === 'total') q[qk] = v[qk];
+                });
+                out.quiz = q;
+              } else if (field === 'last') {
+                if (typeof v !== 'number') okShape = false; else out.last = v;
+              } else if (field === 'done') {
+                if (typeof v !== 'boolean') okShape = false; else out.done = v;
+              }
+              /* 其它字段：壳层不读，丢掉 */
+            });
+            if (!okShape) { dropped.push(key); return; }
+            clean[key] = out; kept++;
+          });
+          if (!kept) {
+            alert('导入失败：文件里没有一条是有效的学习进度' +
+              (dropped.length ? '（丢弃 ' + dropped.length + ' 项）' : ''));
+            return;
+          }
+          /* 覆盖之前要问一句：备份是别的浏览器/更早的快照，导入是把现在这份换掉。 */
+          var had = 0;
+          try { had = Object.keys(JSON.parse(localStorage.getItem('il_progress') || '{}')).length; } catch (e) { had = 0; }
+          if (had && !confirm('导入会覆盖当前 ' + had + ' 个模块的进度，改为读入 ' + kept + ' 个模块。\n继续？')) {
+            return;
+          }
+          localStorage.setItem('il_progress', JSON.stringify(clean));
+          location.reload();
         };
         r.readAsText(file);
       }
@@ -2875,6 +2931,110 @@
       trackListeners(window, nativeWinAdd, nativeWinRemove);
       trackListeners(document, nativeDocAdd, nativeDocRemove);
 
+      /* 第三类注册点：模块加在**自己 DOM 控件**上的监听器（slider / 按钮 / canvas）。
+       * 这些节点随模块一起消失，所以"摘不掉"不是问题；问题是**回调执行时 curEpoch 是
+       * null**，于是回调里再排的一次 rAF / 定时器走原生实现——既不记账也不判活。
+       * Round 20 的 pid 就是这么漏的（也是行为闸门在 81 条修完之后新抓到的第一条）：
+       *   runBtn.addEventListener('click', resetAndRun)
+       *     → step() 每帧 requestAnimationFrame(step)，整条链从来没被包装过
+       *     → 离开模块，DOM 清空，链还在跑
+       *     → computeMetrics() → setM() 对着已经不存在的 #mTr 取 .querySelector
+       *       "Cannot read properties of null (reading 'querySelector')"
+       * 判据只看 window/document 时会以为回收做完了——元素监听器是同一族，只是
+       * 目标不在那两个对象上。把包装推到 EventTarget.prototype 上即可：只有
+       * curEpoch 非空时的注册（=模块活着时注册的）被包，壳层自己的注册原样通过；
+       * window / document 已经被上面的 own-property 版本接管，走的是 nativeAdd，
+       * 不经过原型，所以不会被二次包装。 */
+      var protoAdd = EventTarget.prototype.addEventListener;
+      var protoRemove = EventTarget.prototype.removeEventListener;
+      EventTarget.prototype.addEventListener = function (type, handler, opts) {
+        if (curEpoch === null || typeof handler !== 'function') return protoAdd.apply(this, arguments);
+        var epoch = curEpoch, target = this;
+        var wrapped = function (evt) {
+          if (epoch !== modEpoch) return;
+          return running(epoch, function () { return handler.call(target, evt); });
+        };
+        modListeners.push({ t: target, type: type, h: handler, w: wrapped, o: opts });
+        modWrap.push({ t: target, type: type, h: handler, w: wrapped, o: opts });
+        return protoAdd.call(target, type, wrapped, opts);
+      };
+      EventTarget.prototype.removeEventListener = function (type, handler, opts) {
+        for (var i = modWrap.length - 1; i >= 0; i--) {
+          var rec = modWrap[i];
+          if (rec.t === this && rec.type === type && rec.h === handler) {
+            modWrap.splice(i, 1);
+            return protoRemove.call(this, type, rec.w, opts);
+          }
+        }
+        return protoRemove.apply(this, arguments);
+      };
+
+      /* ═════════ 内联 on* 处理函数也要归进模块的 epoch ═════════
+       * Round 20 的实测：全库遍历点击报 81 条未捕获 TypeError，而"只导航不点击"
+       * 是 0 条——漏网的全是这条链：
+       *   <button onclick="startScanSim()">        （plc:873）
+       *     → startScanSim() 里 setInterval(runScanStep, 1200)   （plc:1448）
+       *     → 切走模块，releaseModule 不认识这个 interval，它继续跑
+       *     → 对着已经 innerHTML='' 的 DOM 写 textContent → 崩，
+       *       而读者此刻在**下一个模块**里，看到的是"那个模块坏了"。
+       * 为什么上一轮的 trackListeners 没堵上：浏览器执行内联 on* 属性时不经过
+       * 任何我们注册的包装，curEpoch 是 null，于是 window.setInterval 走原生实现
+       * ——既不记账，也没有 epoch 判活。同一个形态在 n8n（run 循环压到下一个
+       * 模块头上）、vfd（setM → updateMetricsUI → computeMetrics → step）、
+       * gh-actions 上都能复现。
+       * 打包器把内联处理函数要用到的名字导回全局（`__g.startScanSim = startScanSim`），
+       * 所以壳层能在脚本执行完之后按名字把它们包一层：包过之后处理器内部再排的
+       * 定时器就正常进 modTimers，切走模块时被一起清掉。
+       * 判活时**返回 undefined**而不是转发给原生函数：模块回收之后，任何一次
+       * 迟到的内联点击（例如残留定时器程序化 el.click()）都不该再改 DOM——
+       * 那正是本轮要消灭的现象。
+       * 两条边界：`needsReady` 只是让壳层在脚本执行后补发一次 DOMContentLoaded，
+       * 与内联属性无关，不需要特判；`el.onclick = fn` 这类属性赋值抓不到（值已经
+       * 离开我们的视野），那种模块要靠自己别在 handler 里排跨生命周期的定时器。 */
+      var inlineOwned = {};
+      function ilWrapFn(orig, epoch) {
+        var wrapped = function () {
+          var a = Array.prototype.slice.call(arguments);
+          if (epoch !== modEpoch) return undefined;
+          var self = this;                    // running() 里的回调是裸调用，this 会在其中丢失
+          return running(epoch, function () { return orig.apply(self, a); });
+        };
+        wrapped.__ilEpoch = epoch;
+        wrapped.__ilInner = orig;
+        return wrapped;
+      }
+      function guardInlineHandlers(epoch, names) {
+        var g = typeof window !== 'undefined' ? window : globalThis;
+        names.forEach(function (name) {
+          var orig = g[name];
+          /* 内联属性有两种写法：`onclick="startScanSim()"`（函数）和
+             `onclick="DFL.run()"`（对象的方法）。实测 n8n / gh-actions / web 全用
+             后者——只包函数会整批漏掉，所以对象要下去一层包方法。
+             再深一层（对象里再套对象）实测没有：打包器只导出顶层声明的名字。 */
+          if (typeof orig === 'function') {
+            if (orig.__ilEpoch === epoch || (orig.__ilInner && inlineOwned[name] === orig.__ilInner)) return;
+            inlineOwned[name] = orig;
+            g[name] = ilWrapFn(orig, epoch);
+            return;
+          }
+          if (orig && typeof orig === 'object' && !orig.__ilGuarded) {
+            var keys = Object.keys(orig);
+            keys.forEach(function (k) {
+              var m = orig[k];
+              if (typeof m === 'function' && m.__ilEpoch !== epoch) orig[k] = ilWrapFn(m, epoch);
+            });
+            try { Object.defineProperty(orig, '__ilGuarded', { value: epoch, enumerable: false }); } catch (e) { /* frozen */ }
+          }
+        });
+      }
+      function inlineHandlerNames(jsText) {
+        if (!jsText) return [];
+        var out = [], seen = {};
+        var re = /(?:^|[^\w$])(?:__g|window|globalThis)\.([A-Za-z_$][\w$]*)\s*=/gm, m;
+        while ((m = re.exec(jsText))) { if (!seen[m[1]]) { seen[m[1]] = 1; out.push(m[1]); } }
+        return out;
+      }
+
       /* ═════════ 模块 CSS 隔离 ═════════
        * 模块的样式表以前是整份 append 到 <head> 的，于是它们里的全局选择器
        * 直接改写壳层。实测（45 个模块逐个访问并对比壳层计算样式）泄漏面：
@@ -3013,7 +3173,7 @@
         var st = document.createElement('style');
         st.setAttribute('data-il-module', '1');
         st.textContent = scopeModuleCSS(mod.css || '');
-        /* 必须插在 courseSkin 之前：skin 的职责是"统一 45 个模块的视觉"，
+        /* 必须插在 courseSkin 之前：skin 的职责是"统一全部模块的视觉"，
            它靠 #moduleRoot 前缀取胜者通吃；模块样式若排在它后面，
            同特异度的规则会翻盘，统一外观就散了。 */
         var skin = document.getElementById('courseSkin');
@@ -3045,6 +3205,8 @@
           moduleRoot.appendChild(js);
           if (mod.needsReady) document.dispatchEvent(new Event('DOMContentLoaded'));
         });
+        /* 脚本执行完之后，把内联 on* 处理函数包进本模块的 epoch（见上面那段） */
+        guardInlineHandlers(epoch, inlineHandlerNames(mod.js));
         attachQuiz(key);
         /* 模块的 DOM 已全部就位（上面的 <script> 是同步执行的），从这里开始
            由 ILContrast 兜住写死颜色的前景色；之后的 DOM 变动由它的

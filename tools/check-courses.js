@@ -186,6 +186,85 @@ courses.forEach((c) => {
   [...seen.keys()].filter((v) => shellIds.has(v)).forEach((v) => note(`${c.key}: id="${v}" 与壳层同名（模块拿不到自己那个节点）`));
 });
 
+/* ── 8. 文案里的"模块数"只能来自 courses.js（Round 20）──
+ * 起因：徽章写着「掌握全部 45 个模块」，而库里有 46 个。判据本身是对的
+ * （`doneCount >= tracked`，动态），假的是那句给人读的文案——它是导航页上读者
+ * 判断"我还差几个"的唯一读数，而每加一个模块它就再假一点。同批对账还翻出
+ * README 的掌握口径表写 milestone 32 / assess 13（相加 45 ≠ 46，实际 33 / 13）。
+ * 这正是上一轮遗留第 5 条说的"README 计数校准那一轮"。
+ *
+ * 判据分两种强度：
+ *   - 代码侧（index.html / ilquiz.js / ilcontrast.js / ilquizzes.js）：剥掉注释后，
+ *     「全部 / 全站 / 共 + N + 个模块」这类**总量声明**必须等于 courses.length。
+ *     另加一条接线检查：finisher 的 req 必须由 `courses.length` 拼出来。少了这条，
+ *     把文案改回硬编码 46 也能过关，然后下一次加模块时又变假——和 `size` 是同一个病。
+ *   - README 侧：散文跑不起来，但表格里的数字可以逐条对账（专题总数、四个分类
+ *     小节数、milestone/assess 两行、目录树里的"共 N 个"、测验覆盖声明）。
+ *
+ * 注释不参与检查，这是有意的：注释里的 "15/45"、"实测（45 个模块逐个访问…）"
+ * 是某一轮的测量记录，把它们改成 46 等于篡改历史。所以判据的第一步是剥注释。
+ *
+ * 但剥 JS 注释的正则不能照搬去读 Markdown：README 里的通配符（`modules/` 后面
+ * 跟星号再跟 `.js`）恰好就是"斜杠紧跟星号"，会被当成块注释的起点。它平时找不到
+ * 终点所以没事，一旦散文里出现"星号紧跟斜杠"（两个粗体之间夹一个斜杠写作强调），
+ * 中间那两张表就被当成注释吞掉了。第一版因此报"找不到 milestone 锚点"——判据失效
+ * 比计数过期更难查，因为它伪装成"这一行不存在"。所以 README 只剥 HTML 注释。
+ * （同一个坑在这段注释里也踩过一次：注释正文里写不出那两个字符的序列。） */
+function stripComments(src) {
+  return src
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:\\'"])\/\/[^\n]*/g, '$1');
+}
+function stripDocComments(src) {
+  return src.replace(/<!--[\s\S]*?-->/g, ' ');
+}
+const COUNT_FILES = ['index.html', 'ilquiz.js', 'ilcontrast.js', 'ilquizzes.js'];
+const TOTAL_CLAIM = /(全部|全站|共)[^0-9\n]{0,10}(\d{1,4})\s*个\s*(模块|专题|课程)/g;
+COUNT_FILES.forEach((f) => {
+  const body = stripComments(read(path.join(ROOT, f)) || '');
+  for (const m of body.matchAll(TOTAL_CLAIM)) {
+    if (+m[2] !== courses.length) {
+      note(`${f}: 文案声明「${m[0].trim()}」，但 courses.js 实际有 ${courses.length} 个（总数只能来自 courses.js）`);
+    }
+  }
+});
+/* 接线检查：全站通关那句必须拼 courses.length，不许写字面量 */
+if (!/req:\s*'掌握全部\s*'\s*\+\s*courses\.length/.test(shell)) {
+  note('index.html: finisher 徽章的「掌握全部 N 个模块」没有从 courses.length 派生（硬编码必然过期）');
+}
+
+const readme = stripDocComments(read(path.join(ROOT, 'README.md')) || '');
+const claim = (re, want, where) => {
+  const m = readme.match(re);
+  if (!m) { note(`README: 找不到${where}的计数锚点（判据失效，请恢复该行）`); return; }
+  if (+m[1] !== want) note(`README: ${where} 写 ${m[1]}，实际 ${want}`);
+};
+claim(/学习专题\s*\|\s*(\d+)\s*个/, courses.length, '学习专题总数');
+claim(/共 (\d+) 个源码页/, courses.length, 'src/ 源码页数');
+claim(/共 (\d+) 个模块/, courses.length, 'modules/ 模块数');
+claim(/\| milestone（有 `total`）[^|]*\|[^|]*\| (\d+) \|/, courses.filter((c) => c.total != null).length, 'milestone 型数量');
+claim(/\| assess（无 `total`）[^|]*\|[^|]*\| (\d+) \|/, courses.filter((c) => c.total == null).length, 'assess 型数量');
+const CAT_HEAD = { devops: 'DevOps', cs: 'CS 基础', automation: '自动化', tools: '开发工具' };
+Object.keys(CAT_HEAD).forEach((cat) => {
+  const n = courses.filter((c) => c.cat === cat).length;
+  const m = readme.match(new RegExp('### ' + CAT_HEAD[cat].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '（(\\d+) 个）'));
+  if (!m) note(`README: 找不到「${CAT_HEAD[cat]}」小节的小节数锚点`);
+  else if (+m[1] !== n) note(`README: ${CAT_HEAD[cat]} 小节写 ${m[1]} 个，courses.js 里该分类有 ${n} 个`);
+});
+/* 「46 个模块全部有判分测验（41 自带 + 5 挂载）」：三个数必须自洽，且挂载数
+   要能在 ilquizzes.js 里数出来——否则这句话只是在给一个不存在的题库背书。 */
+const quizClaim = readme.match(/(\d+) 个模块全部有判分测验（(\d+) 个模块自带 \+ (\d+) 个壳层挂载）/);
+if (!quizClaim) note('README: 找不到「模块全部有判分测验」那条声明的锚点');
+else {
+  const [total, own, mounted] = [1, 2, 3].map((i) => +quizClaim[i]);
+  if (total !== courses.length) note(`README: 判分测验声明覆盖 ${total} 个模块，实际 ${courses.length} 个`);
+  if (own + mounted !== total) note(`README: 判分测验声明 ${own} 自带 + ${mounted} 挂载 ≠ ${total}`);
+  const bank = read(path.join(ROOT, 'ilquizzes.js')) || '';
+  const bankKeys = new Set([...stripComments(bank).matchAll(/^\s{2}'?([a-z0-9-]+)'?:\s*\[/gm)].map((m) => m[1]));
+  if (bankKeys.size !== mounted) note(`README: 声明 ${mounted} 个由壳层挂载，ilquizzes.js 实际登记 ${bankKeys.size} 个（${[...bankKeys].join('/')}）`);
+}
+
 if (problems.length) {
   console.log('courses.js 校验失败（%d 项）:', problems.length);
   problems.forEach((p) => console.log('  - ' + p));

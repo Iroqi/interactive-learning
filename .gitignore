@@ -11,3 +11,7 @@ Desktop.ini
 .claude/
 .agent/
 CLAUDE.md
+# 本地跑闸门时 playwright 生成的依赖（CI 每次自己装，仓库里不放）
+node_modules/
+package.json
+package-lock.json

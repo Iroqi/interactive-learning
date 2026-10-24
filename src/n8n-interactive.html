@@ -1064,7 +1064,14 @@ const DFL = {
     const log = document.getElementById('dfl-log');
     log.innerHTML = '';
 
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const alive = () => {
+      const mr = document.getElementById('moduleRoot');
+      return !mr || mr.dataset.mod === 'n8n';               /* 独立打开本页时恒真 */
+    };
+    /* 读者切走之后模块 DOM 已经不在文档里：让 sleep 不再 resolve，整条 async 链
+       就地停住。否则 await 之后的第一行会去写已经删掉的节点，在下一个模块的屏幕上
+       抛 TypeError（tools/check-behavior.js 的「离开后」那一栏抓的就是它）。 */
+    const sleep = (ms) => new Promise((r) => { if (!alive()) return; setTimeout(() => { if (alive()) r(); }, ms); });
     const addLog = (text, cls = '') => {
       const div = document.createElement('div');
       div.className = `log-line ${cls}`;
@@ -1389,7 +1396,14 @@ const WB = {
     };
 
     // Simulate data flow
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const alive = () => {
+      const mr = document.getElementById('moduleRoot');
+      return !mr || mr.dataset.mod === 'n8n';               /* 独立打开本页时恒真 */
+    };
+    /* 读者切走之后模块 DOM 已经不在文档里：让 sleep 不再 resolve，整条 async 链
+       就地停住。否则 await 之后的第一行会去写已经删掉的节点，在下一个模块的屏幕上
+       抛 TypeError（tools/check-behavior.js 的「离开后」那一栏抓的就是它）。 */
+    const sleep = (ms) => new Promise((r) => { if (!alive()) return; setTimeout(() => { if (alive()) r(); }, ms); });
 
     (async () => {
       // Trigger

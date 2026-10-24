@@ -816,3 +816,119 @@ CI 报 `gh-actions 30 / pid 10 / jwt 7`，本地是 26/4/2：这些模块的交�
   **探针脚本仍不进仓库**（`/tmp/r19cov*.js`、`/tmp/r19runtime*.js`、`/tmp/r19reveal.js`、`/tmp/pill*.js`、
   `/tmp/themestale.js`、`/tmp/rat.js`）；本轮新增的判据（id 唯一性）例外，直接固化进 `tools/check-courses.js`，
   因为它已经在 CI 里，且靠临时探针守不住 web 那种写法。
+
+---
+
+## 71. 现状盘点（Round 20 起点）
+
+- 五道闸门出厂全绿：`verify-pack` 46 模块字节一致、`check-courses` OK、`check-theme` OK、
+  `check-tap` 硬失败 0 / WARN 181 / 覆盖 4660-4662、`check-contrast` 0 失败（46 模块 + 导航页 × 2 主题，覆盖 99.0%）。
+  本轮开工前先把这些读数逐条复现了一遍，确认自己站在上一轮的终点上，而不是站在某个未推送的中间态上。
+- 但这五道量的是同一类东西：**静态文本**与**渲染后的那一帧**。字节、元数据、token、几何地板、颜色比值——
+  **没有一道闸门真的去点一下任何东西**。README 里"读者会点"这句话，从来没有裁判。
+- 探针（一次性，不进仓库）：Playwright / 390×844，逐模块点遍 `#moduleRoot button, [role=button]`，
+  再在至多 6 个文本框里输入 `help` + Enter；每个模块统计两笔——**模块内**未捕获错误，和**切到下一个模块后空转 1500ms**
+  的未捕获错误（泄漏）。三个数放在一起才说明问题：
+  - 只导航、不点击：**0 错误**
+  - 每次新开一个页面、单独进一个模块再点遍：**0 错误**
+  - 按读者方式连续走 46 个模块并点击：**29/46 个模块、81 个未捕获 `TypeError`**
+  即缺陷不是"某些模块有病"，而是**前一个模块的残留撞进已经清空的 DOM**——只有连续走才现形。
+- 机制找到了，而且是唯一一个：打包器为了让内联 `on*` 属性能用，把顶层函数重导出成 `__g.foo = foo`；
+  浏览器按**属性字符串**在 `window` 上查函数。这条通道**不经过 `trackListeners()`**，所以上一轮那套
+  epoch 回收（`modWrap`/`releaseModule`）对它完全无效——`addEventListener` 那条道堵住了，旁边这条还开着。
+  典型轨迹：`n8n` 的 `Cannot read properties of null (reading 'classList')`（packed 第 588 行，`#dfl-node-http`）、
+  `plc` 一族 `showNav` 的 `reading 'textContent'`。
+- 同批对账翻出两处"人写的数字"在撒谎，正是上一轮遗留第 5 条：徽章文案「掌握全部 **45** 个模块」（库里 46，
+  而且这是读者判断"我还差几个"的唯一读数）、README 掌握口径表 `milestone 32`（实际 33，相加 45 ≠ 46）。
+- 另有一条**数据丢失边界**：「导入进度」对任何能 `JSON.parse` 的东西直接 `localStorage.setItem` + reload——
+  选错一个 JSON 文件（别站点的备份、某个配置导出）就把全部学习进度清成空壳，且没有任何提示。
+
+## 72. 发散：Round 20 候选
+
+| 候选 | 价值 | 成本 | 风险 | 结论 |
+|---|---|---|---|---|
+| 壳层统一收纳内联 `on*` handler（渲染后按导出名包一层 epoch 守卫） | 高：一处修掉 29 个模块的 81 个错误，根因在壳层 | 低：约 40 行 | 中：包装语义可能改掉 `this`/返回值，把模块自己的调用弄坏 | **做** |
+| 逐个模块补判活（29 个文件各写一遍） | 低：打地鼠，下一个模块还会犯 | 高 | 中：改动面铺到 29 个源码页 | 否 |
+| 新增行为闸门 `tools/check-behavior.js`（点击遍历 + 离开后泄漏 + 导入守卫 + 覆盖率自证） | 高：把"读者真的点下去"这条维度变成判据，且是唯一能抓到跨模块残留的维度 | 中：CI 多一趟浏览器遍历 | 低：装不上浏览器时 SKIP，与 tap/contrast 同口径 | **做** |
+| 合并 tap + contrast + behavior 为单次遍历 | 中：CI 省三分之二浏览器时间 | 高：三套中止条件（颜色/几何/异常）耦合后任一抖动全红 | 中 | 留下一轮（就是上一轮遗留第 4 条的延伸） |
+| 进度导入按 `courses.js` 校验结构 + 覆盖前确认 | 高：唯一会清掉用户全部数据的入口 | 低 | 低 | **做** |
+| 计数对账判据进 `check-courses.js`（代码侧 + README 表格 + `ilquizzes.js` 交叉） | 高：`size` 已经有裁判，文案计数没有；没有裁判的数字必然过期 | 低 | 中：判据自己失效会伪装成"这行不存在" | **做** |
+| n8n 异步链自带判活（`sleep` 前后各验一次模块身份） | 中：壳层管不到 microtask——`running()` 里 `curEpoch` 已为 null 时回调仍会执行 | 低 | 低 | **做** |
+| 把 `index.html` / `ilcontrast.js` 里现时制的计数改成不依赖计数的说法 | 中：写死"此刻正确的数字"只是把错误推迟到下次加模块 | 低 | 低 | **做** |
+| `window.onerror` 全局吞错 / MutationObserver 兜底 | 低：把症状盖住，缺陷留在库里 | 低 | 高：以后谁也看不见这类错误 | 否 |
+| README 全篇数字都加判据 | 低：散文跑不起来，无法机械对账 | 高 | 中 | 否，只对表格行与固定句式对账 |
+
+## 73. 收敛：Round 20 实施项
+
+1. `index.html`：新增 `inlineHandlerNames()` / `ilWrapFn()` / `guardInlineHandlers()`，`renderModule()` 里在
+   脚本执行之后一行接入；对象导出（`DFL`/`WB`）下包一层 own 方法。
+2. `src/n8n-interactive.html`：`sleep` 改成身份判活版（`document.getElementById('moduleRoot').dataset.mod === 'n8n'`），
+   重打包 `modules/n8n.js`，同步 `courses.js` 的 `size`。
+3. 新闸门 `tools/check-behavior.js`：模块内 / 离开后两笔错误 + 点击覆盖率自证 + 内联 handler 收纳比例 +
+   进度导出→清空→导入字节相等 + 四个坏 JSON 断言存储不变；接进 `.github/workflows/deploy.yml`。
+4. `index.html` 的 `importProgressFile()`：结构校验、按 `courses.js` 剔除未知 key、清洗后为空只提示、
+   覆盖既有进度前报"覆盖 N 个 / 读入 M 个"再确认。
+5. 计数派生化：finisher 的 `req` 由 `courses.length` 拼；`index.html`/`ilcontrast.js` 的现时制表述改成不写数字。
+6. `tools/check-courses.js` 第 8 节：代码侧总量声明 == `courses.length` + 接线检查；README 表格逐条对账；
+   测验声明与 `ilquizzes.js` 交叉。
+7. README：闸门清单 + 概览"数据校验"行 + 导入行为 + 技术约定三条（内联 handler 回收、计数必须有裁判、导入是系统边界）。
+8. 本节：Round 20 记录。
+
+## 74. Round 20 执行记录（已完成并推送）
+
+- **修复轨迹**（`tools/check-behavior.js`，46 模块 × 390×844，预算 0）：
+  本轮起点 **81 条未捕获 `TypeError` / 29 个模块** → 内联 `on*` 收纳进 epoch 之后
+  **1 条**（pid）→ 元素监听器也收纳之后 **0 条**。全程"只导航不点击"和"逐模块单开页面"两种跑法都是 **0**，
+  这两个 0 才是把病因指向"跨模块残留"而不是"某个模块有病"的证据。
+- **闸门第一次全库跑就抓到我自己的两个新缺陷**（子集测试看不见，因为缺陷分模块、分字段顺序）：
+  1. **pid 的 rAF 链没被收纳**——泄漏栈 `setM ← updateMetricsUI ← computeMetrics ← step`。
+     原因不是内联属性，而是第三类注册点：`runBtn.addEventListener('click', resetAndRun)` 注册在**元素**上，
+     上一轮的 `trackListeners` 只接管 `window`/`document`，元素回调执行时 `curEpoch` 是 `null`，
+     它再排的 `requestAnimationFrame` 走原生实现。修法是把同一套包装推到 `EventTarget.prototype`
+     （只包 `curEpoch` 非空时的注册，壳层自己的注册原样通过；`window`/`document` 走 own-property 版本不会二次包装）。
+  2. **导入清洗重排了字段顺序**——闸门断言"合法备份导出→清库→导入"逐字节相等，报
+     `4647 字节 vs 4647 字节`（长度一样、字节不一样）：第一版按固定顺序重建对象。改成按备份原本的
+     字段顺序写回。这条对读者的意义和对我一样：拿两份备份做 diff 时不该满屏都是噪声。
+- **出厂状态**：模块内 **0** / 离开后（泄漏）**0** / 预算 0；点击覆盖率 **555/555 = 100%**；
+  内联 handler 收纳 **144/144**；点击后 DOM 发生变化 **372/555 = 67%**（下限 50，两次全库跑分别是 370 与 372，
+  这一栏量的是"有没有动"不是"动了多少字节"，个位数差是异步落点的抖动）；
+  进度回环 OK（合法备份逐字节回来，四类非法输入存储不变）；对话框 6 次（模块自己的 confirm，不算缺陷）。
+  改完之后六道闸门在**最终状态**上再整跑一遍：`verify-pack` / `check-courses` / `check-theme` / `check-tap` /
+  `check-contrast` / `check-behavior` 全 0。
+- **另外五道闸门逐项复现 Round 19 读数**，说明本轮改动没碰到颜色与几何：`verify-pack` 46 模块字节一致、
+  `check-courses` OK、`check-theme` OK、`check-tap` 硬失败 0 / WARN 181 / 覆盖 4660-4662、
+  `check-contrast` 文本元素 24690 / 量到 24434（99.0%）/ 补量 1562 / 失败 0。
+- **判据自测**（三条，都是"先把裁判关掉，看它会不会红"）：
+  - 删掉 `guardInlineHandlers` 调用 → 红，`收纳 0/33`（子集）、模块内错误复现。
+  - 把 `EventTarget.prototype.addEventListener` 的包装短路掉（其余不动）→ 红，`pid 离开后 1` + 同一条泄漏栈。
+  - 把包装换成"点了什么都不做"（epoch 永不匹配）→ **报错 0、覆盖率 100%，但响应率 23% → 红**。
+    第三条是本轮新增"点击后 DOM 发生变化"这一栏的全部理由：收纳做过头时，症状是静默，不是异常。
+- **计数对账（上一轮遗留第 5 条）落地**：徽章「掌握全部 45 个模块」改为 `+ courses.length` 派生；
+  README 掌握口径表 `milestone 32` → `33`；`index.html`/`ilcontrast.js` 里现时制的"两种/所有模块"表述去掉写死数字。
+  新判据第 8 节上线后**立刻抓到我自己**：`src/n8n` 改完重打包成 106 KB，`courses.js` 的 `size` 还写 105 KB。
+- **踩坑记录**（本轮四条，两条是裁判自己的正则）：
+  - **给 Markdown 用剥 JS 注释的正则**：README 里的通配符写法（`modules/` 后跟星号）就是一个块注释起点，
+    它一直找不到终点时相安无事；我新加的粗体斜杠粗体给了它终点，于是中间两张表被当注释吞掉，
+    闸门报"找不到 milestone 锚点"——**判据失效会伪装成"这一行不存在"**，比计数过期难查得多。
+    README 从此只剥 HTML 注释。同一条坑接着在注释正文里踩了一次：往块注释里写那两个字符的序列，
+    直接把 `check-courses.js` 自己的注释截断了（`SyntaxError: Unexpected identifier '$'`）。
+  - **覆盖率不等于有效性**：`555/555 = 100%` 与 `0 错误` 可以同时成立，而所有按钮都是哑的。
+  - **子集跑不能带全库下限**：`--keys=pid` 那种跑法分母小又偏科（8 个控件里 6 个只重画 canvas），
+    响应率 25% 会被整库下限判红。现在整库性状的判据只在 `targets.length === courses.length` 时生效。
+  - **"字节相等"这条断言差点被我用弱判据替代**：它红了的时候，最省事的改动是把闸门改成深比较；
+      真正该改的是实现——备份的字段顺序是读者的资产，不是我的实现细节。
+- **遗留（如实）**：
+  1. **微任务仍然在机制之外**：`promise.then` / `await` 之后排定的定时器与注册没有 `curEpoch` 可依，
+     n8n 那一处是改源码（`sleep` 前后各验一次模块身份）绕过去的，不是通用解。同类写法散在多少个模块里没数过。
+  2. `el.onclick = fn` 这类**属性赋值**注册的 handler 抓不到（值已经离开我们的视野），全库实测没有这种写法。
+  3. 遍历只覆盖 `button` / `[role=button]` / 文本框；`<a>`、`select`、checkbox/radio、拖拽、键盘导航不在内。
+  4. 响应率是"45ms 后 moduleRoot 签名变没变"，慢异步（>45ms）会被记成没响应，**67% 是下界不是精确存活率**。
+  5. 三趟 46 模块的浏览器遍历（tap / contrast / behavior）现在是**三**趟，合并成一次仍是下一轮的判断题。
+  6. 导出只备份 `il_progress`；`il_badges` / `il_star` / `il_goal` 仍不在备份范围内——导入守卫修的是"别把数据搞丢"，
+     没修"本来就少备了三分之一"。
+  7. 26 个对比度源头簇、181 个 24–31px WARN 承自上一轮，本轮未动。
+- **改动面**：`index.html`（内联 handler 收纳 + 元素监听器收纳 + 导入清洗 + 徽章计数派生 + 现时制文案）、
+  `src/n8n-interactive.html`（判活版 `sleep`）与重打包的 `modules/n8n.js`（105→106 KB）、`courses.js`（size 同步）、
+  `ilcontrast.js`（去写死计数）、新闸门 `tools/check-behavior.js`、`tools/check-courses.js`（第 8 节：计数对账）、
+  `.github/workflows/deploy.yml`（behavior 步骤）、README（闸门清单 / 概览行 / 导入行为 / 技术约定 4 条改写或新增）、
+  本节。**探针不进仓库**（`/tmp/r20io.js`、`/tmp/g_*.log`、`/tmp/index.keep*.html`）。

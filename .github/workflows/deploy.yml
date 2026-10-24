@@ -54,6 +54,14 @@ jobs:
       - name: Tap target audit (46 modules @ 390x844 touch viewport)
         run: node tools/check-tap.js
 
+      # 前四道闸门量的都是"界面长什么样"。这一道量"读者点下去会发生什么"：
+      # 逐模块遍历点击与键入，再切到下一个模块静置 1.5s——模块回收后仍在跑的
+      # 定时器会在这段静置里报错（Round 20 实测 81 条，四道闸门当时全绿）。
+      # 顺带钉住进度回环：合法备份逐字节回来，非法输入不得覆盖既有进度。
+      # playwright/chromium 若在前面已装好就在这里复用，没装成则 SKIP + exit 0。
+      - name: Behavior audit (46 modules click-through + post-release leak + import guard)
+        run: node tools/check-behavior.js
+
   github-pages:
     name: GitHub Pages
     needs: check

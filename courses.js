@@ -94,7 +94,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'n8n 工作流自动化',
     desc: '从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑',
-    size: '105 KB',
+    size: '106 KB',
     tags: ['工作流', '节点', '触发器', '自动化', 'Cron']
   },
   {
