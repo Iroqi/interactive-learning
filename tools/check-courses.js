@@ -265,9 +265,106 @@ else {
   if (bankKeys.size !== mounted) note(`README: 声明 ${mounted} 个由壳层挂载，ilquizzes.js 实际登记 ${bankKeys.size} 个（${[...bankKeys].join('/')}）`);
 }
 
+/* ── 9. 备份键对账（Round 21）────────────────────────────────────────
+ * Round 20 遗留第 6 条：导出只搬 il_progress，收藏 / 成就 / 今日目标 / 主题全不在
+ * 那份"备份"里，按钮却写着"导出进度"。修一次不难，**别再漏**才是难点，所以这张
+ * 键清单不能是作者随手写的几行字：
+ *   代码里每个 localStorage 字面量键，必须在 IL_BACKUP_KEYS 或 IL_NOBACKUP_KEYS
+ *     里登记过（新增写入点没登记 → 红）
+ *   登记过的键必须真的在代码里被用到（死声明 → 红）
+ *   两张表不能重叠（一边说要备一边说不备，等于没人负责）
+ *   走变量取键的读写必须能顺着同文件 `var X = 'il_...'` 解析出来，解析不出来说明
+ *     这条写入路径连对账都看不见 → 红
+ * `localStorage.getItem(b.key)` 这类成员表达式不在扫描范围里：它不引入新键，
+ * 键本身由 IL_BACKUP_KEYS 决定，而那张表正是这里对账的对象。
+ * 行为侧（导出的文件真包含这些键、清库后逐字节回来）由 tools/check-behavior.js 钉。 */
+const STORE_SRC = ['index.html', 'ilquiz.js', 'ilcontrast.js', 'ilquizzes.js']
+  .concat(fs.readdirSync(path.join(ROOT, 'src')).filter((f) => f.endsWith('.html')).map((f) => 'src/' + f));
+const LIT_KEY = /localStorage\.(?:getItem|setItem|removeItem)\(\s*(['"])([^'"]+)\1/g;
+const VAR_KEY = /localStorage\.(?:getItem|setItem|removeItem)\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g;
+const ALIAS = /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*(['"])([^'"]+)\2/g;
+const usedKeys = new Map();
+const unresolved = [];
+const addKey = (k, where) => {
+  if (!usedKeys.has(k)) usedKeys.set(k, new Set());
+  usedKeys.get(k).add(where);
+};
+STORE_SRC.forEach((rel) => {
+  const body = stripComments(read(path.join(ROOT, rel)) || '');
+  const aliases = new Map();
+  /* 别名不必以 il_ 开头：模块私有键（web 那个仿真用自己的键）恰恰是容易漏备的一类 */
+  for (const m of body.matchAll(ALIAS)) if (/^[\w:.-]{3,}$/.test(m[3])) aliases.set(m[1], m[3]);
+  for (const m of body.matchAll(LIT_KEY)) addKey(m[2], rel);
+  for (const m of body.matchAll(VAR_KEY)) {
+    const target = aliases.get(m[1]);
+    if (target) addKey(target, `${rel}（别名 ${m[1]}）`);
+    else unresolved.push(`${rel}: localStorage 用变量 ${m[1]} 取键，对账解析不出来`);
+  }
+});
+function declaredList(name) {
+  const m = shell.match(new RegExp('var ' + name + '\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*;'));
+  if (!m) { note(`index.html: 找不到 var ${name} 声明——备份键对账没有锚点，判据无从谈起`); return null; }
+  return [...m[1].matchAll(/key:\s*'([^']+)'/g)].map((x) => x[1])
+    .concat([...m[1].matchAll(/^\s*'([^']+)'/gm)].map((x) => x[1]));
+}
+const backupKeys = declaredList('IL_BACKUP_KEYS') || [];
+const noBackupKeys = declaredList('IL_NOBACKUP_KEYS') || [];
+backupKeys.forEach((k) => {
+  if (noBackupKeys.indexOf(k) >= 0) note(`index.html: ${k} 同时在备份表和不备份表里（两张表必须互斥）`);
+});
+backupKeys.concat(noBackupKeys).forEach((k) => {
+  if (!usedKeys.has(k)) note(`index.html: 登记的键 ${k} 在代码里没有任何读写点（死声明，删掉或接上）`);
+});
+for (const [k, where] of usedKeys) {
+  if (backupKeys.indexOf(k) < 0 && noBackupKeys.indexOf(k) < 0) {
+    note(`备份键未登记：代码在 ${[...where].slice(0, 3).join('、')} 读写 '${k}'，` +
+      `但 index.html 的 IL_BACKUP_KEYS / IL_NOBACKUP_KEYS 里没有它`);
+  }
+}
+unresolved.forEach((u) => note(u + '（写成字面量，或把别名指回一个已登记的键）'));
+/* 接线检查：导出/导入必须按这张表走。表在、代码不读它，等于判据是空的。 */
+const wiring = (shell.match(/IL_BACKUP_KEYS/g) || []).length;
+if (wiring < 3) {
+  note(`index.html: IL_BACKUP_KEYS 全文只出现 ${wiring} 次（声明 + 导出 + 导入至少 3 次）——` +
+    '导出/导入若另抄一份键清单，这张表很快就会说的话不算数');
+}
+
+/* README 那条「全档案备份/恢复」必须与 IL_BACKUP_KEYS 是同一张表。
+   多写一个键，读者以为有个其实不会回来的东西；少写一个，漏备就被藏成文档缺陷
+   ——而 Round 20 的漏备正是"没人知道它不在备份里"这一类的。 */
+const docLine = (read(path.join(ROOT, 'README.md')) || '').split('\n')
+  .filter((l) => l.indexOf('全档案备份/恢复') >= 0)[0];
+if (!docLine) {
+  note('README: 找不到「全档案备份/恢复」那一行——备份键的文档侧对账没有锚点');
+} else {
+  /* 只取"一次带走…——"到"；「导入数据」"之间那段键清单，逐段取反引号里的键。
+     整行扫会被 `courses.js` / `IL_BACKUP_KEYS` 这类散文反引号污染，而"文档多写一个
+     其实不存在的键"恰恰是要抓的方向，所以宁可把锚点钉死、报错也直说锚点没了。 */
+  const from = docLine.indexOf('全部学习数据——');
+  const to = docLine.indexOf('；「导入数据」');
+  if (from < 0 || to < 0 || to < from) {
+    note('README: 「全档案备份/恢复」那行的键清单锚点没了（需要"全部学习数据——"与"；「导入数据」"两个标记）');
+  } else {
+    const docKeys = docLine.slice(from + '全部学习数据——'.length, to).split('、')
+      .map((p) => { const m = p.match(/^\s*`([^`]+)`/); return m ? m[1] : null; })
+      .filter(Boolean);
+    const docMissing = backupKeys.filter((k) => docKeys.indexOf(k) < 0);
+    const docExtra = docKeys.filter((k) => backupKeys.indexOf(k) < 0);
+    if (docMissing.length) {
+      note(`README: 备份段落漏了 ${docMissing.join(' / ')}——代码会导出它，文档却没承诺它回来`);
+    }
+    if (docExtra.length) {
+      note(`README: 备份段落写了 ${docExtra.join(' / ')}，但它不在 IL_BACKUP_KEYS 里（文档在承诺一个不存在的备份）`);
+    }
+    if (!docMissing.length && !docExtra.length && docKeys.length !== backupKeys.length) {
+      note(`README: 备份段落列了 ${docKeys.length} 个键，IL_BACKUP_KEYS 有 ${backupKeys.length} 个（重复或漏项）`);
+    }
+  }
+}
+
 if (problems.length) {
   console.log('courses.js 校验失败（%d 项）:', problems.length);
   problems.forEach((p) => console.log('  - ' + p));
   process.exit(1);
 }
-console.log('OK: courses.js 一致（%d 个模块：key 唯一、src/modules 齐备、size 标签属实、tags 均可在源码中验证、progress/total 配对、id 不与壳层撞名且模块内唯一）', courses.length);
+console.log('OK: courses.js 一致（%d 个模块：key 唯一、src/modules 齐备、size 标签属实、tags 均可在源码中验证、progress/total 配对、id 不与壳层撞名且模块内唯一、备份键清单与代码里的 localStorage 读写点对账）', courses.length);

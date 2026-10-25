@@ -1035,9 +1035,9 @@
         <div class="ov-stats" id="ovStats"></div>
         <span class="ov-milestones" id="ovMilestones"></span>
         <span class="ov-actions">
-          <button type="button" class="ov-btn" id="btnExport">导出进度</button>
+          <button type="button" class="ov-btn" id="btnExport">导出数据</button>
           <button type="button" class="ov-btn" id="btnReport" title="把学习进度生成为 Markdown 学习报告并下载">学习报告</button>
-          <button type="button" class="ov-btn" id="btnImport">导入进度</button>
+          <button type="button" class="ov-btn" id="btnImport" title="从备份文件恢复；旧版只含进度的备份文件照样能导">导入数据</button>
           <button type="button" class="ov-btn danger" id="btnReset" title="清空全部模块的学习进度">重置进度</button>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </span>
@@ -2652,20 +2652,169 @@
         strip.classList.add('show');
       }
 
-      /* ── 进度备份：导出 / 导入 il_progress ── */
-      function exportProgress() {
-        var data = localStorage.getItem('il_progress') || '{}';
-        var blob = new Blob([data], { type: 'application/json' });
+      /* ── 学习档案备份：导出 / 导入全部本地状态 ──
+         Round 20 遗留第 6 条：旧实现只搬 il_progress，按钮却写着"导出进度"。
+         收藏（il_star）、成就（il_badges）、今日目标（il_goal）、主题（il_theme）
+         全不在那份文件里——换浏览器或清一次缓存，丢的不止进度，是整个学习档案，
+         而且一声不吭。现在备份是一个 envelope，键清单由 tools/check-courses.js
+         第 9 节拿代码里所有 localStorage 字面量键对账：新增一个写入点却没在这儿
+         登记（也没写进 IL_NOBACKUP_KEYS），CI 直接红——"少备一样"这件事从此
+         需要有人主动签字，不会再静默发生。 */
+      var IL_BACKUP_KEYS = [
+        { key: 'il_progress', codec: 'json', label: '学习进度' },
+        { key: 'il_star',     codec: 'json', label: '收藏' },
+        { key: 'il_badges',   codec: 'json', label: '成就' },
+        { key: 'il_goal',     codec: 'json', label: '今日目标' },
+        { key: 'il_theme',    codec: 'raw',  label: '主题偏好' },
+        /* web 模块的建站仿真自己存了一份进度（键名不带 il_ 前缀）。第 9 节对账把
+           它揪出来的：它在库里活着，却不在任何一份备份里。 */
+        { key: 'website-simulation-progress', codec: 'json', label: '建站仿真进度' }
+      ];
+      /* 明确不备份的键写在这里并说明理由；留空也要留着，它和上面那张表是同一句话的两半 */
+      var IL_NOBACKUP_KEYS = [];
+      var BACKUP_APP = 'interactive-learning';
+      var BACKUP_VERSION = 1;
+
+      function readBackupValue(b) {
+        var raw = null;
+        try { raw = localStorage.getItem(b.key); } catch (e) { return null; }
+        if (raw === null || raw === '') return null;
+        if (b.codec !== 'json') return raw;
+        /* 解析不了的原样带上，别在"导出"这一步就把读者的数据弄丢——导入侧会再判一次 */
+        try { return JSON.parse(raw); } catch (e) { return raw; }
+      }
+
+      function exportBackup() {
+        var data = {};
+        IL_BACKUP_KEYS.forEach(function (b) {
+          var v = readBackupValue(b);
+          if (v !== null) data[b.key] = v;
+        });
+        var body = JSON.stringify({
+          app: BACKUP_APP, kind: 'backup', version: BACKUP_VERSION,
+          savedAt: new Date().toISOString(),
+          keys: Object.keys(data), data: data
+        });
+        var blob = new Blob([body], { type: 'application/json' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
         a.href = url;
-        a.download = 'il-progress-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.download = 'il-backup-' + new Date().toISOString().slice(0, 10) + '.json';
         document.body.appendChild(a);
         a.click();
         setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 500);
       }
 
-      function importProgressFile(file) {
+      /* il_progress 逐条校验（Round 20 的口径原样保留）：steps 是落在 [0,total) 的
+         整数、quiz 是 {score,total,wrongs} 数字、last 是数字、done 是布尔。
+         不合格的条目丢掉并计数，一个都不剩就拒收，不碰现有数据。
+         写回时**按文件里原本的字段顺序**——字节相等既是行为闸门的断言，也是读者
+         拿两份备份做 diff 时的体验；第一版按固定顺序重建对象，长度一样、字节不一样。 */
+      function cleanProgress(obj) {
+        var known = {};
+        courses.forEach(function (c) { known[c.key] = (typeof c.total === 'number') ? c.total : null; });
+        var clean = {}, kept = 0, dropped = [];
+        Object.keys(obj).forEach(function (key) {
+          var g = obj[key];
+          if (!known.hasOwnProperty(key) || !g || typeof g !== 'object') { dropped.push(key); return; }
+          var out = {};
+          var okShape = true;
+          Object.keys(g).forEach(function (field) {
+            if (!okShape) return;
+            var v = g[field];
+            if (field === 'steps') {
+              if (!Array.isArray(v) || v.some(function (i) { return typeof i !== 'number' || i % 1 !== 0 || i < 0; })) okShape = false;
+              else out.steps = v;
+            } else if (field === 'quiz') {
+              if (!v || typeof v !== 'object' || typeof v.score !== 'number' || typeof v.total !== 'number' ||
+                  (v.wrongs !== undefined && (!Array.isArray(v.wrongs) || v.wrongs.some(function (w) { return typeof w !== 'number'; })))) { okShape = false; return; }
+              var q = {};
+              Object.keys(v).forEach(function (qk) {
+                if (qk === 'wrongs') q.wrongs = v.wrongs ? v.wrongs.slice() : [];
+                else if (qk === 'score' || qk === 'total') q[qk] = v[qk];
+              });
+              out.quiz = q;
+            } else if (field === 'last') {
+              if (typeof v !== 'number') okShape = false; else out.last = v;
+            } else if (field === 'done') {
+              if (typeof v !== 'boolean') okShape = false; else out.done = v;
+            }
+            /* 其它字段：壳层不读，丢掉 */
+          });
+          if (!okShape) { dropped.push(key); return; }
+          clean[key] = out; kept++;
+        });
+        return { value: clean, kept: kept, dropped: dropped };
+      }
+
+      /* 每个键按它自己的结构校验，认不出的整条丢掉并计数（dropped 一律是数组，
+         导入侧按它报错数——第一版在这里混用过"数字"和"数组"，forEach 当场炸）。
+         收藏只认 courses.js 里的 key、成就只认 BADGES 里的 id：别的数据进来
+         不是"备份文件更宽"，是"这份文件不是本库的"。 */
+      var BACKUP_CLEANERS = {
+        il_progress: function (v) {
+          if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+          var r = cleanProgress(v);
+          return r.kept ? r : null;
+        },
+        il_star: function (v) {
+          if (!Array.isArray(v)) return null;
+          var known = {};
+          courses.forEach(function (c) { known[c.key] = true; });
+          var keep = [], drop = [];
+          v.forEach(function (k) {
+            if (typeof k === 'string' && known[k] === true) keep.push(k); else drop.push(String(k));
+          });
+          return { value: keep, kept: keep.length, dropped: drop };
+        },
+        il_badges: function (v) {
+          if (!Array.isArray(v)) return null;
+          var ids = {};
+          BADGES.forEach(function (b) { ids[b.id] = true; });
+          var keep = [], drop = [];
+          v.forEach(function (id) {
+            if (typeof id === 'string' && ids[id] === true) keep.push(id); else drop.push(String(id));
+          });
+          return { value: keep, kept: keep.length, dropped: drop };
+        },
+        il_goal: function (v) {
+          if (!v || typeof v !== 'object' || typeof v.date !== 'string' ||
+              typeof v.target !== 'number' || v.target < 1) return null;
+          return { value: { date: v.date, target: Math.min(v.target, 50) }, kept: 1, dropped: [] };
+        },
+        il_theme: function (v) {
+          if (typeof v !== 'string' || ['auto', 'dark', 'light'].indexOf(v) === -1) return null;
+          return { value: v, kept: 1, dropped: [] };
+        }
+      };
+      /* 建站仿真进度：结构与 schema 属于 web 模块自己，壳层只认"是一个 JSON 对象"。
+         这条比对另外几行弱，但它存在的理由是**别静默漏掉**：备份覆盖到哪几个键由
+         IL_BACKUP_KEYS 说话，而这张表由 tools/check-courses.js 第 9 节和代码对账。 */
+      BACKUP_CLEANERS['website-simulation-progress'] = function (v) {
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+        var n = Object.keys(v).length;
+        if (!n) return null;
+        return { value: v, kept: n, dropped: [] };
+      };
+
+      function backupCodec(key) {
+        var found = null;
+        IL_BACKUP_KEYS.forEach(function (b) { if (b.key === key) found = b; });
+        return found;
+      }
+      function decodeBackup(b, raw) {
+        if (b.codec !== 'json') return raw;
+        try { return JSON.parse(raw); } catch (e) { return raw; }
+      }
+      function describeBackup(b, value) {
+        if (b.key === 'il_progress') return b.label + ' ' + Object.keys(value || {}).length + ' 个模块';
+        if (Array.isArray(value)) return b.label + ' ' + value.length + ' 项';
+        if (b.key === 'il_goal' && value) return b.label + ' ' + value.target + '（' + value.date + '）';
+        if (b.key === 'il_theme') return b.label + ' ' + value;
+        return b.label;
+      }
+
+      function importBackupFile(file) {
         var r = new FileReader();
         r.onload = function () {
           var obj;
@@ -2673,64 +2822,44 @@
             obj = JSON.parse(String(r.result));
             if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('not-object');
           } catch (e) {
-            alert('导入失败：文件不是有效的进度备份 JSON');
+            alert('导入失败：文件不是有效的备份 JSON');
             return;
           }
-          /* 只认"看起来是进度备份"的对象。Round 20 实测：旧实现只判"是不是 object"，
-             于是任意一份合法 JSON（编辑器顺手存的 package.json 也算）都会**整库覆盖**
-             il_progress，读者已有的进度静默消失——而 README 那时写的是"含校验"。
-             逐条校验的口径与壳层派生进度时读的字段一致：steps 是落在 [0,total) 的整数、
-             quiz 是 {score,total,wrongs} 数字、last 是数字、done 是布尔。
-             不合格的条目丢掉并计数，一个都不剩就拒收，不碰现有数据。 */
-          var known = {};
-          courses.forEach(function (c) { known[c.key] = (typeof c.total === 'number') ? c.total : null; });
-          var clean = {}, kept = 0, dropped = [];
-          /* 逐条校验，但**按文件里原本的字段顺序**写回：Round 20 的行为闸门
-             把"合法备份导出→清库→导入"当作字节相等的断言跑，第一版按固定顺序
-             重建对象，长度一样、字节不一样（读者拿两个备份做 diff 也是同样的痛）。
-             校验强度不变，认不出的字段照旧丢掉。 */
-          Object.keys(obj).forEach(function (key) {
-            var g = obj[key];
-            if (!known.hasOwnProperty(key) || !g || typeof g !== 'object') { dropped.push(key); return; }
-            var out = {};
-            var okShape = true;
-            Object.keys(g).forEach(function (field) {
-              if (!okShape) return;
-              var v = g[field];
-              if (field === 'steps') {
-                if (!Array.isArray(v) || v.some(function (i) { return typeof i !== 'number' || i % 1 !== 0 || i < 0; })) okShape = false;
-                else out.steps = v;
-              } else if (field === 'quiz') {
-                if (!v || typeof v !== 'object' || typeof v.score !== 'number' || typeof v.total !== 'number' ||
-                    (v.wrongs !== undefined && (!Array.isArray(v.wrongs) || v.wrongs.some(function (w) { return typeof w !== 'number'; })))) { okShape = false; return; }
-                var q = {};
-                Object.keys(v).forEach(function (qk) {
-                  if (qk === 'wrongs') q.wrongs = v.wrongs ? v.wrongs.slice() : [];
-                  else if (qk === 'score' || qk === 'total') q[qk] = v[qk];
-                });
-                out.quiz = q;
-              } else if (field === 'last') {
-                if (typeof v !== 'number') okShape = false; else out.last = v;
-              } else if (field === 'done') {
-                if (typeof v !== 'boolean') okShape = false; else out.done = v;
-              }
-              /* 其它字段：壳层不读，丢掉 */
-            });
-            if (!okShape) { dropped.push(key); return; }
-            clean[key] = out; kept++;
+          /* 新格式是 envelope（{app, kind, version, data}）；Round 20 及更早的扁平
+             进度备份（顶层就是 {模块key: {...}}）照旧认——读者手里的旧文件不是垃圾。 */
+          var isArchive = obj.app === BACKUP_APP && obj.kind === 'backup' &&
+            obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data);
+          var payload = isArchive ? obj.data : { il_progress: obj };
+          var write = [], unknown = [];
+          Object.keys(payload).forEach(function (key) {
+            var b = backupCodec(key);
+            if (!b || !BACKUP_CLEANERS[key]) { unknown.push(key); return; }
+            var res = BACKUP_CLEANERS[key](payload[key]);
+            if (!res) { unknown.push(key); return; }
+            res.dropped.forEach(function (d) { unknown.push(key + '.' + d); });
+            write.push({ b: b, key: key, res: res,
+              raw: b.codec === 'json' ? JSON.stringify(res.value) : String(res.value) });
           });
-          if (!kept) {
-            alert('导入失败：文件里没有一条是有效的学习进度' +
-              (dropped.length ? '（丢弃 ' + dropped.length + ' 项）' : ''));
+          if (!write.length) {
+            alert('导入失败：文件里没有一条是本库的本地数据' +
+              (unknown.length ? '（丢弃 ' + unknown.length + ' 项）' : ''));
             return;
           }
-          /* 覆盖之前要问一句：备份是别的浏览器/更早的快照，导入是把现在这份换掉。 */
-          var had = 0;
-          try { had = Object.keys(JSON.parse(localStorage.getItem('il_progress') || '{}')).length; } catch (e) { had = 0; }
-          if (had && !confirm('导入会覆盖当前 ' + had + ' 个模块的进度，改为读入 ' + kept + ' 个模块。\n继续？')) {
-            return;
-          }
-          localStorage.setItem('il_progress', JSON.stringify(clean));
+          /* 覆盖之前把两边都念一遍：旧的"覆盖 N 个进度"只说得清 il_progress，
+             而现在会被动到的是整个学习档案。 */
+          var cur = [], inc = [];
+          write.forEach(function (w) {
+            inc.push(describeBackup(w.b, w.res.value));
+            var had = null;
+            try { had = localStorage.getItem(w.key); } catch (e) { had = null; }
+            if (had !== null && had !== '') cur.push(describeBackup(w.b, decodeBackup(w.b, had)));
+          });
+          var ignored = unknown.length ? '\n  忽略文件里 ' + unknown.length + ' 项不认的数据' : '';
+          if (cur.length && !confirm('导入会覆盖当前本地数据：\n  现有：' + cur.join('；') +
+              '\n  读入：' + inc.join('；') + ignored + '\n继续？')) return;
+          write.forEach(function (w) {
+            try { localStorage.setItem(w.key, w.raw); } catch (e) { /* storage unavailable */ }
+          });
           location.reload();
         };
         r.readAsText(file);
@@ -3267,12 +3396,16 @@
       window.addEventListener('hashchange', route);
 
       /* 备份恢复按钮 */
-      document.getElementById('btnExport').addEventListener('click', exportProgress);
+      document.getElementById('btnExport').addEventListener('click', exportBackup);
+      /* 按钮上的清单从那张表拼出来，不手写：备份扩到第几个键，读者看到的说法就跟着走。
+         手写这份文案的话，"少备一样"就会同时存在于代码和它自己的说明书里。 */
+      document.getElementById('btnExport').title = '导出学习档案：' +
+        IL_BACKUP_KEYS.map(function (b) { return b.label; }).join(' / ');
       document.getElementById('btnReport').addEventListener('click', exportReport);
       var importFile = document.getElementById('importFile');
       document.getElementById('btnImport').addEventListener('click', function () { importFile.click(); });
       importFile.addEventListener('change', function () {
-        if (importFile.files && importFile.files[0]) importProgressFile(importFile.files[0]);
+        if (importFile.files && importFile.files[0]) importBackupFile(importFile.files[0]);
         importFile.value = '';
       });
 

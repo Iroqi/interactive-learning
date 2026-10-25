@@ -15,13 +15,32 @@
  *
  * 判据：
  *   FAIL 未捕获 pageerror —— 预算默认 0（模块内 / 离开后两栏分别计数）
- *   FAIL 进度回环 —— 合法备份必须逐字节回来，非法输入不得覆盖既有进度
+ *   FAIL 档案回环 —— 每个有数据的 il_* 键都要出现在备份里，并且清库后逐字节回来；
+ *        非法输入不得覆盖既有数据，旧版扁平进度备份必须仍然导得进来
  *   FAIL 覆盖率 < --cover=（默认 90%）—— 分母是选择器命中的真控件数，
  *        分子是"确实被点过或确实被键入过"的数量；没点到的模块不算通过，
  *        这一条沿用 Round 18/19 的教训：闸门没量到 ≠ 没问题
  *   自证 内联 handler 收纳率 —— 打包器导回全局的名字里，有多少已经带上
  *        epoch 包装（壳层 guardInlineHandlers 的账）。这个数字是为了让
  *        "把包装删掉"这件事在报表里立刻可见，而不是只体现为泄漏数变多。
+ *
+ * Round 21 加的是第二件事：闸门自己从没答过一道题。
+ * 这道闸门诞生以来，点击口径一直是 `button` / `[role=button]` / 文本框。但本库的测验主体
+ * 长这样（实测清点）：
+ *   <label class="opt-row"><input type="radio" name="bigo">   —— 题组选项，722 个 radio
+ *   <div class="quiz-opt" onclick="answerQuiz(0,1,this)">     —— 手写题库，内联属性
+ *   <select> / <input type="checkbox">                        —— 15 / 26 个
+ * 没有一种落在旧选择器里。也就是说"读者答完一套题 → 记分 → 写进度 → 壳层判定掌握"
+ * 这条**整站最核心的路径**，从未被任何裁判走过一遍。新增口径：
+ *   答题 pass：radio 按 name 分组逐组作答（组内每个选项都点，第一支走"作答"，
+ *              其余走"已作答被拒"）、checkbox 点一次、select 换值并派 change、
+ *              内联 onclick 的非按钮元素全点
+ *   提交 pass：题答完之后**再点一遍按钮**，这时"提交/检查答案"才看得见答案；
+ *              一次只出一道题的模块（答完才冒出"下一题"）重复扫到 --qrounds= 轮
+ *              为止。重置类按钮跳过，否则刚答完的题被自己抹掉，判据变成假阴性
+ *   FAIL 答完题没写进度 —— 本轮遍历的**每个**模块都必须在 il_progress 里留下 quiz
+ *              记录。分母不靠闸门"认题"：README 声明全库都有判分测验，
+ *              那条声明由 tools/check-courses.js 对账过，所以这里没有"跳过"这一档
  *
  * 为什么需要"离开之后"那一趟：泄漏的定义就是"错误发生在读者已经离开之后"。
  * 每个模块点完，立刻切到下一个模块并静置 1.5s，期间浮出来的错误记在前一个
@@ -33,6 +52,7 @@
  *   node tools/check-behavior.js --clicks=20      每模块点击上限（默认 0＝全点）
  *   node tools/check-behavior.js --budget=0       未捕获错误预算
  *   node tools/check-behavior.js --cover=90       覆盖率下限
+ *   node tools/check-behavior.js --no-quiz        复现 Round 20 口径（不答题、不二次提交）
  * 找不到 Playwright/Chromium 时打印 SKIP 并 exit 0（与 check-tap.js 一致）。
  */
 'use strict';
@@ -52,10 +72,25 @@ const COVER = parseInt(opt('cover', '90'), 10);
 const RESPOND = parseInt(opt('respond', '50'), 10);
 const MAXCLICKS = parseInt(opt('clicks', '0'), 10);   // 0 = 不设上限（覆盖率必须是真数，不能因为封顶而虚低）
 const MAXINPUT = parseInt(opt('inputs', '6'), 10);
+const QMAX = parseInt(opt('qrounds', '6'), 10);    // 答题最多扫几轮（一轮内部已经会把整卷翻完）
 const ONLY = opt('keys', '').split(',').map((x) => x.trim()).filter(Boolean);
 
 const CTL_SEL = '#moduleRoot button, #moduleRoot [role="button"]';
 const INPUT_SEL = '#moduleRoot input[type=text], #moduleRoot input:not([type]), #moduleRoot textarea';
+/* Round 21：读者的输入远不止按钮。这四条把"答题"这条路纳进来（清点见文件头）。 */
+const QUIZ = argv.indexOf('--no-quiz') < 0;
+const RADIO_SEL = '#moduleRoot input[type=radio]';
+const CHECK_SEL = '#moduleRoot input[type=checkbox]';
+const SELECT_SEL = '#moduleRoot select';
+const ONCLICK_SEL = '#moduleRoot [onclick]';
+/* 题选项可能晚一步才出现（分页式测验每答一题重画一组），第二相按这个集合补点。 */
+const OPT_SEL = '#moduleRoot [class*="quiz"] button, #moduleRoot [class*="quiz"] [onclick], ' +
+  '#moduleRoot [class*="ilq"] label, #moduleRoot .ilq-opt, #moduleRoot .opt-row, ' +
+  '#moduleRoot .quiz-option, #moduleRoot .opt';
+/* 重置类跳过：否则刚答完的题被自己抹掉，判据自己变成假阴性。 */
+const RESETISH = /重置|清空|重做|重来|重新|重试|再来|换一批|随机|Reset|Clear|Retry|Shuffle|New/i;
+/* 翻页/交卷类按钮的文案指纹：第二相只认这些，避免把每点一次就重造的导航锚点当成新控件 */
+const ANSWERISH = /下一题|下一关|下一步|提交|检查|确认|查看|完成|评分|结果|得分|Next|Submit|Check|Done|Finish/i;
 
 function loadPlaywright() {
   const tries = ['playwright', 'playwright-core', path.join(ROOT, 'node_modules/playwright'), '/usr/local/node/lib/node_modules/playwright'];
@@ -133,6 +168,8 @@ const courses = (() => {
 
     const mark = pool.length;
     let respMod = 0;
+    let qp = { groups: 0, options: 0, checks: 0, selects: 0, optrows: 0, clicks: 0, pages: 0, rounds: 0 };
+    let rec = { quiz: false, score: null, total: null };
     const n = await page.evaluate((s) => document.querySelectorAll(s).length, CTL_SEL);
     const ni = await page.evaluate((s) => document.querySelectorAll(s).length, INPUT_SEL);
     const clicked = MAXCLICKS > 0 ? Math.min(n, MAXCLICKS) : n;
@@ -166,6 +203,101 @@ const courses = (() => {
       }, [INPUT_SEL, k]);
       await page.waitForTimeout(70);
     }
+
+    /* ── Round 21：答题 pass ──
+       上面两趟只走 button 和文本框。题组的真身是 radio / checkbox / select /
+       内联 onclick 的 div，读者一天里点得最多的恰恰是它们。
+       而且这些流程**不是一趟点完的**：一次只出一道题的模块（docker / compose /
+       git 那一族），答完这题"下一题"按钮才存在，所以这里反复扫，直到本模块在
+       il_progress 里留下 quiz 记录，或者界面不再有任何变化（静置）。 */
+    if (QUIZ) {
+      let prevSnap = null;
+      for (let round = 0; round < QMAX; round++) {
+        const s = await page.evaluate(async ([rad, chk, sel, onec, opt, btn, resetSrc, ansSrc, k]) => {
+          const out = { groups: 0, options: 0, checks: 0, selects: 0, optrows: 0, clicks: 0, pages: 0 };
+          const RESET = new RegExp(resetSrc, 'i');
+          const ANSWER = new RegExp(ansSrc, 'i');
+          const nap = (ms) => new Promise((r) => setTimeout(r, ms));
+          const text = (el) => (el.textContent || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('aria-label') || '');
+          const clickable = (el) => el.disabled !== true && !RESET.test(text(el));
+          const seen = new Set();
+
+          /* 第一相：一趟就能点完的。radio 按 name 分组逐组作答——组内每一支都点下去，
+             第一支走"作答"分支，其余走模块自己的"已作答就拒绝"分支，两条都是读者真会
+             走到的路径。checkbox / select / 内联 onclick 的题选项 / 非重置按钮同相走完。 */
+          const byName = new Map();
+          document.querySelectorAll(rad).forEach((el) => {
+            const kk = el.name || ('__noname_' + byName.size);
+            if (!byName.has(kk)) byName.set(kk, []);
+            byName.get(kk).push(el);
+          });
+          byName.forEach((opts) => {
+            out.groups++;
+            opts.forEach((el) => { seen.add(el); el.click(); out.options++; });
+          });
+          document.querySelectorAll(chk).forEach((el) => { seen.add(el); el.click(); out.checks++; });
+          document.querySelectorAll(sel).forEach((el) => {
+            if (el.options.length < 2) return;
+            el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            out.selects++;
+          });
+          document.querySelectorAll(onec).forEach((el) => {
+            const t = el.tagName;
+            if (t === 'BUTTON' || t === 'INPUT' || el.getAttribute('role') === 'button') return;
+            if (!clickable(el)) return;
+            seen.add(el); el.click(); out.optrows++;
+          });
+          document.querySelectorAll(btn).forEach((el) => {
+            if (!clickable(el)) return;
+            seen.add(el); el.click(); out.clicks++;
+          });
+
+          /* 第二相：翻页流。答完这一题，"下一题"这个按钮才存在；八题答完才有分数、
+             才有 IL.record。这一相只追两类**新出现**的元素：测验容器里的选项，
+             以及文案是"提交 / 下一题 / 查看结果"的按钮。
+             为什么要把范围圈死：第一版写成"任何新出现的可点元素都点"，实测 docker
+             一轮 240 步的预算被导航锚点"↓"吃光（每点一次就重造一个新节点），
+             一道题都没答完。范围必须由测验语义圈出来，不能由 DOM 变化圈出来。 */
+          for (let step = 0; step < 40; step++) {
+            let moved = false;
+            document.querySelectorAll(opt).forEach((el) => {
+              if (seen.has(el) || !clickable(el)) return;
+              seen.add(el); el.click(); moved = true; out.optrows++;
+            });
+            if (moved) await nap(90);
+            document.querySelectorAll(btn).forEach((el) => {
+              if (seen.has(el) || !clickable(el) || !ANSWER.test(text(el))) return;
+              seen.add(el); el.click(); moved = true; out.pages++;
+            });
+            if (!moved) break;
+            await nap(90);
+          }
+
+          let store = {};
+          try { store = JSON.parse(localStorage.getItem('il_progress') || '{}'); } catch (e) { store = {}; }
+          const g = store[k] || {};
+          out.quiz = !!(g.quiz && typeof g.quiz.total === 'number');
+          out.score = g.quiz && typeof g.quiz.score === 'number' ? g.quiz.score : null;
+          out.total = g.quiz && typeof g.quiz.total === 'number' ? g.quiz.total : null;
+          const r = document.getElementById('moduleRoot');
+          out.sig = r ? (r.innerHTML.length + ':' + r.querySelectorAll('*').length) : 'none';
+          out.snap = out.sig + '|' + JSON.stringify(g);
+          return out;
+        }, [RADIO_SEL, CHECK_SEL, SELECT_SEL, ONCLICK_SEL, OPT_SEL, CTL_SEL, RESETISH.source, ANSWERISH.source, c.key]);
+
+        qp.groups += s.groups; qp.options += s.options; qp.checks += s.checks;
+        qp.selects += s.selects; qp.optrows += s.optrows; qp.clicks += s.clicks; qp.pages += s.pages;
+        qp.rounds++;
+        rec = { quiz: s.quiz, score: s.score, total: s.total };
+        if (rec.quiz) break;                                   /* 记录到手，收工 */
+        if (s.snap === prevSnap) break;                        /* 界面和进度都不动了：静置 */
+        prevSnap = s.snap;
+        await page.waitForTimeout(260);
+      }
+    }
+
     await page.waitForTimeout(600);
     const onMod = pool.length - mark;
 
@@ -195,7 +327,7 @@ const courses = (() => {
 
     totalCtl += n; totalClicked += clicked; exported += g.exported; guarded += g.guarded;
     rows.push({ key: c.key, ctl: n, clicked, inputs: ni, typed, onMod, leaked, exported: g.exported, guarded: g.guarded,
-      responded: respMod });
+      responded: respMod, quiz: qp, rec: rec });
 
     /* 归属：mark..mark2 是模块内，mark2..end 是离开后 */
     rows[rows.length - 1].onModMsgs = pool.slice(mark, mark2).map((x) => x.msg);
@@ -205,12 +337,26 @@ const courses = (() => {
     if (onMod || leaked) console.log('  !! ' + c.key.padEnd(13) + '模块内 ' + onMod + ' / 离开后 ' + leaked);
   }
 
-  /* ── 壳层闭环：进度导出 → 清库 → 导入 ──
-   * Round 20 实测的另一条：旧 importProgressFile 只判"是不是 object"，任何一份
-   * 合法 JSON 都会整库覆盖 il_progress（读者进度静默消失），而 README 写着"含校验"。
-   * 这里把三件事钉住：合法备份能逐字节回来；不像进度备份的东西必须被拒；
-   * 有既有进度时必须先问一句（对话框被 dismiss 当作"取消"，进度原样不动）。 */
+  /* ── 壳层闭环：整份学习档案导出 → 清库 → 导入 ──
+   * Round 20 钉住的是"别把进度搞丢"（任意一份合法 JSON 都会整库覆盖 il_progress，
+   * 而 README 写着"含校验"）。Round 21 补另一头：那份备份只装了一种数据——收藏 /
+   * 成就 / 今日目标 / 主题全不在里面，按钮却写着"导出进度"，读者以为自己有保障。
+   * 于是这里量三件事：
+   *   覆盖 本地每个有数据的 il_* 键都必须出现在 envelope.data 里（少一个 FAIL）
+   *   回环 清库再导入，每个键逐字节回来；旧版扁平进度文件也照样要能导进来
+   *   守卫 非法输入一个字节都不许动既有数据（对话框 dismiss 当"取消"同样不动） */
+  const BACKUP_KEYS = ['il_progress', 'il_star', 'il_badges', 'il_goal', 'il_theme',
+    'website-simulation-progress'];
   const ioProblems = [];
+  const readAll = () => page.evaluate((ks) => {
+    const out = {};
+    ks.forEach((k) => { out[k] = localStorage.getItem(k); });
+    return out;
+  }, BACKUP_KEYS);
+  const restore = (snap) => page.evaluate((s) => {
+    Object.keys(s).forEach((k) => { if (s[k] === null) localStorage.removeItem(k); else localStorage.setItem(k, s[k]); });
+    location.hash = '#/';
+  }, snap);
   try {
     /* 先回到一个**干净的壳层**再做导出/导入：这一段量的是壳层，不该受"上一个
        模块留下了什么"影响。`--keys=pid` 子集下直接接着遍历点击的现场点 #btnExport，
@@ -228,41 +374,88 @@ const courses = (() => {
         s[c.key] = g;
       });
       localStorage.setItem('il_progress', JSON.stringify(s));
+      localStorage.setItem('il_star', JSON.stringify([list[0].key, list[3].key, list[7].key]));
+      localStorage.setItem('il_goal', JSON.stringify({ date: '2026-01-01', target: 7 }));
+      localStorage.setItem('il_theme', 'dark');
+      /* 建站仿真进度只有 web 模块自己会写，这里直接种一份，量的是"备份带不带得走它" */
+      localStorage.setItem('website-simulation-progress',
+        JSON.stringify({ domain: 'example.com', completedSteps: ['dns', 'ssl'], step: 3 }));
       location.hash = '#/';
     });
-    await page.waitForTimeout(700);
+    /* 等壳层自己把 il_badges 算出来并写下去：成就是被 renderBadges 落盘的，
+       闸门不许自己伪造一份——那样"备份覆盖到成就没有"这条判据就没人证过了。 */
+    await page.waitForTimeout(900);
+    const stateBefore = await readAll();
+    const filled = BACKUP_KEYS.filter((k) => stateBefore[k] !== null && stateBefore[k] !== '');
+
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 8000 }), page.click('#btnExport')]);
     const dump = path.join(os.tmpdir(), 'il-behavior-export.json');
     await dl.saveAs(dump);
     const exported = fs.readFileSync(dump, 'utf8');
 
+    let env = null;
+    try { env = JSON.parse(exported); } catch (e) { env = null; }
+    if (!env) {
+      ioProblems.push('导出的文件不是合法 JSON');
+    } else {
+      if (env.app !== 'interactive-learning' || env.kind !== 'backup') {
+        ioProblems.push('导出文件没有自报家门（缺 app / kind 字段），导入侧无法区分它和别家的 JSON');
+      }
+      const dataKeys = Object.keys(env.data || {});
+      if (dataKeys.indexOf('il_progress') < 0) ioProblems.push('导出文件里没有 il_progress');
+      filled.forEach((k) => {
+        if (dataKeys.indexOf(k) < 0) ioProblems.push('备份漏了 ' + k + '：本地有数据，导出文件里却没有');
+      });
+    }
+
     const putAndImport = async (body) => {
       fs.writeFileSync(dump, body);
       await (await page.$('#importFile')).setInputFiles(dump);
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(1400);
     };
 
-    /* 1) 合法备份：清库后导入，必须逐字节回来 */
+    /* 1) 合法备份：清库后导入，每个键必须逐字节回来 */
     await page.evaluate(() => { localStorage.clear(); location.hash = '#/'; });
     await page.waitForTimeout(400);
     await putAndImport(exported);
-    const after = await page.evaluate(() => localStorage.getItem('il_progress'));
-    if (after !== exported) ioProblems.push('合法备份导入后与导出不一致（' + (after || '').length + ' 字节 vs ' + exported.length + ' 字节）');
+    const stateAfter = await readAll();
+    filled.forEach((k) => {
+      if (stateAfter[k] !== stateBefore[k]) {
+        ioProblems.push('合法备份导入后 ' + k + ' 与导出不一致（' +
+          (stateAfter[k] || '').length + ' 字节 vs ' + stateBefore[k].length + ' 字节）');
+      }
+    });
 
-    /* 2) 不像进度备份的输入：原进度必须原样还在 */
-    const before = await page.evaluate(() => localStorage.getItem('il_progress'));
+    /* 2) 不像备份的输入：一个字节都不许动 */
     const junk = [
       ['数组', '[1,2,3]'],
       ['坏 JSON', '{not json'],
       ['陌生对象', '{"totally":"unknown","n":1}'],
       ['脏条目', '{"git":{"steps":"nope","quiz":{"score":"x"}}}'],
+      ['空 envelope', '{"app":"interactive-learning","kind":"backup","version":1,"data":{}}'],
+      ['假成就清单', '{"il_progress":{},"il_badges":["not-a-badge-id"]}'],
     ];
     for (const j of junk) {
-      await page.evaluate((v) => { localStorage.setItem('il_progress', v); location.hash = '#/'; }, before);
-      await page.waitForTimeout(350);
+      await restore(stateBefore);
+      await page.waitForTimeout(400);
       await putAndImport(j[1]);
-      const now = await page.evaluate(() => localStorage.getItem('il_progress'));
-      if (now !== before) ioProblems.push(j[0] + '：导入后既有进度被改写（判据：非法输入不得覆盖）');
+      const now = await readAll();
+      filled.forEach((k) => {
+        if (now[k] !== stateBefore[k]) {
+          ioProblems.push(j[0] + '：导入后 ' + k + ' 被改写（判据：非法输入不得覆盖既有数据）');
+        }
+      });
+    }
+
+    /* 3) Round 20 的扁平文件（顶层就是 {模块key: {...}}）必须还能导进来：
+          读者手里的旧备份不是垃圾，这条兼容性不-test 就没人知道它什么时候断的 */
+    await page.evaluate(() => { localStorage.clear(); location.hash = '#/'; });
+    await page.waitForTimeout(400);
+    await putAndImport(stateBefore['il_progress']);
+    const flatBack = await readAll();
+    if (flatBack['il_progress'] !== stateBefore['il_progress']) {
+      ioProblems.push('旧版扁平进度备份导不进来了（导入后 ' + (flatBack['il_progress'] || '').length +
+        ' 字节 vs 原本 ' + stateBefore['il_progress'].length + ' 字节）');
     }
     try { fs.unlinkSync(dump); } catch (e) { /* ignore */ }
   } catch (e) {
@@ -285,9 +478,38 @@ const courses = (() => {
   });
   if (crashers.length > 25) console.log('  … 另有 ' + (crashers.length - 25) + ' 个模块');
   console.log('未捕获错误：模块内 ' + onModTotal + ' / 离开后（泄漏）' + leakTotal + ' / 预算 ' + BUDGET);
-  console.log('进度回环（导出→清库→导入 / 四类非法输入不得覆盖）: ' + (ioProblems.length ? ioProblems.length + ' 项不合格' : 'OK'));
+  console.log('档案回环（每个 il_* 键逐字节回来 / 六类非法输入不得覆盖 / 旧版扁平文件仍可导入）: ' +
+    (ioProblems.length ? ioProblems.length + ' 项不合格' : 'OK'));
   ioProblems.forEach((m) => console.log('  FAIL ' + m));
   console.log('点击覆盖率（点过的控件 / 命中的真控件）: ' + totalClicked + '/' + totalCtl + ' = ' + cov + '% / 下限 ' + COVER + '%');
+  /* ── Round 21：答题这一维以前根本不在判据里 ──
+     "答完题必须留下 quiz 记录"量的不是模块有没有病，而是**读者的主路径有没有被走通过**：
+     题组答完 → 记分 → 写 il_progress → 壳层据此判定掌握 / 错题本 / 复习提醒。
+     中间任何一环断（比如 IL.record 换了个 key、handler 挂在被回收的节点上），
+     读者的表现是"我明明做完了题，进度条还是 0"。 */
+  const totGroups = rows.reduce((s, r) => s + r.quiz.groups, 0);
+  const totOptions = rows.reduce((s, r) => s + r.quiz.options, 0);
+  const totOptrows = rows.reduce((s, r) => s + r.quiz.optrows, 0);
+  const totChecks = rows.reduce((s, r) => s + r.quiz.checks, 0);
+  const totSelects = rows.reduce((s, r) => s + r.quiz.selects, 0);
+  const totClicks = rows.reduce((s, r) => s + r.quiz.clicks, 0);
+  const totPages = rows.reduce((s, r) => s + r.quiz.pages, 0);
+  const totRounds = rows.reduce((s, r) => s + r.quiz.rounds, 0);
+  const noRecord = rows.filter((r) => !r.rec.quiz);
+  console.log('答题覆盖: ' + totGroups + ' 个 radio 题组（点过 ' + totOptions + ' 个选项） + ' +
+    totOptrows + ' 个题选项（内联 onclick / 翻页后新出现的）；checkbox ' + totChecks + ' 个、select ' +
+    totSelects + ' 个换值；答后提交 ' + totClicks + ' 次 + 翻页/交卷 ' + totPages +
+    ' 次（扫 ' + totRounds + ' 轮，上限 ' + QMAX + '/模块）' + (QUIZ ? '' : '（--no-quiz：本趟未执行）'));
+  /* 分母是**本轮遍历的模块数**，不是"闸门认出来的有题模块数"：README 的
+     "全部模块都有判分测验"由 check-courses 对账过（自带 + 挂载 = 全库），
+     所以答完一遍还没写记录的，要么这条声明对它是假的，要么这条路径走不通。
+     两种都是缺陷，没有"跳过"这一档。 */
+  console.log('做完测验并在 il_progress 留下 quiz 记录: ' + (rows.length - noRecord.length) + '/' + rows.length);
+  noRecord.forEach((r) => {
+    console.log('  FAIL ' + r.key + '  点了 ' + r.quiz.groups + ' 组 radio / ' + r.quiz.options +
+      ' 个选项 / ' + r.quiz.optrows + ' 个 onclick 题选项 / 翻页 ' + r.quiz.pages +
+      ' 次（扫 ' + r.quiz.rounds + ' 轮），壳层却没有收到 quiz 记录');
+  });
   /* 反向自证：报错 0 + 覆盖 100% 也可能意味着"点下去什么都没发生"——回收与收纳
      做过头就会把交互一起杀掉，而静默的按钮不抛任何错。所以再量一次"点击之后
      moduleRoot 有没有变"。整库按比例给下限；单模块只有**一个都没动**才判失败
@@ -305,7 +527,7 @@ const courses = (() => {
   if (dialogs) console.log('对话框（confirm/alert）: ' + dialogs + ' 次，已 dismiss，不计失败');
 
   const bad = (onModTotal + leakTotal) > BUDGET || cov < COVER || ioProblems.length > 0 ||
-    (wholeLib && respPct < RESPOND) || silent.length > 0;
+    (wholeLib && respPct < RESPOND) || silent.length > 0 || (QUIZ && noRecord.length > 0);
   if (bad) {
     console.log('\n读者态行为闸门未通过');
     if (leakTotal > 0) {

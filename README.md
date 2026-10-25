@@ -17,9 +17,9 @@
 | 技术栈 | 纯 HTML + CSS + JavaScript，零依赖 |
 | 页面文件 | 仅 1 个 HTML（`index.html`） |
 | 进度追踪 | localStorage（`il_progress`），导航页与各模块自动联动；里程碑型看全部解锁，纯测验型看测验得分率 ≥ 75% |
-| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、进度一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、搜索别名与拼写建议、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体）、运行时对比度兜底（`ILContrast`，文字压在底色上低于 AA 时原地微调） |
+| 学习系统 | 到期复习提醒（间隔重复）、连续学习天数、全档案一键导出/导入、学习报告导出、导航排序、分类学习看板、进度重置、今日目标、星标收藏置顶、成就徽章、暗/亮主题、学习热力图、测验成绩趋势、错题本（测验错题聚合 + 一键重学 + 模块内错题优先重做）、搜索别名与拼写建议、统一课程皮肤（Geek 终端风：纯黑底 + 霓虹绿 + 等宽字体）、运行时对比度兜底（`ILContrast`，文字压在底色上低于 AA 时原地微调） |
 | 部署 | GitHub Pages + Cloudflare Pages（CI/CD 自动双部署） |
-| 数据校验 | CI 的 `check` job 六道把关：`src/` ↔ `modules/` 字节一致、`courses.js` 的 `size`/文案计数属实、`tags` 每个词都能在模块源码里找到、主题 token 双主题齐备且 skin 内无写死颜色、真实渲染对比度与 390×844 触控热区地板、真实点击遍历零崩溃且离开模块后零残留 |
+| 数据校验 | CI 的 `check` job 六道把关：`src/` ↔ `modules/` 字节一致、`courses.js` 的 `size`/文案计数属实、`tags` 每个词都能在模块源码里找到、备份键清单与代码里的 `localStorage` 读写点对账、主题 token 双主题齐备且 skin 内无写死颜色、真实渲染对比度与 390×844 触控热区地板、真实点击遍历零崩溃且离开模块后零残留，且每个模块的测验都被真答过一遍、成绩真落了盘 |
 
 ---
 
@@ -42,11 +42,11 @@
 │   ├── pack-modules.py                # 构建：src/<key>-interactive.html → modules/<key>.js
 │   ├── unpack-modules.js              # 反向：modules/<key>.js → src/（恢复丢失的源码层）
 │   ├── verify-pack.js                 # 校验：src/ 重新打包后与 modules/ 内容一致
-│   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致，并查 id 唯一性
+│   ├── check-courses.js               # 校验：courses.js 的 size / tags / total 与仓库实际一致，并查 id 唯一性、备份键清单有没有漏记的存储写入点
 │   ├── check-theme.js                 # 校验：主题 token 双主题齐备、skin 无写死颜色、模块变量均已映射
 │   ├── check-contrast.js              # 校验：46 模块 + 导航页 × 亮暗双主题的真实渲染对比度，含两遍量与覆盖率闸门（需浏览器，缺失则 SKIP）
 │   ├── check-tap.js                   # 校验：46 模块 × 390×844 触屏视口的触控热区地板（需浏览器，缺失则 SKIP）
-│   └── check-behavior.js              # 校验：46 模块真实点击遍历零崩溃 + 离开后零泄漏 + 点击确实改变 DOM + 进度导入守卫（需浏览器，缺失则 SKIP）
+│   └── check-behavior.js              # 校验：46 模块真实点击遍历零崩溃 + 离开后零泄漏 + 点击确实改变 DOM + 每个模块的测验真答一遍并落成绩 + 全档案回环与导入守卫（需浏览器，缺失则 SKIP）
 │
 ├── .github/workflows/deploy.yml       # CI/CD 双部署流水线
 ├── .gitignore
@@ -146,7 +146,7 @@
 
 - **复习提醒（间隔重复）**：超过 3 天未学习的进行中模块、超过 7 天未复习的已掌握模块，导航页出现"复习提醒"条，点击直达最近到期模块
 - **连续学习天数**：聚合所有模块最近学习时间，在进度总览显示连续学习 streak
-- **进度备份/恢复**：进度总览右侧「导出进度」一键下载 `il_progress` JSON，「导入进度」选择文件即恢复——换浏览器/清缓存不再丢进度。导入按 `courses.js` 校验结构：未知模块 key 与畸形字段剔除、覆盖既有进度前先确认数量，坏文件不会把已有进度清空
+- **全档案备份/恢复**：进度总览右侧「导出数据」下载一个带封套的文件（`{app, kind, version, savedAt, keys, data}`），一次带走浏览器里全部学习数据——`il_progress` 学习进度、`il_star` 收藏、`il_badges` 成就、`il_goal` 今日目标、`il_theme` 主题偏好、`website-simulation-progress` 建站仿真进度；「导入数据」按同一张键清单逐键清洗后写回，旧版只含 `il_progress` 的扁平备份仍然导得进来。导入按 `courses.js` 与每个键自己的结构校验：陌生 key 与畸形字段剔除、清洗后为空只提示不写盘、覆盖既有数据前先报"现有 N 项、读入 M 项"再确认，坏文件不会把已有进度清空。上面这段列出的键与 `index.html` 的 `IL_BACKUP_KEYS` 由 `tools/check-courses.js` 对账，漏写或多写都会让 CI 红
 - **分类学习看板**：有学习进度后，导航页展示四类（DevOps / CS 基础 / 自动化 / 开发工具）的掌握度条形统计，读数形如 `5 / 13 掌握 · 56%`（每类分母是该类模块数，两类模块各自折算成 0~1 的掌握度再平均）
 - **重置进度**：进度总览右侧「重置进度」按钮（confirm 确认）可一键清空全部学习进度，重新开始
 - **今日目标**：导航页可设定每日里程碑目标（按天生效），实时显示"今日已解锁 / 目标"进度条，达成后标记 ✓
@@ -168,11 +168,12 @@
 ```bash
 python3 tools/pack-modules.py   # 先在 KEYS 中登记 'xxx-interactive.html': 'xxx'
 node tools/verify-pack.js       # 确认 src/ 与 modules/ 一致（CI 的 check job 跑同一条）
-node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎，并查 id 是否重复/撞壳层
+node tools/check-courses.js     # 确认 courses.js 的 size / tags / total 没在撒谎，并查 id 是否重复/撞壳层、存储键是否都在备份清单里
 node tools/check-theme.js       # 确认新模块没有把颜色写死、也没漏掉 token 映射
 node tools/check-contrast.js    # 量渲染后的实际对比度（需 Playwright + Chromium，没有则 SKIP）
 node tools/check-tap.js         # 量渲染后的触控热区（同上，需浏览器）
-node tools/check-behavior.js    # 真的点：逐模块点遍所有按钮，并查离开模块后有没有残留报错
+node tools/check-behavior.js    # 真的点、也真的答题：逐模块点遍控件并答完每个模块的测验，查离开后的残留报错与成绩有没有落盘
+node tools/check-behavior.js --no-quiz   # 复现 Round 20 口径（只点按钮、不答题）
 ```
 
 前三条是静态检查，后三条是浏览器检查：它把模块真正渲染出来（390×844 触摸视口、按读者方式滚动、等淡入与过渡走完）再量"这个字压在这个底上"的比值。对比度与触控两道闸门都做**两遍量**——先按读者当前能看到的东西量一遍，再把折叠面板 / `<details>` / `[hidden]` 里的内容临时揭开补量，并给出"量到的 / 页面上存在的"覆盖率，低于 `--cover=`（默认 90%）判失败：`0 失败` 只有配上"量到了多少"才有意义。对比度那一道除了 46 个模块还量**导航页**（要带一份确定性学习进度，否则进度条/徽章/错题本/热力图根本不渲染）。`--source` 会屏蔽运行时兜底、按"路径 + 前景色"聚合出源头簇，用来定位到底是哪条 CSS 规则出了问题，`[展开后]` 前缀标出那些只有揭开才露面的行：
@@ -275,7 +276,7 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 
 | Job | 作用 |
 |------|------|
-| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对，以及 `src/<key>-interactive.html` 里 **id 不重复、不与壳层同名**（静态扫，连 JS 拼出来的 HTML 字符串一起看——渲染态普查看不见"点击后才建"的那段 DOM）。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度，外加**导航页**一趟（带确定性进度种子），折叠内容两遍量后给出覆盖率，低于 90% 判失败（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行）。再跑 `node tools/check-tap.js`：同一份浏览器、390×844 触屏视口下遍历全部模块的触控热区，硬失败（<24px）预算 0，覆盖率同样 90% 下限。最后跑 `node tools/check-behavior.js`：把"读者真的点下去会发生什么"这条维度补上——逐模块点遍所有 `button` / `[role=button]` 并在文本框里输入，统计**模块内**与**切到下一个模块之后**两笔未捕获错误（后者是模块回收漏了的直接证据，只在前一个口径上看不到）；再量一次"点击之后 `moduleRoot` 的签名有没有变"（整库下限 50%，低于即失败；单模块点了 5 个以上控件却一次都没变也失败）——因为"0 报错 + 100% 覆盖"同样可能是**所有按钮都是哑的**，收纳做过头时症状是静默不是异常。最后把壳层的进度回环跑一遍：导出→清空→导入必须字节相等，四种坏 JSON 喂进去必须存储不变 |
+| **check** | `node tools/verify-pack.js`：把 `src/` 重新打包并与 `modules/` 逐字段比对，不一致就拦住部署（源码与产物脱节是这个库最容易犯的错）。再跑 `node tools/check-courses.js`：核对 `courses.js` 的 key 唯一、`src/`↔`modules/`↔记录三向齐备、`size` 与实际字节相符、`tags` 均可在模块源码中验证、`progress`/`total` 配对，以及 `src/<key>-interactive.html` 里 **id 不重复、不与壳层同名**（静态扫，连 JS 拼出来的 HTML 字符串一起看——渲染态普查看不见"点击后才建"的那段 DOM）。然后跑 `node tools/check-theme.js`：`--sk-*` / `--ilq-*` 在亮暗两套都齐备、skin 的**非限定**规则里不出现写死的颜色（自定义属性声明、以及 `html[data-theme="…"]` / `#moduleRoot[data-mod="…"]` 这类显式主题/模块配对块允许写死，那正是恒定深色孤岛调色板本身）、壳层 `:root` 的语义变量在 `html[data-theme="light"]` 里都有覆盖、被 8 个以上模块用到的自造颜色变量必须已进映射块、任何重定义 `--sk-page` 的孤岛块必须把"文字系" token 一次配齐。最后跑 `node tools/check-contrast.js`：真浏览器里逐模块量渲染对比度，外加**导航页**一趟（带确定性进度种子），折叠内容两遍量后给出覆盖率，低于 90% 判失败（CI 会临时装 Playwright + Chromium；装不上时该步打印 SKIP 并放行）。再跑 `node tools/check-tap.js`：同一份浏览器、390×844 触屏视口下遍历全部模块的触控热区，硬失败（<24px）预算 0，覆盖率同样 90% 下限。最后跑 `node tools/check-behavior.js`：把"读者真的点下去会发生什么"这条维度补上——逐模块点遍所有 `button` / `[role=button]` 并在文本框里输入，统计**模块内**与**切到下一个模块之后**两笔未捕获错误（后者是模块回收漏了的直接证据，只在前一个口径上看不到）；再量一次"点击之后 `moduleRoot` 的签名有没有变"（整库下限 50%，低于即失败；单模块点了 5 个以上控件却一次都没变也失败）——因为"0 报错 + 100% 覆盖"同样可能是**所有按钮都是哑的**，收纳做过头时症状是静默不是异常。同一趟里闸门还要**把每个模块的测验真答一遍**：radio 按 `name` 分组逐组作答（组内每个选项都点，第一支验"作答被接受"、其余验"已作答被拒"）、checkbox 点一次、`select` 换值并派 `change`、手写题库那种带内联 `onclick` 的非按钮选项全点；答完再点一遍"提交/检查"让模块亮出答案，然后按"下一题"这类按钮翻页，扫到签名不再变化为止——重置类按钮跳过，否则刚答完的题被自己抹掉，判据就成了假阴性。口径是**本轮遍历的每个模块都必须在 `il_progress` 里留下一条 quiz 记录**，缺一即失败，没有"这个模块没测验所以跳过"这一档：README 那句"全部模块都有判分测验"由 `tools/check-courses.js` 与 `ilquizzes.js` 交叉对账过。最后把壳层的全档案回环跑一遍：备份里的**每一个** `il_*` 键都要逐字节回来（导出→清库→导入），六类非法输入（数组 / 坏 JSON / 陌生对象 / 脏条目 / 空 envelope / 假成就清单）喂进去必须一个字节都不改，旧版只含 `il_progress` 的扁平备份必须仍然导得进来 |
 | **GitHub Pages** | `iroqi.github.io/interactive-learning/`，`actions/deploy-pages@v4`，无需 Secret |
 | **Cloudflare Pages** | `iroqi.pages.dev`，`wrangler-action@v3`，需 `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` |
 
@@ -299,7 +300,9 @@ push 到 `main` 后，GitHub Actions 先跑 `check`，再触发两个部署 job�
 - **SVG 文字可以 `fill="var(--token)"`**：Chrome 支持在 SVG 呈现属性里用 `var()`，所以图示标签想跟主题走不必写死两套 hex——模块里加 `[data-theme="light"] { --svg-label:#5c6674 }` / `[data-theme="dark"] { --svg-label:#8888aa }`，正文写 `fill="var(--svg-label)"` 即可（n8n 的 11 个标签就是这么改的）。也别为了修亮色把字色改成单一深灰：`#8888aa` 在亮色 5.82 通过、`#5c6674` 在暗色只剩 3.26，同一支颜色在两个主题下的合格区间常常不重叠，必须按主题配对
 - **模块的事件监听器由壳层包一层再注册**：`trackListeners()` 在模块脚本执行期间把 `window/document.addEventListener` 的回调包成「带 epoch 判活 + 恢复 curEpoch」的包装函数，`releaseModule()` 按包装函数摘除；另记一张 `modWrap`（原函数 → 包装函数），使模块自己 `removeEventListener(原函数)` 也能摘干净。堵的是这一类残留：模块最常见的滚动 spy 写成 `scroll → setTimeout(showNav, 60)`，回调执行时 `curEpoch` 是 `null`，那个 `setTimeout` 走原生实现、既没记账也没判活，切走之后照样跑起来，对着已经 `innerHTML=''` 的 DOM 写 `textContent`（plc / n8n / gh-actions / redis 那一族稳定抛 `TypeError`）。包一层之后，处理器内部再排的定时器会正常随模块回收。同一族的**第三个注册点**是模块加在自己 DOM 控件上的监听器（slider / 按钮 / canvas）：节点随模块消失，所以"摘不掉"不是问题，问题是回调执行时 `curEpoch` 是 `null`，它再排的 `requestAnimationFrame` 走原生实现——pid 的 `runBtn.click → resetAndRun → step()` 整条 rAF 链就是这么在模块回收之后继续跑到 `computeMetrics()` 的。因此 `EventTarget.prototype.addEventListener` 也接了同样一层包装：只包 `curEpoch` 非空时的注册（=模块活着时注册的），壳层自己的注册原样通过；`window`/`document` 走 own-property 版本与 `nativeAdd`，不经过原型，不会被二次包装
 - **`on*` 内联 handler 也在同一套回收里**：模块写 `onclick="resetWF()"` 时，浏览器按**属性字符串**在 `window` 上找函数，而打包器为了让内联属性可用是把顶层函数重导出成 `__g.foo = foo` 的——这条通道完全绕过 `trackListeners()`，切走模块后 `modWrap` 里没有它、包装函数从不摘除，于是残留的 `setTimeout` 回调在 `curEpoch` 已经是 `null` 的 microtask 里继续写已经清空的 DOM。上一轮五道闸门全绿时，点击遍历量到 29/46 个模块共 81 个未捕获 `TypeError`，全部是这一类。修法是渲染后按 `inlineHandlerNames(mod.js)` 扫出导出名，一次性把 `window` 上那些导出点包成「epoch 判活 + `running()` 守卫」的函数（对象导出如 `DFL`/`WB` 下包一层方法），模块回收即失效。跑通它有两个坑：包对象时必须 `defineProperty(o, k, {value: wrapped})` 重新绑定否则内联属性拿到的还是原函数；包装体里要先把 `this` 存进局部变量再进 `running()` 的闭包——`running` 是裸调用回调的，`orig.apply(this, …)` 会在闭包里丢掉接收者，n8n 因此报 `this.reset is not a function`
-- **导入是系统边界，要按不可信输入对待**：「导入进度」曾经对任何能 `JSON.parse` 的东西直接 `localStorage.setItem` 然后 reload，因此一个数组、一份别站点的备份、甚至一个手滑选中的配置文件都会把全部学习进度清成空壳。现在的口径是：解析结果必须是非数组对象，逐模块按 `courses.js` 认 key，`steps` 只收整数数组、`quiz` 只收数字 `score`/`total` 与数组 `wrongs`，非法条目丢弃、未知 key 计数后丢弃；清洗后为空就只提示不写盘，会覆盖既有进度时先报"覆盖 N 个、读入 M 个"再确认。这类边界不写判据就一定会回潮，所以 `tools/check-behavior.js` 里带了四个坏 JSON 用例，并要求导出→清空→导入的字节序列相等。清洗时**按备份里原本的字段顺序**写回、不重排：第一版按固定顺序重建对象，长度一样、字节不一样——闸门按"逐字节回来"断言时它红了，而读者拿两份备份做 diff 时同样是这个痛
+- **导入是系统边界，要按不可信输入对待**：「导入进度」曾经对任何能 `JSON.parse` 的东西直接 `localStorage.setItem` 然后 reload，因此一个数组、一份别站点的备份、甚至一个手滑选中的配置文件都会把全部学习进度清成空壳。现在的口径是：解析结果必须是非数组对象，逐模块按 `courses.js` 认 key，`steps` 只收整数数组、`quiz` 只收数字 `score`/`total` 与数组 `wrongs`，非法条目丢弃、未知 key 计数后丢弃；清洗后为空就只提示不写盘，会覆盖既有进度时先报"覆盖 N 个、读入 M 个"再确认。这类边界不写判据就一定会回潮，所以 `tools/check-behavior.js` 里带了六类非法输入用例（数组 / 坏 JSON / 陌生对象 / 脏条目 / 空 envelope / 假成就清单，每一类都要求存储**一个字节都不改**），并要求备份里的每个键都逐字节回来。清洗时**按备份里原本的字段顺序**写回、不重排：第一版按固定顺序重建对象，长度一样、字节不一样——闸门按"逐字节回来"断言时它红了，而读者拿两份备份做 diff 时同样是这个痛
+- **备份的范围是浏览器里的全部学习数据，不是只有进度**：Round 20 的导入守卫修的是"别把数据搞丢"，没修"本来就少备了五分之五"——那时那个叫"导出进度"的按钮真的只搬 `il_progress`，收藏 / 成就 / 今日目标 / 主题偏好全不在里面，而读者以为备份就是自己的全部。现在的口径是一张 `IL_BACKUP_KEYS` 表（进度、收藏、成就、今日目标、主题、建站仿真进度）+ 每键自己的清洗器，导出写成带封套的文件（`{app, kind, version, savedAt, keys, data}`）：封套里 `keys` 是这一份到底装了什么的清单，导入时**认不出的键一律计数并告知**（`忽略文件里 N 项不认的数据`），而不是静默丢掉。旧版只含 `il_progress` 的扁平文件仍然导得进来——已经备份过的读者不该因为格式升级而手里那份作废。**键清单必须由代码对账**：`tools/check-courses.js` 扫壳层与全部 `src/*.html` 里的 `localStorage.getItem/setItem/removeItem`（字面量与 `var X = 'key'` 别名都能解析），逐键要求在 `IL_BACKUP_KEYS` 或 `IL_NOBACKUP_KEYS` 登记，未登记红、登记了却没人用（死声明）红、两张表重叠红，README 那句承诺列出的键也必须与表一致。这条判据上线当轮就抓到一个：`src/web-interactive.html:746` 的 `const STORAGE_KEY = 'website-simulation-progress'`——模块私有的键，不在任何清单里，读者的仿真进度从来没被备份过，而这件事在文档里是隐形的
+- **答题是主路径，闸门得真答一遍**：`check-behavior.js` 从 Round 20 起就在点 `button` / `[role=button]` / 文本框，但本库的测验主体一支都不在那三个选择器里（实测：722 个 `<input type=radio>` 散在 `<label class="opt-row">` 里、手写题库是 `<div class="quiz-opt" onclick="…">`、另有 `select` 15 个 / `checkbox` 26 个）。也就是说"读者答完一套题 → 记分 → 写进度 → 壳层判定掌握"这条整站最核心的路径，从来没有裁判走过。现在每题组的每个选项都点（第一支验"作答被接受"、其余验"已作答被拒"），答完再点一遍提交、并按"下一题"翻页，判据是**每个被遍历的模块都要在 `il_progress` 里留下一条 quiz 记录**（46/46），缺一即失败。三个坑：一是**一次只出一道题的模块**（docker 那种）"下一题"按钮在作答之前不存在，所以固定快照扫不出来，必须重新查询；二是重查询的 worklist **必须由测验语义圈定范围**（测验选项选择器 + "提交/检查/下一题"这类文案），不能由"DOM 变了"圈定——第一版照后者写，240 步全花在一个每次作答都重画的 `↓` 锚点上，一题没答；三是**重置类按钮要跳过**，否则刚答完的题被自己抹掉，判据退化成假阴性。"点了 2206 个选项"不是这条闸门的判据，"46 个模块都留下了成绩"才是
 - **运行时对比度只是兜底**：`ILContrast` 在渲染后测量文字与实际合成底色，不足 AA 就沿 HSL 明度微调（保持色相/饱和度），改 `color` 或 SVG 的 `fill` 并记在 `data-ilc` 上以便撤销。它能救命，但不是修问题的地方——颜色要一直在被它改，说明源头没配对，该回去改 token。审计脚本与它**故意共用同一套合成规则**（忽略 `background-image`、不看元素 `opacity`、白色画布打底）：两边算出不同的数就会出现"审计说 1.11、运行时说 4.62"的僵局，谁也修不了
 - **兜底读样式必须等过渡结束**：`applyTheme()` 改完 `data-theme` 的同一个 task 里跑兜底，读到的是"旧字 + 新底"——带 `transition` 的属性（`.pill` / `.card` 全是 `all .2s~.25s`）还停在过渡起点，而没有 transition 的祖先底色已经翻成新主题了。实测 light 启动那一趟把 `.pill.active` 的暗色 accent `rgb(0,255,65)` 压在 `rgb(216,247,226)` 上算出 1.19:1，于是钉死 `rgb(0,122,31)`，**把作者本来合格的 5.28:1 改成 4.41:1**。换肤一律走 `ILContrast.refresh(root)`（`clear → run → SETTLE 再补一遍`），不要用裸 `run()`。同一处还有第二个坑：`clear()` 撤掉 inline 之后**立刻** `run()`，读到的还是刚被撤掉的那个颜色（过渡从旧值起走），于是每一轮重扫都在给自己上一轮的输出再"修"一次，实测同一个 pill 在 `0,122,31 / 0,116,30 / 0,117,30` 之间漂；`clear()` 因此要在撤的期间临时压掉 `transition`、批量强制一次样式结算再恢复
 - **导航页也是被审计对象**：`#navView` 与模块页是两个口径，`COLLECT` 里写了 `#navView` 不等于量过它——驱动只在 `#/m/<key>` 之间跳时，导航页一直 hidden，每次拿回来的都是没有盒子的行。且导航页**没有学习进度就只渲染一半**：无进度种子 323 个文本元素，按 `courses.js` 造一份确定性进度之后 563 个（进度条、掌握徽章、错题本、热力图、测验趋势全是"有进度才出现"）。种子必须确定性，否则同一个库两次跑出不同分母，闸门数字就成了噪声
