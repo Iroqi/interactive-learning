@@ -3287,6 +3287,11 @@
         activeAssets.forEach(function (el) { if (el && el.parentNode) el.parentNode.removeChild(el); });
         activeAssets = [];
         moduleRoot.innerHTML = '';
+        /* "当前模块"标记与容器同生同灭。留着它，模块的判活守卫就恒为真：
+           n8n 的 run() 用 moduleRoot.dataset.mod === 'n8n' 判断读者还在不在，
+           离开后 DOM 已清空、标记却没变，动画链条照跑，下一行就写空节点，
+           在下一个屏幕上抛 TypeError（Round 22 行为闸门的"第二次进入"抓到的就是它）。 */
+        delete moduleRoot.dataset.mod;
       }
 
       function injectModuleAssets(mod) {
