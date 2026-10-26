@@ -37,9 +37,10 @@ jobs:
         run: node tools/check-theme.js
 
   # 三道要开浏览器的闸门各跑各的 job，用 matrix 并列。
-  # 为什么拆开：本地实测单趟时长 contrast 392s、behavior 264s、tap 67s，串在一个
-  # job 里是 11m23s；拆成三个并发 job 后墙钟约 6m35s（付三次 chromium 安装，
-  # 每次 ~1m，仍比重跑一条串行链便宜）。为什么不合并成一道：三个判据量的是
+  # 为什么拆开：CI 实测三个 job 的时长 contrast 431s、behavior 295s、tap 105s（各含自己的
+  # checkout + setup-node + 装浏览器），串在一个 job 里是 13m51s；拆成并发后墙钟由最慢的那
+  # 条决定，约 7m15s。本地单趟则是 contrast 392s / behavior 264s / tap 67s。
+  # 为什么不合并成一道：三个判据量的是
   # 对比度、触控地板、点击后果——合并后一次红灯要说清三本账，判据之间还会互相
   # 借道（答题 pass 的点击会改变对比度 pass 的可见 DOM），各自独立失败才各自可解释。
   # 装不上 playwright / chromium 时三道闸门都 SKIP + exit 0（判据不能把"环境没有浏览器"
