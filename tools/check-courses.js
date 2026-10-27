@@ -362,6 +362,44 @@ if (!docLine) {
   }
 }
 
+/* ── 10. 错题重做只许一份实现（Round 23）──────────────────────────────
+ * Round 22 给"第二次进入错题优先"装了行为闸门，但当时 46 个模块里有 26 个
+ * 仍各自手抄同一段 `_oi` 标记 + `quizData.sort`。裁判只能证明"今天顺序对"，
+ * 证明不了"明天不会有人再抄一份"——而手抄的第二份实现错的时候是静默的：
+ * wrongs 存成呈现下标只会让读者重做一批没答错的题，没有任何一屏会报错。
+ *
+ * 判据：每个模块必须有四种共享入口之一——
+ *   IL.order（JS 题库） / IL.orderDom（HTML 写死的题目） / IL.quiz（共享测验）
+ *   / IL_QUIZZES[key]（壳层挂载题库）
+ * 并禁掉手抄重排的指纹（quizData.sort、_want[、._oi = oi）；用 IL.order 的
+ * 模块还必须渲染 _re 角标，否则"错题优先"兑现了但读者看不见。
+ * 运行时本身（ilquiz.js）不在这里扫：它是唯一实现，不在 src/ 里。 */
+const quizBankSrc = stripComments(read(path.join(ROOT, 'ilquizzes.js')) || '');
+const mountedQuizKeys = new Set([...quizBankSrc.matchAll(/^\s{2}'?([a-z0-9-]+)'?:\s*\[/gm)]
+  .map((m) => m[1]));
+courses.forEach((c) => {
+  const rel = 'src/' + c.key + '-interactive.html';
+  const src = read(path.join(ROOT, rel));
+  if (src === null) return;
+  const code = stripComments(src);
+  const usesOrder = /IL\.order\s*\(/.test(code);
+  const usesOrderDom = /IL\.orderDom\s*\(/.test(code);
+  const usesQuiz = /IL\.quiz\s*\(/.test(code);
+  const mounted = mountedQuizKeys.has(c.key);
+  if (!(usesOrder || usesOrderDom || usesQuiz || mounted)) {
+    note(`${c.key}: 没有接入任何共享错题协议（IL.order / IL.orderDom / IL.quiz / IL_QUIZZES 四选一）`);
+  }
+  if (/quizData\.sort\s*\(|_want\s*\[|\._oi\s*=\s*oi/.test(code)) {
+    note(`${c.key}: 仍在手抄错题重排（quizData.sort / _want / _oi 赋值），应删除并改走 IL.order`);
+  }
+  if ((usesOrder || usesOrderDom || usesQuiz) && !/ilquiz\.js/.test(src)) {
+    note(`${c.key}: 调用共享运行时却没有 <script src="../ilquiz.js">，独立打开 src/ 页面会静默失效`);
+  }
+  if (usesOrder && !/_re/.test(code)) {
+    note(`${c.key}: 使用 IL.order 但没有渲染 _re 角标——"错题重做"只剩顺序、读者看不见`);
+  }
+});
+
 if (problems.length) {
   console.log('courses.js 校验失败（%d 项）:', problems.length);
   problems.forEach((p) => console.log('  - ' + p));

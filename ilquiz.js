@@ -272,14 +272,20 @@
     return head.concat(rest);
   }
 
-  /* ── IL.order / IL.record：给“自带测验 UI”的老模块用的协议垫片 ──
-   * 这 12 个模块（bash/cs/docker/gh-actions/git/makefile/net/vfd/regex/sql/
-   * n8n/vscode）各有一套自己的判分与渲染代码，重写风险大且会丢风格；但它们
-   * 都不写 quiz.wrongs，于是错题本、错题优先重做、成绩趋势对它们全部失效。
-   * 与其逐个改造 UI，不如只把“协议”抽出来：
+  /* ── IL.order / IL.record：给“自带测验 UI”的模块用的协议垫片 ──
+   * 这 36 个模块（bash/cs/docker/gh-actions/git/makefile/n8n/net/vfd/vscode/
+   * algo/async/compose/css/dockerfile/go/graphql/grpc/helm/http/jwt/k8s/
+   * netsec/nginx/oauth2/permissions/prometheus/prompt/redis/rust/sqlidx/
+   * systemd/terraform/tls/transactions/ts）各有一套自己的判分与渲染代码，
+   * 重写风险大且会丢风格；但它们都不写 quiz.wrongs，于是错题本、错题优先
+   * 重做、成绩趋势对它们全部失效。与其逐个改造 UI，不如只把“协议”抽出来：
    *
    *   IL.order(key, quizData) -> 重排后的 quizData（错题前置）
    *   IL.record(key, score, total, wrongs) -> 落盘 quiz + last
+   *
+   * Round 23 把最后 26 个手抄 `_oi` + `quizData.sort` 的模块也迁到了这里：
+   * 重排只此一份实现，模块继续负责渲染，但顺序、错题身份（_oi）与角标标记
+   * （_re）都由运行时给出。tools/check-courses.js 第 10 节会拦住下一次手抄。
    *
    * order() 就地重排数组并给每题打两个标记，模块原有渲染代码几乎不用动：
    *   _oi  该题在原始题库里的下标 —— wrongs 必须存它，不能存呈现位置，

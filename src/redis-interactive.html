@@ -430,6 +430,7 @@
 <div class="footer">REDIS 交互式学习 · 9 个里程碑 · 进度自动保存在本浏览器</div>
 
 
+<script src="../ilquiz.js"></script>
 <script>
 (function () {
   'use strict';
@@ -897,26 +898,13 @@
 
   function renderQuiz() {
     var box = $('quizBox');
-    /* wrongs-first: 上次错题优先重做 (Round 13)
-     * quiz.wrongs 存题库的原始下标（记在每题的 _oi 上），重排只改变呈现顺序。
-     * Round 12 存的是呈现下标，于是第二次进入时拿"上一轮重排后的位置"去切
-     * 这一轮的全新数组，会重做一批根本没答错的题、并漏掉真正的错题。 */
-    try {
-      var _pg = JSON.parse(localStorage.getItem('il_progress') || '{}')[MODULE_KEY];
-      quizData.forEach(function (item, oi) { item._oi = oi; });
-      if (_pg && _pg.quiz && _pg.quiz.wrongs && _pg.quiz.wrongs.length) {
-        var _want = {};
-        _pg.quiz.wrongs.forEach(function (oi) { _want[oi] = true; });
-        quizData.sort(function (a, b) {
-          return (_want[a._oi] ? 0 : 1) - (_want[b._oi] ? 0 : 1);
-        });
-      }
-    } catch (e) { /* storage unavailable */ }
+    /* wrongs-first：题序与 _oi/_re 标记由共享运行时统一计算（Round 23） */
+    if (window.IL && IL.order) quizData = IL.order(MODULE_KEY, quizData);
     var html = quizData.map(function (item, qi) {
       var optsHtml = item.opts.map(function (o, oi) {
         return '<label class="opt-row" data-q="' + qi + '" data-o="' + oi + '"><input type="radio" name="quizq' + qi + '"><span>' + esc(o) + '</span></label>';
       }).join('');
-      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + '</span>' + esc(item.q) + '</div>' + optsHtml +
+      return '<div class="quiz-q"><div class="q-title"><span class="q-num">Q' + (qi + 1) + (item._re ? ' · 错题重做' : '') + '</span>' + esc(item.q) + '</div>' + optsHtml +
         '<div class="result" id="quizr' + qi + '"></div></div>';
     }).join('');
     box.innerHTML = html;
@@ -957,13 +945,7 @@
     d.innerHTML = '<div class="score-num">' + quizScore + '/' + quizTotal + '</div>' +
       '<p>' + (quizScore >= 6 ? '优秀！你已经掌握 Redis 的核心数据结构。' : '继续加油！回看上面的章节，再试一次。') + '</p>';
     box.appendChild(d);
-    try {
-      var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
-      var g = store[MODULE_KEY] || {};
-      g.quiz = { score: quizScore, total: quizTotal , wrongs: quizWrongs };
-      store[MODULE_KEY] = g;
-      localStorage.setItem('il_progress', JSON.stringify(store));
-    } catch (e) { /* storage unavailable */ }
+    if (window.IL && IL.record) IL.record(MODULE_KEY, quizScore, quizTotal, quizWrongs);
     if (quizScore >= 6) completeMilestone(8);
   }
 
