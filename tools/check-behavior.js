@@ -67,6 +67,17 @@
  *              --qrounds 把答题截断了（遗留第 5 条：一条没有裁判的上限）
  *   FAIL 重排覆盖率 < --rcov=（默认 90%）—— 分母是本轮遍历的模块数
  *
+ * Round 24 加的是第五件事：**学习时长有两本账，而它们必须相等**。
+ * 计时只在壳层写（模块切走时没有 unload，模块自己不知道"什么时候算离开"）：
+ * 读者停在模块里且页面可见时每 15s 记一段，离开 / 隐藏 / 卸载时补最后一段，
+ * 同一段 delta 同时写 il_progress[key].ms 与 il_time['YYYY-MM-DD']。
+ * 只写一处时界面上没有任何一屏会报错，但"今日 N 分钟"会和报告里的模块时长对不上。
+ * 判据（全库跑，遍历完 46 个模块、回到导航页把最后一段结算掉之后）：
+ *   FAIL 模块 ms 不是非负整数 / 某个模块干脆没有 ms
+ *   FAIL 模块累计之和 ≠ 每日累计之和
+ *   FAIL il_time 里没有今天，或整趟遍历的累计是 0
+ * 为了不把"计时在走"误判成"界面还在动"，答题 pass 的静置快照把 ms 排除在外。
+ *
  * 为什么需要"离开之后"那一趟：泄漏的定义就是"错误发生在读者已经离开之后"。
  * 每个模块点完，立刻切到下一个模块并静置 1.5s，期间浮出来的错误记在前一个
  * 模块名下——这是唯一能把 plc / n8n / vfd 的循环和上一条教训对齐的办法。
@@ -509,7 +520,11 @@ const courses = (() => {
           out.wrongs = g.quiz && Array.isArray(g.quiz.wrongs) ? g.quiz.wrongs.slice() : null;
           const r = document.getElementById('moduleRoot');
           out.sig = r ? (r.innerHTML.length + ':' + r.querySelectorAll('*').length) : 'none';
-          out.snap = out.sig + '|' + JSON.stringify(g);
+          /* ms 是 Round 24 的计时账：读者还在读，它就会每 15s 变一次。
+             "界面和进度都不动了才静置"这条判据量的是答题有没有推进，不是
+             计时器有没有活着——把 ms 排除掉，否则所有模块都会一直"在动"。 */
+          const snapG = Object.assign({}, g); delete snapG.ms;
+          out.snap = out.sig + '|' + JSON.stringify(snapG);
           return out;
         }, [RADIO_SEL, CHECK_SEL, SELECT_SEL, ONCLICK_SEL, OPT_SEL, OPTCARD_SEL, CTL_SEL, CARD_SEL,
           FP_FACTORY.toString(), SWEEP_FACTORY.toString(), RESETISH.source, ANSWERISH.source, c.key]);
@@ -657,6 +672,45 @@ const courses = (() => {
     if (onMod || leaked) console.log('  !! ' + c.key.padEnd(13) + '模块内 ' + onMod + ' / 离开后 ' + leaked);
   }
 
+  /* ── Round 24：学习时长的两本账 ──
+     遍历到最后一个模块时，上面那圈已经把页面切回导航页并静置过 1.5s——
+     那一下既结算了最后一段计时，也让 initProgress 有机会把"今日分钟"画出来。
+     这里只读存储：ms 必须是每个访问过的模块都有的非负整数；两本账各自求和必须相等。
+     只写一处时界面完全正常，唯一看得见的地方就是"今日"和"报告"对不上，
+     而它们很少同时出现在一屏上——所以这条只能由闸门来对。 */
+  const timeProblems = [];
+  let timeMeasured = 0, timeSum = 0;
+  try {
+    const tstate = await page.evaluate(() => {
+      const p = JSON.parse(localStorage.getItem('il_progress') || '{}');
+      const t = JSON.parse(localStorage.getItem('il_time') || '{}');
+      return { p, t };
+    });
+    const keys = rows.map((r) => r.key);
+    const badMs = keys.filter((k) => {
+      const v = tstate.p[k] && tstate.p[k].ms;
+      return typeof v !== 'number' || !Number.isInteger(v) || v < 0;
+    });
+    if (badMs.length) timeProblems.push(badMs.length + ' 个模块没有非负整数 ms：' + badMs.slice(0, 6).join('/'));
+    else timeMeasured = keys.length;
+    const modSum = keys.reduce((s, k) => s + tstate.p[k].ms, 0);
+    const daySum = Object.keys(tstate.t).reduce((s, k) => s + (typeof tstate.t[k] === 'number' ? tstate.t[k] : 0), 0);
+    timeSum = modSum;
+    if (modSum !== daySum) {
+      timeProblems.push('模块累计 ' + modSum + 'ms ≠ 每日累计 ' + daySum + 'ms（两本账不是同一段 delta 写的）');
+    }
+    const today = (() => {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    })();
+    if (!(typeof tstate.t[today] === 'number' && tstate.t[today] > 0)) {
+      timeProblems.push('il_time 里没有今天（' + today + '）的学习时长：计时可能只活在内存里');
+    }
+    if (modSum <= 0) timeProblems.push('整趟遍历 ' + keys.length + ' 个模块，模块累计时长是 0');
+  } catch (e) {
+    timeProblems.push('计时这一段没跑起来：' + String(e && e.message || e).slice(0, 80));
+  }
+
   /* ── 壳层闭环：整份学习档案导出 → 清库 → 导入 ──
    * Round 20 钉住的是"别把进度搞丢"（任意一份合法 JSON 都会整库覆盖 il_progress，
    * 而 README 写着"含校验"）。Round 21 补另一头：那份备份只装了一种数据——收藏 /
@@ -665,7 +719,7 @@ const courses = (() => {
    *   覆盖 本地每个有数据的 il_* 键都必须出现在 envelope.data 里（少一个 FAIL）
    *   回环 清库再导入，每个键逐字节回来；旧版扁平进度文件也照样要能导进来
    *   守卫 非法输入一个字节都不许动既有数据（对话框 dismiss 当"取消"同样不动） */
-  const BACKUP_KEYS = ['il_progress', 'il_star', 'il_badges', 'il_goal', 'il_theme',
+  const BACKUP_KEYS = ['il_progress', 'il_time', 'il_star', 'il_badges', 'il_goal', 'il_theme',
     'website-simulation-progress'];
   const ioProblems = [];
   const readAll = () => page.evaluate((ks) => {
@@ -691,9 +745,15 @@ const courses = (() => {
         const g = { last: 1700000000000 + i * 86400000 };
         if (c.total != null) { const st = []; for (let j = 0; j < c.total - (i % 3); j++) st.push(j); g.steps = st; g.done = st.length === c.total; }
         g.quiz = { score: i % 9, total: 8, wrongs: [i % 8] };
+        /* 计时账也种一份：导入若把 ms 当成未知字段丢掉，回环就红——Round 24 的
+           cleanProgress 白名单正是这么被证明的。 */
+        g.ms = (i % 5) * 60000 + 1234;
         s[c.key] = g;
       });
       localStorage.setItem('il_progress', JSON.stringify(s));
+      const msSum = list.reduce(function (sum, c, i) { return sum + ((i % 5) * 60000 + 1234); }, 0);
+      const dayOne = Math.min(3600000, msSum);
+      localStorage.setItem('il_time', JSON.stringify({ '2026-01-01': dayOne, '2026-01-02': msSum - dayOne }));
       localStorage.setItem('il_star', JSON.stringify([list[0].key, list[3].key, list[7].key]));
       localStorage.setItem('il_goal', JSON.stringify({ date: '2026-01-01', target: 7 }));
       localStorage.setItem('il_theme', 'dark');
@@ -801,6 +861,10 @@ const courses = (() => {
   console.log('档案回环（每个 il_* 键逐字节回来 / 六类非法输入不得覆盖 / 旧版扁平文件仍可导入）: ' +
     (ioProblems.length ? ioProblems.length + ' 项不合格' : 'OK'));
   ioProblems.forEach((m) => console.log('  FAIL ' + m));
+  console.log('学习时长两本账（模块 ms 整数 / 模块之和 == 每日之和）: ' + timeMeasured + '/' + rows.length +
+    ' 模块，合计 ' + Math.round(timeSum / 1000) + 's' +
+    (timeProblems.length ? '，' + timeProblems.length + ' 项不合格' : '，恒等'));
+  timeProblems.forEach((m) => console.log('  FAIL ' + m));
   console.log('点击覆盖率（点过的控件 / 命中的真控件）: ' + totalClicked + '/' + totalCtl + ' = ' + cov + '% / 下限 ' + COVER + '%');
   /* ── Round 21：答题这一维以前根本不在判据里 ──
      "答完题必须留下 quiz 记录"量的不是模块有没有病，而是**读者的主路径有没有被走通过**：
@@ -983,6 +1047,7 @@ const courses = (() => {
   if (dialogs) console.log('对话框（confirm/alert）: ' + dialogs + ' 次，已 dismiss，不计失败');
 
   const bad = (onModTotal + leakTotal) > BUDGET || cov < COVER || ioProblems.length > 0 ||
+    timeProblems.length > 0 ||
     (wholeLib && respPct < RESPOND) || silent.length > 0 || (QUIZ && noRecord.length > 0) ||
     rvProblems.length > 0 || capped > 0 || (REVISIT && wholeLib && rcov < RCov);
   if (bad) {

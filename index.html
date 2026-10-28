@@ -666,6 +666,7 @@
     .overview .ov-item.ov-going b { color: var(--accent); }
     .overview .ov-item.ov-todo b { color: var(--text-muted); }
     .overview .ov-item.ov-streak b { color: var(--devops); }
+    .overview .ov-item.ov-time b { color: var(--amber); }
     .overview .ov-milestones { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
     .overview .ov-actions { display: flex; gap: 8px; align-items: center; }
     /* 选择器原本是 `.overview .ov-btn`，但「今日目标」那一行是 .ov-goal（.overview 的兄弟），
@@ -2249,8 +2250,109 @@
         catch (e) { return {}; }
       }
 
+      /* ── 学习时长（Round 24）：只在壳层量，模块不掺和 ──
+       * 为什么只有壳层能记：模块是同一个文档里的 <script>，读者切走时没有 unload，
+       * 模块自己不知道"什么时候算离开"，更不知道页面是否被切到后台；壳层的
+       * renderModule / cleanupModule 才是模块唯一的一对生灭点。
+       *
+       * 口径写死在这里，因为它会出现在四个地方（今日分钟 / 卡片累计 / 学习报告 / 热力图）：
+       *   - 只在 `#/m/<key>` 且 document 可见时计时；切到后台立刻停，切回来重新起算；
+       *   - 心跳 15s 结算一段，切模块 / 隐藏 / 卸载时补最后一段；
+       *   - 单段上限 30s：系统睡眠唤醒时定时器会一次跳很久，不能把它算成学习；
+       *   - 两本账：il_progress[key].ms（模块累计）+ il_time['YYYY-MM-DD']（按天累计），
+       *     每一段由同一个 delta 同时写两处，所以"模块之和 == 每日之和"恒等；
+       *     tools/check-behavior.js 量的就是这条恒等式（只写一处时界面不会报错，
+       *     但"今日 N 分钟"会和报告里的模块时长对不上）。
+       * 刻意不写 last：最后学习时间由 IL.touch 与测验落盘负责，计时不是"学习过"的证据。 */
+      var TIME_KEY = 'il_time';
+      var TIME_TICK_MS = 15000;
+      var TIME_MAX_CHUNK = 30000;
+      var timeKey = null, timeSince = 0, timeRunning = false;
+
+      function readTimeMap() {
+        try {
+          var v = JSON.parse(localStorage.getItem(TIME_KEY) || '{}');
+          return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+        } catch (e) { return {}; }
+      }
+
+      function dayKey(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+          '-' + String(d.getDate()).padStart(2, '0');
+      }
+
+      /* 只认真实存在的日历日：2026-02-30 与 2026-13-01 都不是"某一天"，
+         留着它们只会让热力图多出一列永远亮不起来的格子。 */
+      function isDayKey(k) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return false;
+        var y = +k.slice(0, 4), m = +k.slice(5, 7), d = +k.slice(8, 10);
+        var dt = new Date(y, m - 1, d);
+        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+      }
+
+      /* 分钟粒度展示；不足一分钟说"不足 1 分钟"而不是四舍五入成 1 分钟——
+         读者刚点开一个模块就看到"1 分钟"，这个数字就不可信了。 */
+      function fmtDuration(ms) {
+        var min = Math.floor(ms / 60000);
+        if (min < 1) return ms > 0 ? '不足 1 分钟' : '0 分钟';
+        if (min < 60) return min + ' 分钟';
+        var h = Math.floor(min / 60), m = min % 60;
+        return h + ' 小时' + (m ? ' ' + m + ' 分' : '');
+      }
+
+      function timeSuffix(p) {
+        return p && typeof p.ms === 'number' && p.ms >= 60000 ? ' · ' + fmtDuration(p.ms) : '';
+      }
+
+      function commitStudyTime(key, delta) {
+        if (!key) return;
+        delta = Math.max(0, Math.min(Math.round(delta), TIME_MAX_CHUNK));
+        var store = readProgress();
+        var g = store[key] || {};
+        if (delta === 0 && typeof g.ms === 'number') return;   /* 0 不写盘，但首次进门要落一个 ms:0 */
+        var prev = typeof g.ms === 'number' && g.ms >= 0 ? g.ms : 0;
+        g.ms = prev + delta;
+        store[key] = g;
+        try { localStorage.setItem('il_progress', JSON.stringify(store)); }
+        catch (e) { /* storage unavailable */ }
+        if (delta > 0) {
+          var map = readTimeMap();
+          var day = dayKey(new Date());
+          map[day] = (typeof map[day] === 'number' ? map[day] : 0) + delta;
+          try { localStorage.setItem(TIME_KEY, JSON.stringify(map)); }
+          catch (e) { /* storage unavailable */ }
+        }
+      }
+
+      function flushStudyTime() {
+        if (timeKey === null || !timeRunning) return;
+        var now = Date.now();
+        commitStudyTime(timeKey, now - timeSince);
+        timeSince = now;
+      }
+      function startStudyTime(key) {
+        flushStudyTime();
+        timeKey = key;
+        /* 后台标签页里路由也可能变（新开链接 / 程序化跳转）：起算时先看可见性，
+           否则要等到下一次 visibilitychange 才会停，隐藏期间会被心跳记进账。 */
+        timeRunning = !document.hidden;
+        timeSince = Date.now();
+        commitStudyTime(key, 0);
+      }
+      function pauseStudyTime() { flushStudyTime(); timeRunning = false; }
+      function resumeStudyTime() { if (timeKey !== null) { timeRunning = true; timeSince = Date.now(); } }
+      function stopStudyTime() { flushStudyTime(); timeKey = null; timeRunning = false; }
+
+      window.setInterval(flushStudyTime, TIME_TICK_MS);
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) pauseStudyTime();
+        else resumeStudyTime();
+      });
+      window.addEventListener('pagehide', flushStudyTime);
+
       function initProgress() {
         var store = readProgress();
+        var dayMs = readTimeMap()[dayKey(new Date())] || 0;
         var best = null;
         var doneCount = 0, goingCount = 0;
         var totalMs = 0, totalDoneMs = 0, quizCount = 0, quizDone = 0;
@@ -2278,7 +2380,8 @@
               wrap.innerHTML = '<span class="cp-track"><span class="cp-fill" style="width:' +
                 Math.round(d.frac * 100) + '%"></span></span>' +
                 '<span class="cp-label' + (d.mastered ? ' cp-done' : '') + '">' +
-                (d.mastered ? '✓ 已完成' : '已解锁 ' + d.n + ' / ' + d.total + ' 步') + '</span>';
+                (d.mastered ? '✓ 已完成' : '已解锁 ' + d.n + ' / ' + d.total + ' 步') +
+                timeSuffix(p) + '</span>';
               card.appendChild(wrap);
             }
           } else {
@@ -2293,7 +2396,8 @@
               '<span class="cp-label' + (d.mastered ? ' cp-done' : '') + '">' +
               (d.mastered ? '✓ 测验达标 · ' + d.n + '/' + d.total + ' 题'
                           : (d.started ? '测验 ' + d.n + '/' + d.total + ' 题 · 达标需 ' + d.need
-                                        : '仅访问过 · 完成掌握度测验才算达标')) + '</span>';
+                                        : '仅访问过 · 完成掌握度测验才算达标')) +
+              timeSuffix(p) + '</span>';
             card.appendChild(qw);
           }
 
@@ -2311,15 +2415,18 @@
             var strip = document.getElementById('continueStrip');
             strip.href = target.getAttribute('href');
             document.getElementById('csTitle').textContent = target.querySelector('h3').textContent;
-            document.getElementById('csMeta').textContent = best.d.kind === 'milestone'
+            document.getElementById('csMeta').textContent = (best.d.kind === 'milestone'
               ? '· 已解锁 ' + best.d.n + ' / ' + best.d.total + ' 步'
-              : '· 测验 ' + best.d.n + '/' + best.d.total + ' 题 · 达标需 ' + best.d.need;
+              : '· 测验 ' + best.d.n + '/' + best.d.total + ' 题 · 达标需 ' + best.d.need) +
+              (best.p.ms >= 60000 ? ' · 累计 ' + fmtDuration(best.p.ms) : '');
             strip.classList.add('show');
           }
         }
 
-        /* Progress overview */
-        if (doneCount + goingCount > 0) {
+        /* Progress overview
+           访问过但还没做题的读者也要看到"今日分钟"：计时是本轮新增的、独立于
+           里程碑/测验的反馈，藏在一个"0 进行中"的面板后面等于没做。 */
+        if (doneCount + goingCount > 0 || dayMs > 0) {
           var tracked = 0;
           cards.forEach(function (c) { if (progKey(c)) tracked++; });
           var todoCount = tracked - doneCount - goingCount;
@@ -2327,6 +2434,8 @@
           var ov = document.getElementById('progressOverview');
           document.getElementById('ovStats').innerHTML =
             '<span class="ov-item ov-streak"><b>' + streak + '</b>连续学习</span>' +
+            (dayMs > 0 ? '<span class="ov-item ov-time"><b>' +
+              (dayMs >= 60000 ? Math.floor(dayMs / 60000) : '&lt;1') + '</b>今日分钟</span>' : '') +
             '<span class="ov-item ov-going"><b>' + goingCount + '</b>进行中</span>' +
             '<span class="ov-item ov-done"><b>' + doneCount + '</b>已完成</span>' +
             '<span class="ov-item ov-todo"><b>' + todoCount + '</b>未开始</span>';
@@ -2334,7 +2443,7 @@
              "288 步里只解锁了 200 步"，而真相是里程碑全解锁了、只是有测验没达标。 */
           var msLine = '里程碑 ' + totalDoneMs + ' / ' + totalMs + ' 已解锁';
           if (quizCount) msLine += ' · 测验 ' + quizDone + ' / ' + quizCount + ' 个模块达标';
-          document.getElementById('ovMilestones').textContent = msLine;
+          document.getElementById('ovMilestones').textContent = (totalMs || quizCount) ? msLine : '';
           ov.classList.add('show');
         }
 
@@ -2386,8 +2495,7 @@
 
       /* ── 今日目标：每日里程碑目标（il_goal，按天生效） ── */
       function todayStr() {
-        var d = new Date();
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        return dayKey(new Date());
       }
       function renderGoal(store) {
         var el = document.getElementById('ovGoal');
@@ -2537,7 +2645,10 @@
         el.classList.add('show');
       }
 
-      /* ── 学习热力图：近 90 天 GitHub 风格日历（聚合各模块 last） ── */
+      /* ── 学习热力图：近 90 天 GitHub 风格日历 ──
+       * Round 24 起有分钟就按分钟分档（10/30/60 分钟三刀），没有 il_time 的旧数据
+       * 仍按"当天学过几个模块"分档——升级不该把读者过去 90 天的格子抹平。
+       * 同一天两者都有时以分钟为准：那是本轮开始记录的真数字。 */
       function renderHeatmap(store) {
         var el = document.getElementById('ovHeat');
         if (!el) return;
@@ -2549,6 +2660,11 @@
             counts[ds] = (counts[ds] || 0) + 1;
           }
         });
+        var timeMap = readTimeMap();
+        var totalStudy = 0;
+        Object.keys(timeMap).forEach(function (k) {
+          if (typeof timeMap[k] === 'number') totalStudy += timeMap[k];
+        });
         var today = new Date(); today.setHours(0, 0, 0, 0);
         var start = new Date(today); start.setDate(start.getDate() - 89);
         var dow = (start.getDay() + 6) % 7; /* 周一起始 */
@@ -2556,22 +2672,30 @@
         var cells = [];
         var d = new Date(start);
         while (d <= today) {
-          cells.push({ key: d.toDateString(), n: counts[d.toDateString()] || 0, date: new Date(d) });
+          var key = dayKey(d);
+          cells.push({
+            key: d.toDateString(), n: counts[d.toDateString()] || 0,
+            ms: typeof timeMap[key] === 'number' ? timeMap[key] : 0,
+            ymd: key, date: new Date(d)
+          });
           d.setDate(d.getDate() + 1);
         }
         var grid = '';
         for (var c = 0; c < cells.length; c += 7) {
           var col = cells.slice(c, c + 7);
           grid += '<div class="hm-col">' + col.map(function (cell) {
-            var lvl = cell.n === 0 ? 0 : Math.min(4, cell.n);
-            var y = cell.date.getFullYear(), m = cell.date.getMonth() + 1, dd = cell.date.getDate();
-            return '<span class="hm-cell l' + lvl + '" title="' + y + '-' + m + '-' + dd + '：' + cell.n + ' 次学习"></span>';
+            var lvl;
+            if (cell.ms > 0) lvl = cell.ms < 600000 ? 1 : cell.ms < 1800000 ? 2 : cell.ms < 3600000 ? 3 : 4;
+            else lvl = cell.n === 0 ? 0 : Math.min(4, cell.n);
+            var label = cell.ms > 0 ? fmtDuration(cell.ms) : cell.n + ' 次学习';
+            return '<span class="hm-cell l' + lvl + '" title="' + cell.ymd + '：' + label + '"></span>';
           }).join('') + '</div>';
         }
         document.getElementById('ovHeatGrid').innerHTML = grid;
-        var activeDays = cells.filter(function (cell) { return cell.n > 0; }).length;
+        var activeDays = cells.filter(function (cell) { return cell.n > 0 || cell.ms > 0; }).length;
         if (activeDays === 0) return; /* 无学习记录时不展示热力图 */
-        document.getElementById('ovHeatMeta').textContent = '近 90 天活跃 ' + activeDays + ' 天';
+        document.getElementById('ovHeatMeta').textContent = '近 90 天活跃 ' + activeDays + ' 天' +
+          (totalStudy > 0 ? ' · 累计 ' + fmtDuration(totalStudy) : '');
         el.classList.add('show');
       }
 
@@ -2662,6 +2786,7 @@
          需要有人主动签字，不会再静默发生。 */
       var IL_BACKUP_KEYS = [
         { key: 'il_progress', codec: 'json', label: '学习进度' },
+        { key: 'il_time',     codec: 'json', label: '学习时长' },
         { key: 'il_star',     codec: 'json', label: '收藏' },
         { key: 'il_badges',   codec: 'json', label: '成就' },
         { key: 'il_goal',     codec: 'json', label: '今日目标' },
@@ -2736,6 +2861,12 @@
               out.quiz = q;
             } else if (field === 'last') {
               if (typeof v !== 'number') okShape = false; else out.last = v;
+            } else if (field === 'ms') {
+              /* 学习时长是 Round 24 的新字段：整数毫秒、非负、上限十年。
+                 不认识的字段照旧丢掉；认得的字段必须在白名单里——否则导入一次
+                 备份就把读者的时长清空，界面上还看不出少了一样东西。 */
+              if (typeof v !== 'number' || v % 1 !== 0 || v < 0 || v > 315360000000) okShape = false;
+              else out.ms = v;
             } else if (field === 'done') {
               if (typeof v !== 'boolean') okShape = false; else out.done = v;
             }
@@ -2756,6 +2887,21 @@
           if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
           var r = cleanProgress(v);
           return r.kept ? r : null;
+        },
+        il_time: function (v) {
+          /* 按天累计：键必须是真实日历日，值是一天内的整数毫秒（上限 24h）。
+             一天的时长超过 24h 只能是数据坏了，不是"读者特别刻苦"。 */
+          if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+          var clean = {}, kept = 0, dropped = [];
+          Object.keys(v).forEach(function (k) {
+            var ms = v[k];
+            if (!isDayKey(k) || typeof ms !== 'number' || ms % 1 !== 0 || ms < 0 || ms > 86400000) {
+              dropped.push(k);
+              return;
+            }
+            clean[k] = ms; kept++;
+          });
+          return kept ? { value: clean, kept: kept, dropped: dropped } : null;
         },
         il_star: function (v) {
           if (!Array.isArray(v)) return null;
@@ -2808,6 +2954,13 @@
       }
       function describeBackup(b, value) {
         if (b.key === 'il_progress') return b.label + ' ' + Object.keys(value || {}).length + ' 个模块';
+        if (b.key === 'il_time') {
+          var days = 0, total = 0;
+          Object.keys(value || {}).forEach(function (k) {
+            if (typeof value[k] === 'number') { days++; total += value[k]; }
+          });
+          return b.label + ' ' + days + ' 天 · ' + fmtDuration(total);
+        }
         if (Array.isArray(value)) return b.label + ' ' + value.length + ' 项';
         if (b.key === 'il_goal' && value) return b.label + ' ' + value.target + '（' + value.date + '）';
         if (b.key === 'il_theme') return b.label + ' ' + value;
@@ -2881,13 +3034,14 @@
         lines.push('');
         lines.push('生成时间：' + new Date().toLocaleString('zh-CN') + '（浏览器本地）');
         lines.push('');
-        var doneCount = 0, tracked = 0, quizDone = 0, quizRate = 0;
+        var doneCount = 0, tracked = 0, quizDone = 0, quizRate = 0, studyMs = 0;
         var rows = courses.map(function (c) {
           var d = deriveCourse(c, store);
           if (!d) return null;
           var p = store[d.key] || {};
           tracked++;
           if (d.mastered) doneCount++;
+          if (typeof p.ms === 'number' && p.ms > 0) studyMs += p.ms;
           /* 题库长度不统一（5~12 题），"平均 x/8" 对一半模块是假数字。
              改成平均得分率，与 ilquiz 的达标线同一口径。 */
           var quizTxt = '—';
@@ -2905,6 +3059,7 @@
               ? d.n + '/' + d.total
               : (d.total ? '测验 ' + d.n + '/' + d.total : '—'),
             quiz: quizTxt,
+            time: (typeof p.ms === 'number' && p.ms > 0) ? fmtDuration(p.ms) : '—',
             last: fmtDate(p.last)
           };
         }).filter(Boolean);
@@ -2915,14 +3070,16 @@
         lines.push('- 模块总数：' + tracked);
         lines.push('- 已掌握：' + doneCount + '（' + pct + '%）· 判定口径：里程碑型看全部解锁，测验型看得分率 ≥ 75%');
         lines.push('- 测验完成：' + quizDone + ' 个模块，平均得分率 ' + quizAvgTxt);
+        lines.push('- 累计学习时长：' + (studyMs > 0 ? fmtDuration(studyMs) : '—') +
+          '（模块内可见停留时间，按两次进入之间的实际时长累计）');
         lines.push('- 学习报告由本地进度生成，未提交任何个人数据');
         lines.push('');
         lines.push('## 模块明细');
         lines.push('');
-        lines.push('| 模块 | 分类 | 状态 | 里程碑 | 测验 | 最近学习 |');
-        lines.push('|---|---|---|---|---|---|');
+        lines.push('| 模块 | 分类 | 状态 | 里程碑 | 测验 | 时长 | 最近学习 |');
+        lines.push('|---|---|---|---|---|---|---|');
         rows.forEach(function (r) {
-          lines.push('| ' + r.title + ' | ' + r.cat + ' | ' + r.status + ' | ' + r.steps + ' | ' + r.quiz + ' | ' + r.last + ' |');
+          lines.push('| ' + r.title + ' | ' + r.cat + ' | ' + r.status + ' | ' + r.steps + ' | ' + r.quiz + ' | ' + r.time + ' | ' + r.last + ' |');
         });
         lines.push('');
         var blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
@@ -3281,6 +3438,9 @@
       }
 
       function cleanupModule() {
+        /* 计时以"模块容器被回收"为结算点：这里之后 moduleRoot 已经不再是
+           读者看到的那个模块，再算下去就是把导航页的时间记到上一个模块头上。 */
+        stopStudyTime();
         if (window.ILContrast) ILContrast.unwatch(moduleRoot);
         modEpoch++;               // 让任何仍在队列里的旧模块回调失效
         releaseModule();
@@ -3320,6 +3480,8 @@
         var mod = window.IL_MODULES && window.IL_MODULES[key];
         if (!mod) return;
         cleanupModule();
+        /* 从模块真正渲染的这一刻开始计时；cleanupModule 刚把上一个模块结算掉。 */
+        startStudyTime(key);
         var epoch = modEpoch;   // cleanupModule 刚递增过
         /* 访问时间戳由壳层统一记录：没有里程碑体系的早期模块（17 个）也能
            进入连续学习 / 热力图 / 到期复习，不必逐个改造模块内部代码。 */
@@ -3414,11 +3576,14 @@
         importFile.value = '';
       });
 
-      /* 重置全部进度（confirm 保护，清空后重载） */
+      /* 重置全部进度（confirm 保护，清空后重载）
+         学习时长也是进度的一部分：只清 il_progress 会留下一个"重置过、但今天
+         已学 40 分钟"的总览，读者会以为按钮没生效。 */
       document.getElementById('btnReset').addEventListener('click', function () {
-        if (!window.confirm('确定要清空全部模块的学习进度吗？此操作不可撤销，可先导出备份。')) return;
+        if (!window.confirm('确定要清空全部模块的学习进度与学习时长吗？此操作不可撤销，可先导出备份。')) return;
         try {
           localStorage.removeItem('il_progress');
+          localStorage.removeItem('il_time');
           location.reload();
         } catch (e) { /* storage unavailable */ }
       });
