@@ -78,6 +78,20 @@
  *   FAIL il_time 里没有今天，或整趟遍历的累计是 0
  * 为了不把"计时在走"误判成"界面还在动"，答题 pass 的静置快照把 ms 排除在外。
  *
+ * Round 25 加的是第六件事：**复习队列的时钟必须是交卷时间**。
+ * 旧提醒条读 p.last，而 IL.touch 每次进入模块都写 last——读者点开看一眼再退出，
+ * 这个模块就被自己的访问记录推出了复习队列，界面上什么都不报。新时钟是 quiz.at
+ * （IL.record / IL.quiz 落盘），间隔由最近一次成绩与掌握状态推导：
+ *   仅访问过 7 天 / 薄弱（得分率 < 50%）1 天 / 进行中 3 天 / 已掌握 7 天 / 满分 14 天
+ * 判据（种一份构造进度，四天时钟互相打架，看谁说了算）：
+ *   FAIL 交卷后 quiz 记录里没有 at —— 主遍历的 46 个模块逐个查
+ *   FAIL 队列成员/顺序 —— 逾期最久的在前；未到期的不许出现
+ *   FAIL 时钟取错 —— last 很近但 at 很远的模块必须仍然到期；at 很近但 last 很远的
+ *        必须不到期（两个方向都量，只量一边等于没量）
+ *   FAIL 摘要 / 行内间隔 —— 摘要必须报"几个模块、最久逾期几天"，行内必须写明间隔
+ *   FAIL 展开与进入 —— 点提醒条展开队列，点行进入对应模块
+ *   FAIL 空状态 —— 只有未到期模块时提醒条要说"下次复习：N 天后"，一份进度都没有时整块不出现
+ *
  * 为什么需要"离开之后"那一趟：泄漏的定义就是"错误发生在读者已经离开之后"。
  * 每个模块点完，立刻切到下一个模块并静置 1.5s，期间浮出来的错误记在前一个
  * 模块名下——这是唯一能把 plc / n8n / vfd 的循环和上一条教训对齐的办法。
@@ -679,6 +693,7 @@ const courses = (() => {
      只写一处时界面完全正常，唯一看得见的地方就是"今日"和"报告"对不上，
      而它们很少同时出现在一屏上——所以这条只能由闸门来对。 */
   const timeProblems = [];
+  const rqProblems = [];
   let timeMeasured = 0, timeSum = 0;
   try {
     const tstate = await page.evaluate(() => {
@@ -696,6 +711,16 @@ const courses = (() => {
     const modSum = keys.reduce((s, k) => s + tstate.p[k].ms, 0);
     const daySum = Object.keys(tstate.t).reduce((s, k) => s + (typeof tstate.t[k] === 'number' ? tstate.t[k] : 0), 0);
     timeSum = modSum;
+    /* Round 25：交卷时间戳。复习队列的时钟，缺一个模块就等于那个模块永远
+       按"上次访问"排期——读者点开看一眼退出，节奏就被自己的访问重置了。 */
+    const noAt = keys.filter((k) => {
+      const q = tstate.p[k] && tstate.p[k].quiz;
+      return !q || typeof q.at !== 'number' || !Number.isInteger(q.at) || q.at <= 0;
+    });
+    if (noAt.length) {
+      rqProblems.push(noAt.length + ' 个模块交了卷却没写 quiz.at：' + noAt.slice(0, 6).join('/') +
+        '（复习时钟只能退回访问时间）');
+    }
     if (modSum !== daySum) {
       timeProblems.push('模块累计 ' + modSum + 'ms ≠ 每日累计 ' + daySum + 'ms（两本账不是同一段 delta 写的）');
     }
@@ -744,7 +769,7 @@ const courses = (() => {
       list.forEach(function (c, i) {
         const g = { last: 1700000000000 + i * 86400000 };
         if (c.total != null) { const st = []; for (let j = 0; j < c.total - (i % 3); j++) st.push(j); g.steps = st; g.done = st.length === c.total; }
-        g.quiz = { score: i % 9, total: 8, wrongs: [i % 8] };
+        g.quiz = { score: i % 9, total: 8, wrongs: [i % 8], at: 1700000000000 + i };
         /* 计时账也种一份：导入若把 ms 当成未知字段丢掉，回环就红——Round 24 的
            cleanProgress 白名单正是这么被证明的。 */
         g.ms = (i % 5) * 60000 + 1234;
@@ -842,6 +867,100 @@ const courses = (() => {
     ioProblems.push('导出/导入这一段没跑起来：' + String(e && e.message || e).slice(0, 80));
   }
 
+  /* ── Round 25：复习队列 ──
+   * 这一段的种子是构造出来的：同一份队列里放四个"该复习"的模块（时钟互相打架）
+   * 和两个"不该复习"的模块（一个没到期，一个 last 很久但刚交过卷），看队列认谁。
+   * 时间一律相对 now 计算，闸门哪天跑都一样。 */
+  let rqMeasured = 0;
+  try {
+    const rq = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const DAY = 86400000;
+    const now = Date.now();
+    /* file:// 下没有别的注入点：先打开一次拿到同源 localStorage，再种数据重载。 */
+    const seedRq = async (progress) => {
+      await rq.goto('file://' + path.join(ROOT, 'index.html'));
+      await rq.evaluate((p) => {
+        localStorage.clear();
+        localStorage.setItem('il_progress', JSON.stringify(p));
+      }, progress);
+      await rq.reload();
+      await rq.waitForTimeout(450);
+    };
+    const readQueue = () => rq.evaluate(() => ({
+      hidden: document.getElementById('reviewWrap').hidden,
+      title: document.getElementById('rsTitle').textContent,
+      meta: document.getElementById('rsMeta').textContent,
+      open: document.getElementById('reviewPanel').classList.contains('show'),
+      expanded: document.getElementById('reviewStrip').getAttribute('aria-expanded'),
+      rows: Array.prototype.map.call(document.querySelectorAll('#rpList .rp-item'), (a) => ({
+        key: (a.getAttribute('href') || '').replace('#/m/', ''),
+        text: a.textContent.replace(/\s+/g, ' ').trim()
+      }))
+    }));
+
+    await seedRq({
+      /* last 很近 / at 很远：偷看不算复习，必须仍然到期 */
+      sql: { quiz: { score: 9, total: 9, wrongs: [], at: now - 30 * DAY }, last: now - 1 * DAY },
+      /* 里程碑全解锁 + 满分：14 天，逾期 6 */
+      k8s: { steps: [0, 1, 2, 3, 4, 5, 6, 7, 8], quiz: { score: 9, total: 9, wrongs: [], at: now - 20 * DAY }, last: now - 2 * DAY },
+      /* 只访问过：7 天，逾期 3 */
+      net: { last: now - 10 * DAY },
+      /* 薄弱（4/9 < 50%）：1 天，逾期 1 */
+      redis: { quiz: { score: 4, total: 9, wrongs: [0, 1, 2, 3, 4], at: now - 2 * DAY }, last: now - 2 * DAY },
+      /* 进行中、未到期：不许出现在队列里 */
+      git: { steps: [0, 1, 2], last: now - 1 * DAY },
+      /* at 很近 / last 很远：不到期，证明时钟取的是 at 而不是 last */
+      docker: { quiz: { score: 9, total: 9, wrongs: [], at: now - 1 * DAY }, last: now - 30 * DAY }
+    });
+    const q1 = await readQueue();
+    rqMeasured++;
+    if (q1.hidden) rqProblems.push('种了 6 个模块的进度，复习条却没出现');
+    if (q1.open || q1.expanded === 'true') rqProblems.push('复习面板默认就是展开的（应先折叠）');
+    const expect = ['sql', 'k8s', 'net', 'redis'];
+    const order = q1.rows.map((r) => r.key);
+    if (order.join(',') !== expect.join(',')) {
+      rqProblems.push('到期队列成员/顺序不对：' + (order.join(',') || '空') + '（期望 ' + expect.join(',') + '）');
+    }
+    if (q1.meta.indexOf('4 个模块') < 0 || q1.meta.indexOf('16 天') < 0) {
+      rqProblems.push('摘要没说清"4 个模块 / 最久逾期 16 天"：' + q1.meta);
+    }
+    const rowText = (k) => (q1.rows.filter((r) => r.key === k)[0] || { text: '' }).text;
+    if (rowText('sql').indexOf('间隔 14 天') < 0) rqProblems.push('满分模块没按 14 天排期：' + rowText('sql'));
+    if (rowText('redis').indexOf('间隔 1 天') < 0) rqProblems.push('薄弱模块没按 1 天排期：' + rowText('redis'));
+    if (rowText('net').indexOf('间隔 7 天') < 0) rqProblems.push('仅访问过的模块没按 7 天排期：' + rowText('net'));
+    if (order.indexOf('git') >= 0) rqProblems.push('未到期的 git 出现在到期队列里');
+    if (order.indexOf('docker') >= 0) rqProblems.push('刚交过卷的 docker 被判到期（时钟取了 last 而不是 at）');
+
+    await rq.click('#reviewStrip');
+    await rq.waitForTimeout(200);
+    const q2 = await readQueue();
+    if (!q2.open || q2.expanded !== 'true') rqProblems.push('点提醒条没有展开队列（aria-expanded=' + q2.expanded + '）');
+    if (!q2.rows.length) rqProblems.push('展开后队列是空的');
+    await rq.click('#rpList .rp-item');
+    await rq.waitForTimeout(900);
+    const nav = await rq.evaluate(() => ({ hash: location.hash, mod: !document.getElementById('moduleView').hidden }));
+    if (nav.hash !== '#/m/sql' || !nav.mod) rqProblems.push('点队列第一行没进入对应模块：' + nav.hash);
+
+    /* 只有未到期：提醒条改说"下次复习"，展开后列的是排期而不是到期 */
+    await seedRq({ git: { steps: [0, 1], last: now - 1 * DAY } });
+    const q3 = await readQueue();
+    rqMeasured++;
+    if (q3.hidden) rqProblems.push('有排期却没有到期时，复习条不该整块消失');
+    if (q3.title !== '复习节奏' || q3.meta.indexOf('下次复习') < 0 || q3.meta.indexOf('2 天后') < 0) {
+      rqProblems.push('未到期的摘要不对（期望"复习节奏 / 下次复习：2 天后"）：' + q3.title + ' / ' + q3.meta);
+    }
+
+    /* 一份进度都没有：整块不出现 */
+    await seedRq({});
+    const q4 = await readQueue();
+    rqMeasured++;
+    if (!q4.hidden) rqProblems.push('没有进度时复习条仍然显示');
+
+    await rq.close();
+  } catch (e) {
+    rqProblems.push('复习队列这一段没跑起来：' + String(e && e.message || e).slice(0, 80));
+  }
+
   await browser.close();
 
   const onModTotal = rows.reduce((s, r) => s + r.onMod, 0);
@@ -865,6 +984,9 @@ const courses = (() => {
     ' 模块，合计 ' + Math.round(timeSum / 1000) + 's' +
     (timeProblems.length ? '，' + timeProblems.length + ' 项不合格' : '，恒等'));
   timeProblems.forEach((m) => console.log('  FAIL ' + m));
+  console.log('复习队列（交卷时间戳 / 间隔排期 / 队列顺序 / 展开进入 / 空状态）: ' +
+    (rqProblems.length ? rqProblems.length + ' 项不合格' : 'OK') + '（量到 ' + rqMeasured + ' 种排期）');
+  rqProblems.forEach((m) => console.log('  FAIL ' + m));
   console.log('点击覆盖率（点过的控件 / 命中的真控件）: ' + totalClicked + '/' + totalCtl + ' = ' + cov + '% / 下限 ' + COVER + '%');
   /* ── Round 21：答题这一维以前根本不在判据里 ──
      "答完题必须留下 quiz 记录"量的不是模块有没有病，而是**读者的主路径有没有被走通过**：
@@ -1047,7 +1169,7 @@ const courses = (() => {
   if (dialogs) console.log('对话框（confirm/alert）: ' + dialogs + ' 次，已 dismiss，不计失败');
 
   const bad = (onModTotal + leakTotal) > BUDGET || cov < COVER || ioProblems.length > 0 ||
-    timeProblems.length > 0 ||
+    timeProblems.length > 0 || rqProblems.length > 0 ||
     (wholeLib && respPct < RESPOND) || silent.length > 0 || (QUIZ && noRecord.length > 0) ||
     rvProblems.length > 0 || capped > 0 || (REVISIT && wholeLib && rcov < RCov);
   if (bad) {

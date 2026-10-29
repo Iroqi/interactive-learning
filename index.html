@@ -602,28 +602,65 @@
     @media (max-width: 1000px) { .continue-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .continue-wrap { padding-left: 16px; padding-right: 16px; } }
 
-    /* ── Review due strip (spaced repetition) ── */
+    /* ── Review queue (spaced repetition) ──
+       一条提醒在 Round 25 变成一张队列表：提醒条只报摘要，展开后每行一个到期
+       模块，行内写明它为什么在这个间隔上、逾期几天。间隔是纯函数（见
+       REVIEW_SPACING），不新增存储字段；判据见 tools/check-behavior.js。 */
     .review-wrap { padding: 6px 40px 0; }
     .review-strip {
-      display: none;
+      display: flex; width: 100%;
       max-width: 1100px; margin: 0 auto;
       padding: 14px 20px;
       background: var(--teal-bg);
       border: 1px solid var(--teal-border);
       border-radius: 12px;
-      font-size: 13px; color: var(--text); text-decoration: none;
+      font: inherit; font-size: 13px; color: var(--text);
+      text-align: left; cursor: pointer;
       align-items: center; justify-content: space-between; gap: 12px;
       transition: border-color 0.25s, transform 0.25s;
     }
-    .review-strip.show { display: flex; }
     .review-strip:hover { border-color: var(--teal); transform: translateY(-1px); }
+    .review-strip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
     .review-strip .rs-title { font-weight: 700; color: var(--devops); }
     .review-strip .rs-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
     .review-strip .rs-go {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: 12px; font-weight: 600; color: var(--devops); white-space: nowrap;
     }
-    .review-strip .rs-go svg { width: 12px; height: 12px; }
+    .review-strip .rs-caret { width: 12px; height: 12px; transition: transform 0.2s; }
+    .review-strip[aria-expanded="true"] .rs-caret { transform: rotate(180deg); }
+    .review-panel {
+      display: none; max-width: 1100px; margin: 8px auto 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden;
+    }
+    .review-panel.show { display: block; }
+    .review-panel .rp-note {
+      padding: 10px 16px; font-size: 11px; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    #navView .rp-item {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+      padding: 11px 16px; min-height: 48px; align-items: center;
+      color: var(--text); text-decoration: none;
+      border-bottom: 1px solid var(--border); transition: background 0.2s;
+    }
+    #navView .rp-item:last-child { border-bottom: none; }
+    #navView .rp-item:hover, #navView .rp-item:focus-visible { background: var(--bg-elevated); }
+    #navView .rp-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    .rp-item .rp-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .rp-item .rp-title { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rp-item .rp-main .badge { flex: none; }
+    .rp-item .rp-meta {
+      grid-column: 1; font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .rp-item .rp-due {
+      grid-column: 2; grid-row: 1 / span 2; align-self: center;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+      color: var(--amber); white-space: nowrap;
+    }
+    .rp-item.ahead .rp-due { color: var(--text-secondary); font-weight: 600; }
     @media (max-width: 1000px) { .review-wrap { padding-left: 24px; padding-right: 24px; } }
     @media (max-width: 640px) { .review-wrap { padding-left: 16px; padding-right: 16px; } }
 
@@ -1013,12 +1050,18 @@
       </select>
     </div>
 
-    <!-- ── Review due (spaced repetition) ── -->
-    <div class="review-wrap">
-      <a class="review-strip" id="reviewStrip" href="#">
-        <span><span class="rs-title">复习提醒</span> <span class="rs-meta" id="rsMeta"></span></span>
-        <span class="rs-go">开始复习 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11h14M11 5l7 7-7 7"/></svg></span>
-      </a>
+    <!-- ── Review queue (spaced repetition) ── -->
+    <div class="review-wrap" id="reviewWrap" hidden>
+      <button type="button" class="review-strip" id="reviewStrip" aria-expanded="false" aria-controls="reviewPanel">
+        <span><span class="rs-title" id="rsTitle">今日复习</span> <span class="rs-meta" id="rsMeta"></span></span>
+        <span class="rs-go"><span id="rsGoText">展开队列</span>
+          <svg class="rs-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+      <div class="review-panel" id="reviewPanel">
+        <div class="rp-note">间隔按最近一次交卷成绩与掌握状态推导；复习后要再交一次卷，间隔才会重算。</div>
+        <div class="rp-list" id="rpList"></div>
+      </div>
     </div>
 
     <!-- ── Continue Learning ── -->
@@ -2454,7 +2497,7 @@
         renderQuizTrend(store);
         renderWrongBook(store);
 
-        showDueReview(store);
+        renderReviewQueue(store);
       }
 
       /* ── 分类学习看板：掌握度 ──
@@ -2744,36 +2787,133 @@
         return streak;
       }
       var REVIEW_DAY = 86400000;
-      function showDueReview(store) {
+      /* ── 复习排期：间隔由"最近一次交卷"与掌握状态推导 ──
+       * 旧规则是两条写死的线（进行中 3 天、已掌握 7 天），时钟读的是 p.last——
+       * 而 IL.touch 每次进入模块都会写 last，于是"点开看一眼再退出"就等于复习过，
+       * 真正该复习的模块被自己的访问记录推出了队列。Round 25 把时钟换成
+       * quiz.at（交卷时间，IL.record / IL.quiz 落盘）；没有这个字段的旧数据
+       * 回退到 last，下一次交卷后自动换轨。
+       * 间隔是纯函数，不新增存储字段：改规则后历史数据立即按新节奏重排。
+       * 判据见 tools/check-behavior.js 的"复习队列"一节。 */
+      var REVIEW_SPACING = {
+        visited: 7,   /* 只打开过、没交过卷：7 天后轻提一次 */
+        weak: 1,      /* 交过卷但得分率 < 50%：明天再来 */
+        doing: 3,     /* 进行中（含只解锁了部分里程碑的） */
+        solid: 7,     /* 已掌握 */
+        perfect: 14   /* 已掌握且测验满分 */
+      };
+      function reviewClock(p) {
+        if (p.quiz && typeof p.quiz.at === 'number' && p.quiz.at > 0) return p.quiz.at;
+        return p.last || 0;
+      }
+      function reviewPlan(d, p) {
+        var rate = (p.quiz && p.quiz.total > 0) ? p.quiz.score / p.quiz.total : null;
+        var days, why;
+        /* 顺序即优先级：满分 > 已掌握 > 薄弱 > 进行中 > 仅访问。
+           "满分"排在掌握之前，是因为它在两类模块上都可比：assess 型的掌握本来
+           就是看测验，milestone 型的 steps 只说明读过、说明不了记得住。 */
+        if (!d.started) { days = REVIEW_SPACING.visited; why = '仅访问过'; }
+        else if (rate === 1) { days = REVIEW_SPACING.perfect; why = '测验满分'; }
+        else if (d.mastered) { days = REVIEW_SPACING.solid; why = '已掌握'; }
+        else if (rate !== null && rate < 0.5) { days = REVIEW_SPACING.weak; why = '薄弱'; }
+        else { days = REVIEW_SPACING.doing; why = '进行中'; }
+        return { days: days, why: why, rate: rate };
+      }
+      function rateText(p) {
+        if (!p.quiz || !p.quiz.total) return '';
+        return '测验 ' + p.quiz.score + '/' + p.quiz.total;
+      }
+
+      /* 队列的展开状态跨 initProgress 保留：读者点进模块再返回，面板不会被
+         重渲染悄悄收起来（重渲染本身是必须的，进度可能刚变过）。 */
+      var reviewOpen = false;
+      function setReviewOpen(open) {
+        reviewOpen = open;
+        var strip = document.getElementById('reviewStrip');
+        var panel = document.getElementById('reviewPanel');
+        if (!strip || !panel) return;
+        strip.setAttribute('aria-expanded', open ? 'true' : 'false');
+        document.getElementById('rsGoText').textContent = open ? '收起' : '展开队列';
+        panel.classList.toggle('show', open);
+      }
+
+      function renderReviewQueue(store) {
         var now = Date.now();
-        var due = [];
+        var due = [], ahead = [];
         cards.forEach(function (card) {
           var key = progKey(card);
           if (!key) return;
           var p = store[key];
-          if (!p || !p.last) return;
+          if (!p) return;
           var d = derive(card, store);
-          var days = Math.floor((now - p.last) / REVIEW_DAY);
-          /* 掌握与否统一走派生。assess 型过去 total 回退成 p.steps.length = 0，
-             "已掌握"分支永远进不去，满分的模块也只按 3 天的"待复习"节奏被催。
-             只点开过、还没做题的按 7 天：催一个从没交过卷的模块"复习"没有意义，
-             而且它会以 3 天的频率把真正在读的模块挤出提醒条。 */
-          if (d && d.started ? (d.mastered ? days >= 7 : days >= 3) : days >= 7) {
-            due.push({ card: card, days: days, done: !!(d && d.mastered) });
-          }
+          if (!d || !d.visited) return;
+          var clock = reviewClock(p);
+          if (!clock) return;
+          var plan = reviewPlan(d, p);
+          var elapsed = Math.floor((now - clock) / REVIEW_DAY);
+          var left = plan.days - elapsed;   /* > 0：还有几天到期；<= 0：已到期 */
+          var row = { card: card, key: key, p: p, plan: plan, elapsed: elapsed,
+            left: left, over: Math.max(0, -left),
+            hasAt: !!(p.quiz && typeof p.quiz.at === 'number' && p.quiz.at > 0) };
+          (left <= 0 ? due : ahead).push(row);
         });
-        if (!due.length) return;
-        /* 降序：最久未复习的模块优先提醒。此前写成升序，顶栏永远推的是
-           "昨天刚看过" 的那个，与注释和面板语义相反。 */
-        due.sort(function (a, b) { return b.days - a.days; });
-        var top = due[0];
-        var strip = document.getElementById('reviewStrip');
-        strip.href = top.card.getAttribute('href');
-        var label = top.done ? '已掌握 · 可巩固' : '待复习';
-        document.getElementById('rsMeta').textContent =
-          label + ' · ' + top.card.querySelector('h3').textContent + ' · ' + top.days + ' 天未复习' +
-          (due.length > 1 ? '（共 ' + due.length + ' 个模块）' : '');
-        strip.classList.add('show');
+
+        var wrap = document.getElementById('reviewWrap');
+        /* 一份进度都没有：整块不出现，不给空状态占地方 */
+        if (!due.length && !ahead.length) {
+          wrap.hidden = true;
+          setReviewOpen(false);
+          return;
+        }
+        wrap.hidden = false;
+
+        /* 逾期最久的排最前；同一天到期时按间隔短（更需要复习）与课程原始顺序，
+         * 保证同一份数据每次渲染顺序一致。 */
+        due.sort(function (a, b) {
+          return b.over - a.over || a.plan.days - b.plan.days ||
+            parseInt(a.card.dataset.oidx, 10) - parseInt(b.card.dataset.oidx, 10);
+        });
+        ahead.sort(function (a, b) {
+          return a.left - b.left || parseInt(a.card.dataset.oidx, 10) - parseInt(b.card.dataset.oidx, 10);
+        });
+
+        if (due.length) {
+          var worst = due[0];
+          document.getElementById('rsTitle').textContent = '今日复习';
+          document.getElementById('rsMeta').textContent = due.length + ' 个模块待复习 · ' +
+            (worst.over > 0 ? '最久逾期 ' + worst.over + ' 天' : '今天到期');
+        } else {
+          var next = ahead[0];
+          document.getElementById('rsTitle').textContent = '复习节奏';
+          document.getElementById('rsMeta').textContent = '暂无到期 · 下次复习：' +
+            (next.left <= 1 ? '明天' : next.left + ' 天后') + ' · ' +
+            next.card.querySelector('h3').textContent;
+        }
+
+        /* 展开后：有到期就列到期；全都没到期就把最近的几次排期列出来。
+           行内的"间隔"与"上次交卷"是这张表存在的理由——读者能看出为什么是今天。 */
+        var listed = due.length ? due : ahead.slice(0, 6);
+        document.getElementById('rpList').innerHTML = listed.map(function (r) {
+          var title = r.card.querySelector('h3').textContent;
+          var cat = r.card.dataset.cat || '';
+          var rate = rateText(r.p);
+          var stamp = r.hasAt ? '上次交卷 ' : '上次访问 ';
+          var dueLabel = due.length
+            ? (r.over > 0 ? '逾期 ' + r.over + ' 天' : '今天到期')
+            : (r.left <= 1 ? '明天' : r.left + ' 天后');
+          return '<a class="rp-item' + (due.length ? '' : ' ahead') + '" href="' +
+            r.card.getAttribute('href') + '">' +
+            '<span class="rp-main"><span class="rp-title">' + esc(title) + '</span>' +
+            (cat ? '<span class="badge" data-b="' + esc(cat) + '">' + esc(CAT_LABEL[cat] || cat) + '</span>' : '') +
+            '</span>' +
+            '<span class="rp-due">' + dueLabel + '</span>' +
+            '<span class="rp-meta">' + r.plan.why + (rate ? ' · ' + rate : '') +
+            ' · 间隔 ' + r.plan.days + ' 天 · ' + stamp + r.elapsed + ' 天前</span>' +
+            '</a>';
+        }).join('');
+
+        /* 面板每次都按 reviewOpen 复位：initProgress 会在返回导航页时重跑 */
+        setReviewOpen(reviewOpen);
       }
 
       /* ── 学习档案备份：导出 / 导入全部本地状态 ──
@@ -2857,6 +2997,13 @@
               Object.keys(v).forEach(function (qk) {
                 if (qk === 'wrongs') q.wrongs = v.wrongs ? v.wrongs.slice() : [];
                 else if (qk === 'score' || qk === 'total') q[qk] = v[qk];
+                else if (qk === 'at') {
+                  /* 交卷时间戳：复习队列的时钟（Round 25）。它不在白名单里的
+                     下场和 ms 一样——导入一次备份，全部模块的复习节奏回到
+                     "按上次访问算"，而界面上什么都看不出来。 */
+                  if (typeof v.at !== 'number' || v.at % 1 !== 0 || v.at < 0) okShape = false;
+                  else q.at = v.at;
+                }
               });
               out.quiz = q;
             } else if (field === 'last') {
@@ -3561,6 +3708,11 @@
       }
 
       window.addEventListener('hashchange', route);
+
+      /* 复习队列：提醒条是开关，面板内容由 initProgress 每次重画 */
+      document.getElementById('reviewStrip').addEventListener('click', function () {
+        setReviewOpen(!reviewOpen);
+      });
 
       /* 备份恢复按钮 */
       document.getElementById('btnExport').addEventListener('click', exportBackup);

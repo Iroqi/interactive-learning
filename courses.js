@@ -34,7 +34,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Docker 入门：从镜像到容器',
     desc: '理解容器化核心概念，掌握 Dockerfile 编写、镜像构建与容器编排',
-    size: '103 KB',
+    size: '104 KB',
     tags: ['容器', '镜像', 'Dockerfile', 'Volume', 'Daemon']
   },
   {
@@ -42,7 +42,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Kubernetes 交互式学习',
     desc: '迷你 kubectl 模拟器：集群架构、Pod 与标签、Deployment 滚动更新、Service、探针与存储',
-    size: '91 KB',
+    size: '92 KB',
     tags: ['Kubernetes', 'kubectl', 'Pod', 'Deployment', 'Service'],
     progress: 'k8s',
     total: 9
@@ -52,7 +52,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'GitHub Actions Workflow 互动学习',
     desc: 'CI/CD 流水线、工作流模拟器、矩阵构建与密钥管理的完整实践（含 4 级渐进关卡）',
-    size: '143 KB',
+    size: '144 KB',
     tags: ['Workflow', 'Matrix', 'Secret', 'Artifact', 'Runner']
   },
   {
@@ -60,7 +60,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Makefile 从零到实战',
     desc: '构建自动化利器，从规则语法到复杂项目构建的完整学习路径',
-    size: '115 KB',
+    size: '116 KB',
     tags: ['PHONY', 'GNU', '依赖', '规则', '构建']
   },
   {
@@ -76,7 +76,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: '网络基础与协议',
     desc: 'TCP/IP、HTTP、DNS 等核心协议的运作原理与网络分层模型',
-    size: '95 KB',
+    size: '96 KB',
     tags: ['TCP', 'HTTP', 'DNS', 'DHCP', 'ARP', '网关']
   },
   {
@@ -94,7 +94,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: 'n8n 工作流自动化',
     desc: '从零理解工作流自动化，掌握节点编排、数据流转与条件逻辑',
-    size: '107 KB',
+    size: '108 KB',
     tags: ['工作流', '节点', '触发器', '自动化', 'Cron']
   },
   {
@@ -110,7 +110,7 @@ window.IL_COURSES = [
     cat: 'automation',
     title: '变频器交互式学习',
     desc: '变频驱动器工作原理、参数配置与电机控制实践',
-    size: '123 KB',
+    size: '124 KB',
     tags: ['变频器', 'IGBT', 'PWM', '电机']
   },
   {
@@ -118,7 +118,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'VSCode 配置文件学习',
     desc: 'settings.json、快捷键、扩展管理与工作区配置的系统化学习',
-    size: '106 KB',
+    size: '107 KB',
     tags: ['settings.json', '快捷键', '扩展', '工作区', 'ESLint', '调试']
   },
   {
@@ -142,7 +142,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'Git 版本控制',
     desc: '对象模型、三区流动、提交图模拟、分支合并与团队协作的完整交互式学习',
-    size: '107 KB',
+    size: '108 KB',
     tags: ['分支', '合并', '提交', '暂存'],
     progress: 'git',
     total: 9
@@ -190,7 +190,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'Redis 数据结构',
     desc: '迷你 redis-cli 命令台：String、Hash、List、Set、ZSet、过期与持久化',
-    size: '85 KB',
+    size: '86 KB',
     tags: ['String', 'Hash', 'List', 'ZSet'],
     progress: 'redis',
     total: 9
@@ -200,7 +200,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'AI 提示词工程',
     desc: '提示词评分引擎：四要素、few-shot、思维链、角色约束与反模式识别',
-    size: '78 KB',
+    size: '79 KB',
     tags: ['提示词', 'few-shot', '思维链', 'CoT'],
     progress: 'prompt',
     total: 9
@@ -210,7 +210,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Terraform 基础设施即代码',
     desc: '迷你 plan/apply/destroy 引擎：HCL 语法、变量、状态、模块化、隐式依赖与生命周期',
-    size: '77 KB',
+    size: '78 KB',
     tags: ['HCL', 'IaC', 'plan', 'VPC'],
     progress: 'terraform',
     total: 9
@@ -230,7 +230,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: '网络安全基础',
     desc: '迷你漏洞雷达：识别 XSS、SQL 注入、CSRF、SSRF 等漏洞类型并选择正确修复',
-    size: '77 KB',
+    size: '78 KB',
     tags: ['XSS', 'CSRF', 'SSRF', 'OWASP', 'RBAC'],
     progress: 'netsec',
     total: 9
@@ -240,7 +240,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'JavaScript 异步与事件循环',
     desc: '输出预测器：同步、微任务、宏任务、async/await 的执行顺序预测与即时核对',
-    size: '72 KB',
+    size: '73 KB',
     tags: ['await', 'Promise', '微任务', '宏任务', '事件循环'],
     progress: 'async',
     total: 9
@@ -260,7 +260,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'Linux 文件权限',
     desc: '迷你 chmod 计算器：rwx 符号与数字换算、umask、目录权限、特殊位',
-    size: '71 KB',
+    size: '72 KB',
     tags: ['chmod', 'rwx', 'umask', '权限', '属主'],
     progress: 'permissions',
     total: 9
@@ -270,7 +270,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Docker Compose',
     desc: '迷你配置校验器：services、端口映射、命名卷、依赖与健康检查解析校验',
-    size: '75 KB',
+    size: '76 KB',
     tags: ['services', '端口', '数据卷', '依赖'],
     progress: 'compose',
     total: 9
@@ -280,7 +280,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: '算法与数据结构基础',
     desc: '迷你复杂度评估器：估 O()、辨结构（栈/队列/哈希/链表/树/图）',
-    size: '71 KB',
+    size: '72 KB',
     tags: ['算法', '复杂度', '栈与队列', 'BFS', '二叉树', '哈希'],
     progress: 'algo',
     total: 9
@@ -290,7 +290,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: '数据库事务与隔离级别',
     desc: '迷你判读器：脏读、不可重复读、幻读场景 → 隔离级别，MVCC 与锁',
-    size: '69 KB',
+    size: '70 KB',
     tags: ['事务', 'ACID', '脏读', '幻读', 'MVCC'],
     progress: 'transactions',
     total: 9
@@ -300,7 +300,7 @@ window.IL_COURSES = [
     cat: 'devops',
     title: 'Systemd 服务管理',
     desc: '迷你 systemctl 命令台：启停、自启、unit 文件、日志与故障排查',
-    size: '75 KB',
+    size: '76 KB',
     tags: ['systemctl', 'unit', '自启', '服务', 'Journal'],
     progress: 'systemd',
     total: 9
@@ -390,7 +390,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'OAuth2 与 OIDC',
     desc: '迷你流程预测器：授权码、PKCE、scope、token 刷新、state 防 CSRF 与 OIDC 验签',
-    size: '73 KB',
+    size: '74 KB',
     tags: ['OIDC', 'PKCE', '授权码', 'scope'],
     progress: 'oauth2',
     total: 9
@@ -410,7 +410,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'gRPC 与 Protobuf',
     desc: '迷你调用链预测器：HTTP/2、protobuf、四种方法类型、拦截器、错误码与重试',
-    size: '72 KB',
+    size: '73 KB',
     tags: ['protobuf', '拦截器', 'Unary', 'Streaming'],
     progress: 'grpc',
     total: 9
@@ -420,7 +420,7 @@ window.IL_COURSES = [
     cat: 'cs',
     title: 'GraphQL API',
     desc: '迷你 resolver 预测器：schema、类型系统、查询语法、N+1 与 DataLoader',
-    size: '71 KB',
+    size: '72 KB',
     tags: ['schema', 'resolver', 'DataLoader', '查询'],
     progress: 'graphql',
     total: 9
@@ -440,7 +440,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'tmux 终端复用',
     desc: '迷你 tmux 会话模拟器：前缀键模型、session/window/pane 三级结构、复制模式与缓冲区、~/.tmux.conf 手感配置',
-    size: '92 KB',
+    size: '93 KB',
     tags: ['session', 'pane', '分屏', '复制模式', '前缀键'],
     progress: 'tmux',
     total: 9
@@ -450,7 +450,7 @@ window.IL_COURSES = [
     cat: 'tools',
     title: 'CSS 布局系统实战',
     desc: '迷你布局计算引擎：盒模型尺寸、flex 伸缩分配、grid 轨道与区域、居中与层叠上下文',
-    size: '87 KB',
+    size: '88 KB',
     tags: ['盒模型', 'flex', 'grid', '居中', '主轴'],
     progress: 'css-layout',
     total: 9

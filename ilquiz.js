@@ -11,7 +11,8 @@
  *   IL.quiz(cfg)         测验引擎：判分 + quiz.wrongs + 错题优先重做
  *   IL.order(key, data)  协议垫片：自带 JS 题库的老模块，错题前置 + 稳定下标
  *   IL.orderDom(key, els) 同上，但题库写死在 HTML 里（regex/sql）
- *   IL.record(key, ...)  协议垫片：写 quiz { score,total,wrongs } + last
+ *   IL.record(key, ...)  协议垫片：写 quiz { score,total,wrongs,at } + last
+ *                        （at 是交卷时间：复习队列的时钟，不用访问时间冒充）
  *
  * 使用方式（二选一）：
  *   - 独立页面（src/*.html）：<script src="../ilquiz.js"></script>
@@ -312,7 +313,9 @@
 
   function record(key, score, total, wrongs) {
     return patch(key, function (g) {
-      g.quiz = { score: score, total: total, wrongs: wrongs ? wrongs.slice() : [] };
+      /* at 是"这次交卷"的时间，与 last（这次进入模块的时间）分开记：
+         复习队列只认交卷，否则读者点开看一眼就退出去，节奏也被重置了。 */
+      g.quiz = { score: score, total: total, wrongs: wrongs ? wrongs.slice() : [], at: Date.now() };
       g.last = Date.now();
     });
   }
@@ -416,7 +419,7 @@
           : '继续加油！回看上面的章节，再试一次（下次进入将优先呈现错题）。') + '</p>';
       box.appendChild(d);
       patch(cfg.key, function (g) {
-        g.quiz = { score: score, total: total, wrongs: wrongs };
+        g.quiz = { score: score, total: total, wrongs: wrongs, at: Date.now() };
         g.last = Date.now();
       });
       if (score >= pass && cfg.onPass) cfg.onPass();

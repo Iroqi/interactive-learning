@@ -1176,7 +1176,7 @@
     else try {
       var store = JSON.parse(localStorage.getItem('il_progress') || '{}');
       var g = store[MODULE_KEY] || {};
-      g.quiz = { score: quizScore, total: quizTotal, wrongs: quizWrongs };
+      g.quiz = { score: quizScore, total: quizTotal, wrongs: quizWrongs, at: Date.now() };
       g.last = Date.now();
       store[MODULE_KEY] = g;
       localStorage.setItem('il_progress', JSON.stringify(store));
