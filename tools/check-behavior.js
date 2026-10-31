@@ -92,6 +92,19 @@
  *   FAIL 展开与进入 —— 点提醒条展开队列，点行进入对应模块
  *   FAIL 空状态 —— 只有未到期模块时提醒条要说"下次复习：N 天后"，一份进度都没有时整块不出现
  *
+ * Round 26 加的是第七件事：**今日目标与档案的"今天"和"全部"要说得清**。
+ * 今日目标旧算法是"last 是今天的模块贡献全部 steps"——昨天解锁 9 步的模块，
+ * 今天点开看一眼就宣布目标达成。现在壳层观察 steps 的增量并写入 stepAt（15s
+ * 心跳 / 切后台 / 离开 / 卸载时对账），目标只数 stepAt 落在今天的条目：
+ *   FAIL 昨日 9 步 + last 今天 → 目标必须仍是 0；今日新增 2 步 → 2
+ *   FAIL 重进再解锁 1 步 → 3（不能把已有 4 步再算一遍）；刷新后仍 3
+ * 重置与导入也收敛到 IL_BACKUP_KEYS 的 clearOnReset / 快照语义：
+ *   FAIL 重置后清空清单里的键仍在（建站仿真进度 / 成就 / 今日目标…）
+ *   FAIL 重置误删收藏 / 主题 / 陌生键，或确认框不说清将清空什么
+ *   FAIL 完整档案缺的已登记键在导入后仍然存活（恢复变成合并）
+ *   FAIL 旧版扁平进度备份被当成完整快照、删掉其它本地档案
+ * 这两件事都只在"读者点下去"之后才看得见，静态文件长得一模一样。
+ *
  * 为什么需要"离开之后"那一趟：泄漏的定义就是"错误发生在读者已经离开之后"。
  * 每个模块点完，立刻切到下一个模块并静置 1.5s，期间浮出来的错误记在前一个
  * 模块名下——这是唯一能把 plc / n8n / vfd 的循环和上一条教训对齐的办法。
@@ -768,7 +781,14 @@ const courses = (() => {
       const s = {}; const list = window.IL_COURSES;
       list.forEach(function (c, i) {
         const g = { last: 1700000000000 + i * 86400000 };
-        if (c.total != null) { const st = []; for (let j = 0; j < c.total - (i % 3); j++) st.push(j); g.steps = st; g.done = st.length === c.total; }
+        if (c.total != null) {
+          const st = []; for (let j = 0; j < c.total - (i % 3); j++) st.push(j);
+          g.steps = st; g.done = st.length === c.total;
+          /* stepAt 也种一份：导入若把它当成未知字段丢掉，今日目标会在下一次
+             导入后静默归零——与 ms / quiz.at 是同一个坑。 */
+          g.stepAt = {};
+          st.forEach((j) => { g.stepAt[j] = 1700000000000 + i * 86400000 + j; });
+        }
         g.quiz = { score: i % 9, total: 8, wrongs: [i % 8], at: 1700000000000 + i };
         /* 计时账也种一份：导入若把 ms 当成未知字段丢掉，回环就红——Round 24 的
            cleanProgress 白名单正是这么被证明的。 */
@@ -865,6 +885,224 @@ const courses = (() => {
     try { fs.unlinkSync(dump); } catch (e) { /* ignore */ }
   } catch (e) {
     ioProblems.push('导出/导入这一段没跑起来：' + String(e && e.message || e).slice(0, 80));
+  }
+
+  /* ── Round 26：今日目标 / 重置 / 快照导入 ──
+   * 这三件事原来各有一套自己的"清单"：
+   *   今日目标按"last 是今天的模块贡献全部 steps"累加，昨天解锁的 9 步会在今天
+   *     点开模块的瞬间变成"9 / 5 里程碑 · 已达成"；
+   *   重置手写 il_progress / il_time，建站仿真进度、成就、今日目标留在库里；
+   *   完整档案导入只覆盖文件里有的键，导出后新增的 il_time 等会留下来，两本账
+   *     当场对不上。
+   * 判据分三块：goal 只认 stepAt 落在今天的条目（last 再近也不算，重进只数与
+   * 增量）；reset 按 clearOnReset 清空并列清单、dismiss 不动一个字节；import
+   * 的快照语义会删除档案缺的已登记键，旧版扁平备份仍按合并处理。 */
+  const lifeProblems = [];
+  const lifeDialogs = [];
+  let lifeChecks = 0;
+  try {
+    const dl = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    let acceptNext = 0;
+    dl.on('dialog', (d) => {
+      lifeDialogs.push(d.message());
+      if (acceptNext > 0) { acceptNext--; d.accept().catch(() => {}); }
+      else d.dismiss().catch(() => {});
+    });
+    const URL = 'file://' + path.join(ROOT, 'index.html');
+    const readKeys = () => dl.evaluate((ks) => {
+      const out = {};
+      ks.forEach((k) => { out[k] = localStorage.getItem(k); });
+      return out;
+    }, [...BACKUP_KEYS, 'other-app']);
+    const goalNum = () => dl.evaluate(() => {
+      const el = document.querySelector('#ovGoalBody .og-num');
+      return el ? el.textContent.trim() : '';
+    });
+    const seed = async (fn) => {
+      await dl.goto(URL);
+      await dl.evaluate(fn);
+      await dl.reload();
+      await dl.waitForTimeout(500);
+    };
+
+    /* 1) 今日目标：种一个"昨天已解锁 9 步、last 是今天"的模块 + 一个只有测验的模块 */
+    await seed(() => {
+      const now = Date.now(), old = now - 40 * 86400000;
+      const d = new Date();
+      const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const stepAt = {};
+      for (let i = 0; i < 9; i++) stepAt[i] = old;
+      localStorage.setItem('il_progress', JSON.stringify({
+        git: { steps: [0, 1, 2, 3, 4, 5, 6, 7, 8], stepAt: stepAt, done: true, last: now },
+        docker: { quiz: { score: 8, total: 8, wrongs: [], at: now }, last: now, ms: 0 },
+        k8s: { steps: [0, 1], stepAt: { 0: old, 1: old }, last: old }
+      }));
+      localStorage.setItem('il_goal', JSON.stringify({ date: day, target: 5 }));
+    });
+    lifeChecks++;
+    const g0 = await goalNum();
+    if (g0 !== '0 / 5 里程碑') {
+      lifeProblems.push('今日目标把昨天解锁的 9 步算成了今天：' + g0 + '（期望 0 / 5 里程碑）');
+    }
+
+    /* 进 k8s 解锁 2 步再回来：只有新增的 2 步进目标 */
+    await dl.evaluate(() => { location.hash = '#/m/k8s'; });
+    await dl.waitForTimeout(600);
+    await dl.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('il_progress'));
+      s.k8s.steps = [0, 1, 2, 3];
+      localStorage.setItem('il_progress', JSON.stringify(s));
+      location.hash = '#/';
+    });
+    await dl.waitForTimeout(700);
+    lifeChecks++;
+    const g1 = await goalNum();
+    if (g1 !== '2 / 5 里程碑') lifeProblems.push('首次解锁 2 步后今日目标是 ' + g1 + '（期望 2 / 5 里程碑）');
+
+    /* 第二次进入同一个模块再解锁 1 步：只加 1，不把已有的 4 步再算一遍 */
+    await dl.evaluate(() => { location.hash = '#/m/k8s'; });
+    await dl.waitForTimeout(600);
+    await dl.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('il_progress'));
+      s.k8s.steps = [0, 1, 2, 3, 4];
+      localStorage.setItem('il_progress', JSON.stringify(s));
+      location.hash = '#/';
+    });
+    await dl.waitForTimeout(700);
+    lifeChecks++;
+    const g2 = await goalNum();
+    if (g2 !== '3 / 5 里程碑') lifeProblems.push('重进后再解锁 1 步，今日目标是 ' + g2 + '（期望 3 / 5 里程碑）');
+
+    /* 刷新后仍是 3：stepAt 必须跟着备份/存储活下来，不能只活在内存里 */
+    await dl.reload();
+    await dl.waitForTimeout(500);
+    lifeChecks++;
+    const g3 = await goalNum();
+    if (g3 !== '3 / 5 里程碑') lifeProblems.push('刷新后今日目标变成 ' + g3 + '（期望 3 / 5 里程碑，stepAt 没落盘）');
+
+    /* 把 git 的 last 再写成今天：已有 9 步也不许因此回涨 */
+    await dl.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('il_progress'));
+      s.git.last = Date.now();
+      localStorage.setItem('il_progress', JSON.stringify(s));
+    });
+    await dl.reload();
+    await dl.waitForTimeout(500);
+    lifeChecks++;
+    const g4 = await goalNum();
+    if (g4 !== '3 / 5 里程碑') lifeProblems.push('把旧模块的 last 刷成今天后目标变成 ' + g4 + '（访问时间又混进了解锁时间）');
+
+    /* 2) 重置：dismiss 不动，accept 按 clearOnReset 清空、保留偏好与陌生键 */
+    await seed(() => {
+      const now = Date.now();
+      const d = new Date();
+      const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      localStorage.setItem('il_progress', JSON.stringify({
+        git: { steps: [0, 1, 2], stepAt: { 0: now, 1: now, 2: now }, last: now, ms: 60000 }
+      }));
+      localStorage.setItem('il_time', JSON.stringify({ [day]: 60000 }));
+      localStorage.setItem('il_star', JSON.stringify(['git']));
+      localStorage.setItem('il_badges', JSON.stringify(['first']));
+      localStorage.setItem('il_goal', JSON.stringify({ date: day, target: 3 }));
+      localStorage.setItem('il_theme', 'dark');
+      localStorage.setItem('website-simulation-progress', JSON.stringify({ step: 4 }));
+      localStorage.setItem('other-app', 'keep-me');
+    });
+    const beforeReset = await readKeys();
+    acceptNext = 0;
+    await dl.click('#btnReset');
+    await dl.waitForTimeout(400);
+    lifeChecks++;
+    const afterDismiss = await readKeys();
+    if (JSON.stringify(beforeReset) !== JSON.stringify(afterDismiss)) {
+      lifeProblems.push('重置对话框点取消后仍改动了本地数据（confirm 不是承诺）');
+    }
+    acceptNext = 1;
+    const msgIdx = lifeDialogs.length;
+    await dl.click('#btnReset');
+    await dl.waitForTimeout(1200);
+    lifeChecks++;
+    const afterReset = await readKeys();
+    const resetMsg = lifeDialogs[msgIdx] || '';
+    ['il_progress', 'il_time', 'il_badges', 'il_goal', 'website-simulation-progress'].forEach((k) => {
+      if (afterReset[k] !== null) lifeProblems.push('重置后 ' + k + ' 仍然在库里（按钮说清空全部学习进度）');
+    });
+    ['il_star', 'il_theme', 'other-app'].forEach((k) => {
+      if (afterReset[k] !== beforeReset[k]) lifeProblems.push('重置误删了应保留的 ' + k);
+    });
+    ['学习进度', '学习时长', '成就', '今日目标', '建站仿真进度'].forEach((label) => {
+      if (resetMsg.indexOf(label) < 0) lifeProblems.push('重置确认框没告诉读者会清空「' + label + '」');
+    });
+    if (resetMsg.indexOf('保留') < 0 || resetMsg.indexOf('收藏') < 0 || resetMsg.indexOf('主题偏好') < 0) {
+      lifeProblems.push('重置确认框没告诉读者会保留收藏与主题：' + resetMsg.replace(/\s+/g, ' ').slice(0, 100));
+    }
+    const goalInput = await dl.locator('#goalInput').count();
+    if (!goalInput) lifeProblems.push('重置后今日目标没有回到"可设定"状态（il_goal 没清）');
+
+    /* 3) 快照导入：档案只带 il_progress，其余已登记键必须删除；陌生键不许动 */
+    await seed(() => {
+      const now = Date.now();
+      const d = new Date();
+      const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      localStorage.setItem('il_progress', JSON.stringify({ git: { steps: [0], last: now } }));
+      localStorage.setItem('il_time', JSON.stringify({ [day]: 120000 }));
+      localStorage.setItem('il_star', JSON.stringify(['git']));
+      localStorage.setItem('il_badges', JSON.stringify(['first']));
+      localStorage.setItem('il_goal', JSON.stringify({ date: day, target: 3 }));
+      localStorage.setItem('il_theme', 'dark');
+      localStorage.setItem('website-simulation-progress', JSON.stringify({ step: 4 }));
+      localStorage.setItem('other-app', 'keep-me');
+    });
+    const partial = path.join(os.tmpdir(), 'il-behavior-partial.json');
+    fs.writeFileSync(partial, JSON.stringify({
+      app: 'interactive-learning', kind: 'backup', version: 1, savedAt: new Date().toISOString(),
+      data: { il_progress: { k8s: { steps: [0, 1], last: Date.now(), ms: 0 } } }
+    }));
+    acceptNext = 1;
+    const msgIdx2 = lifeDialogs.length;
+    await (await dl.$('#importFile')).setInputFiles(partial);
+    await dl.waitForTimeout(1600);
+    lifeChecks++;
+    const afterPartial = await readKeys();
+    const importMsg = lifeDialogs[msgIdx2] || '';
+    let partialProgress = null;
+    try { partialProgress = JSON.parse(afterPartial['il_progress'] || '{}'); } catch (e) { partialProgress = null; }
+    if (!partialProgress || !partialProgress.k8s || partialProgress.git) {
+      lifeProblems.push('快照导入后 il_progress 不是档案里的那一份：' + (afterPartial['il_progress'] || '').slice(0, 80));
+    }
+    ['il_time', 'il_star', 'il_badges', 'il_goal', 'il_theme', 'website-simulation-progress'].forEach((k) => {
+      if (afterPartial[k] !== null) lifeProblems.push('快照里没有 ' + k + '，导入后它却还在（恢复变成了合并）');
+    });
+    if (afterPartial['other-app'] !== 'keep-me') lifeProblems.push('快照导入误删了不属于本库的 other-app 键');
+    if (importMsg.indexOf('档案未包含这些本地数据') < 0 || importMsg.indexOf('导入后将删除') < 0) {
+      lifeProblems.push('快照导入的确认框没列出将被删除的本地数据：' + importMsg.replace(/\s+/g, ' ').slice(0, 100));
+    }
+
+    /* 旧版扁平进度备份仍按合并处理：只覆盖 il_progress，其它档案不删 */
+    await seed(() => {
+      const now = Date.now();
+      localStorage.setItem('il_progress', JSON.stringify({ git: { steps: [0], last: now } }));
+      localStorage.setItem('il_time', JSON.stringify({ '2026-01-01': 120000 }));
+      localStorage.setItem('il_star', JSON.stringify(['git']));
+      localStorage.setItem('other-app', 'keep-me');
+    });
+    fs.writeFileSync(partial, JSON.stringify({ k8s: { steps: [0, 1], last: Date.now(), ms: 0 } }));
+    acceptNext = 1;
+    const msgIdx3 = lifeDialogs.length;
+    await (await dl.$('#importFile')).setInputFiles(partial);
+    await dl.waitForTimeout(1600);
+    lifeChecks++;
+    const afterFlat = await readKeys();
+    if (afterFlat['il_time'] === null || afterFlat['il_star'] === null || afterFlat['other-app'] !== 'keep-me') {
+      lifeProblems.push('旧版扁平进度备份被当成了完整快照：其它本地档案被删');
+    }
+    if ((lifeDialogs[msgIdx3] || '').indexOf('旧版进度备份') < 0) {
+      lifeProblems.push('旧版扁平备份的确认框没说明它只覆盖学习进度');
+    }
+    try { fs.unlinkSync(partial); } catch (e) { /* ignore */ }
+    await dl.close();
+  } catch (e) {
+    lifeProblems.push('今日目标/重置/导入这一段没跑起来：' + String(e && e.message || e).slice(0, 90));
   }
 
   /* ── Round 25：复习队列 ──
@@ -987,6 +1225,9 @@ const courses = (() => {
   console.log('复习队列（交卷时间戳 / 间隔排期 / 队列顺序 / 展开进入 / 空状态）: ' +
     (rqProblems.length ? rqProblems.length + ' 项不合格' : 'OK') + '（量到 ' + rqMeasured + ' 种排期）');
   rqProblems.forEach((m) => console.log('  FAIL ' + m));
+  console.log('数据档案（今日目标只认解锁时间 / 重置清空清单 / 快照导入删除缺项）: ' +
+    (lifeProblems.length ? lifeProblems.length + ' 项不合格' : 'OK') + '（' + lifeChecks + ' 组）');
+  lifeProblems.forEach((m) => console.log('  FAIL ' + m));
   console.log('点击覆盖率（点过的控件 / 命中的真控件）: ' + totalClicked + '/' + totalCtl + ' = ' + cov + '% / 下限 ' + COVER + '%');
   /* ── Round 21：答题这一维以前根本不在判据里 ──
      "答完题必须留下 quiz 记录"量的不是模块有没有病，而是**读者的主路径有没有被走通过**：
@@ -1169,7 +1410,7 @@ const courses = (() => {
   if (dialogs) console.log('对话框（confirm/alert）: ' + dialogs + ' 次，已 dismiss，不计失败');
 
   const bad = (onModTotal + leakTotal) > BUDGET || cov < COVER || ioProblems.length > 0 ||
-    timeProblems.length > 0 || rqProblems.length > 0 ||
+    timeProblems.length > 0 || rqProblems.length > 0 || lifeProblems.length > 0 ||
     (wholeLib && respPct < RESPOND) || silent.length > 0 || (QUIZ && noRecord.length > 0) ||
     rvProblems.length > 0 || capped > 0 || (REVISIT && wholeLib && rcov < RCov);
   if (bad) {

@@ -1082,7 +1082,7 @@
           <button type="button" class="ov-btn" id="btnExport">导出数据</button>
           <button type="button" class="ov-btn" id="btnReport" title="把学习进度生成为 Markdown 学习报告并下载">学习报告</button>
           <button type="button" class="ov-btn" id="btnImport" title="从备份文件恢复；旧版只含进度的备份文件照样能导">导入数据</button>
-          <button type="button" class="ov-btn danger" id="btnReset" title="清空全部模块的学习进度">重置进度</button>
+          <button type="button" class="ov-btn danger" id="btnReset" title="清空学习进度、学习时长、成就、今日目标与建站仿真进度（保留收藏与主题）">重置进度</button>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
         </span>
       </div>
@@ -2386,12 +2386,73 @@
       function resumeStudyTime() { if (timeKey !== null) { timeRunning = true; timeSince = Date.now(); } }
       function stopStudyTime() { flushStudyTime(); timeKey = null; timeRunning = false; }
 
-      window.setInterval(flushStudyTime, TIME_TICK_MS);
+      window.setInterval(function () { flushStudyTime(); reconcileSteps(); }, TIME_TICK_MS);
       document.addEventListener('visibilitychange', function () {
-        if (document.hidden) pauseStudyTime();
+        if (document.hidden) { pauseStudyTime(); reconcileSteps(); }
         else resumeStudyTime();
       });
-      window.addEventListener('pagehide', flushStudyTime);
+      window.addEventListener('pagehide', function () { flushStudyTime(); reconcileSteps(); });
+
+      /* ── 今日目标：给每个里程碑记下"解锁发生在哪一天"（Round 26） ──
+       * 旧实现把"今天访问过的模块里全部 steps"加进今日目标（p.last 是今天 => += d.n），
+       * 于是昨天已经解锁 9 步的模块，今天点开看一眼就变成"9 / 5 里程碑 · 已达成"。
+       * 这和张旧复习条拿 last 当时钟是同一类错误：访问时间不是事件时间。
+       *
+       * 模块只写 steps（30 个模块各写各的），不知道也没必要知道"哪一天"。壳层在
+       * 模块唯一的生灭点观察 steps 的增量，把新增下标的时间写进 stepAt：
+       *   - 进入模块时记下现有 steps（beginStepSession）；
+       *   - 15s 心跳 / 切后台 / 离开模块 / 卸载时对账（reconcileSteps），
+       *     新增的才盖时间戳，已有的永远不动；
+       *   - 今日目标只数 stepAt 落在今天的条目，与 last、与 steps 总量都无关。
+       * 代价是解锁时间以壳层观测为准（最多晚 15s，离开时补记），跨午夜的一步可能
+       * 记到次日；独立打开 src/ 调试页不经过壳层，不参与今日目标。 */
+      var stepSessionKey = null, stepSeen = {};
+      function beginStepSession(key) {
+        stepSessionKey = key;
+        stepSeen = {};
+        var p = readProgress()[key];
+        if (p && Array.isArray(p.steps)) p.steps.forEach(function (i) { stepSeen[i] = true; });
+      }
+      function reconcileSteps() {
+        if (!stepSessionKey) return;
+        var store = readProgress();
+        var p = store[stepSessionKey];
+        if (!p || !Array.isArray(p.steps)) return;
+        var at = Date.now(), changed = false;
+        if (!p.stepAt || typeof p.stepAt !== 'object' || Array.isArray(p.stepAt)) p.stepAt = {};
+        p.steps.forEach(function (i) {
+          if (stepSeen[i]) return;
+          stepSeen[i] = true;
+          if (typeof p.stepAt[i] !== 'number') { p.stepAt[i] = at; changed = true; }
+        });
+        if (!changed) return;
+        store[stepSessionKey] = p;
+        try { localStorage.setItem('il_progress', JSON.stringify(store)); }
+        catch (e) { /* storage unavailable */ }
+      }
+      function endStepSession() {
+        reconcileSteps();
+        stepSessionKey = null;
+        stepSeen = {};
+      }
+      function countTodaySteps(store) {
+        var today = todayStr();
+        var keys = {};
+        courses.forEach(function (c) { keys[c.progress || c.key] = true; });
+        var n = 0;
+        Object.keys(store).forEach(function (key) {
+          if (!keys[key]) return;
+          var p = store[key];
+          if (!p || !p.stepAt || typeof p.stepAt !== 'object') return;
+          var unlocked = {};
+          (Array.isArray(p.steps) ? p.steps : []).forEach(function (i) { unlocked[i] = true; });
+          Object.keys(p.stepAt).forEach(function (i) {
+            var ts = p.stepAt[i];
+            if (unlocked[i] && typeof ts === 'number' && ts > 0 && dayKey(new Date(ts)) === today) n++;
+          });
+        });
+        return n;
+      }
 
       function initProgress() {
         var store = readProgress();
@@ -2548,17 +2609,12 @@
           var g = JSON.parse(localStorage.getItem('il_goal') || 'null');
           if (g && g.date === todayStr() && g.target > 0) goal = g;
         } catch (e) { /* storage unavailable */ }
-        var todayMs = 0;
-        var todayKey = new Date().toDateString();
-        /* 今日目标统计的是"解锁了几个里程碑"，assess 型模块没有里程碑，
-           天然不计入——这里不改语义，只是换成走统一派生，避免 key 口径漂移。 */
-        courses.forEach(function (c) {
-          var d = deriveCourse(c, store);
-          if (!d || d.kind !== 'milestone' || !d.started) return;
-          var p = store[d.key];
-          if (!p || !p.last || new Date(p.last).toDateString() !== todayKey) return;
-          todayMs += d.n;
-        });
+        var todaySteps = countTodaySteps(store);
+        /* 今日目标只数"今天新解锁的里程碑"：stepAt 由壳层在模块生灭点与 15s
+           心跳里补记。旧实现按"last 是今天的模块贡献全部 steps"累加，昨天解锁的
+           9 步会在今天点开模块的瞬间全部算成今天——目标条自己会宣布"已达成"。
+           assess 型模块没有里程碑，仍不计入；这是"里程碑目标"的单位决定的，
+           不是把它们的测验折算成步数。 */
         var body = document.getElementById('ovGoalBody');
         if (!goal) {
           body.innerHTML = '<input type="number" id="goalInput" class="og-input" min="1" max="50" placeholder="今天想解锁几个里程碑？">' +
@@ -2573,10 +2629,10 @@
           });
           return;
         }
-        var pct = Math.min(100, Math.round(todayMs / goal.target * 100));
-        var done = todayMs >= goal.target;
+        var pct = Math.min(100, Math.round(todaySteps / goal.target * 100));
+        var done = todaySteps >= goal.target;
         body.innerHTML = '<span class="og-bar"><span class="og-fill" style="width:' + pct + '%"></span></span>' +
-          '<span class="og-num' + (done ? ' og-done' : '') + '">' + todayMs + ' / ' + goal.target + ' 里程碑' + (done ? ' · 已达成 ✓' : '') + '</span>' +
+          '<span class="og-num' + (done ? ' og-done' : '') + '">' + todaySteps + ' / ' + goal.target + ' 里程碑' + (done ? ' · 已达成 ✓' : '') + '</span>' +
           '<button type="button" class="ov-btn" id="goalEdit">修改</button>';
         el.classList.add('show');
         var edit = document.getElementById('goalEdit');
@@ -2923,17 +2979,20 @@
          而且一声不吭。现在备份是一个 envelope，键清单由 tools/check-courses.js
          第 9 节拿代码里所有 localStorage 字面量键对账：新增一个写入点却没在这儿
          登记（也没写进 IL_NOBACKUP_KEYS），CI 直接红——"少备一样"这件事从此
-         需要有人主动签字，不会再静默发生。 */
+         需要有人主动签字，不会再静默发生。
+         这张表现在还回答第三件事：重置时哪些键跟着进度一起清空（clearOnReset）。
+         旧重置手写 il_progress / il_time，建站仿真进度和成就留在库里，按钮说
+         "清空全部"却留下半个档案；把决定放回同一张表，漏签由 check-courses 拦。 */
       var IL_BACKUP_KEYS = [
-        { key: 'il_progress', codec: 'json', label: '学习进度' },
-        { key: 'il_time',     codec: 'json', label: '学习时长' },
-        { key: 'il_star',     codec: 'json', label: '收藏' },
-        { key: 'il_badges',   codec: 'json', label: '成就' },
-        { key: 'il_goal',     codec: 'json', label: '今日目标' },
-        { key: 'il_theme',    codec: 'raw',  label: '主题偏好' },
+        { key: 'il_progress', codec: 'json', label: '学习进度', clearOnReset: true },
+        { key: 'il_time',     codec: 'json', label: '学习时长', clearOnReset: true },
+        { key: 'il_star',     codec: 'json', label: '收藏', clearOnReset: false },
+        { key: 'il_badges',   codec: 'json', label: '成就', clearOnReset: true },
+        { key: 'il_goal',     codec: 'json', label: '今日目标', clearOnReset: true },
+        { key: 'il_theme',    codec: 'raw',  label: '主题偏好', clearOnReset: false },
         /* web 模块的建站仿真自己存了一份进度（键名不带 il_ 前缀）。第 9 节对账把
            它揪出来的：它在库里活着，却不在任何一份备份里。 */
-        { key: 'website-simulation-progress', codec: 'json', label: '建站仿真进度' }
+        { key: 'website-simulation-progress', codec: 'json', label: '建站仿真进度', clearOnReset: true }
       ];
       /* 明确不备份的键写在这里并说明理由；留空也要留着，它和上面那张表是同一句话的两半 */
       var IL_NOBACKUP_KEYS = [];
@@ -3014,12 +3073,41 @@
                  备份就把读者的时长清空，界面上还看不出少了一样东西。 */
               if (typeof v !== 'number' || v % 1 !== 0 || v < 0 || v > 315360000000) okShape = false;
               else out.ms = v;
+            } else if (field === 'stepAt') {
+              /* 里程碑解锁时间（Round 26）：今日目标只数今天的条目。
+                 漏了这个白名单，导入一次备份就把全库"今天解锁了几步"清零，
+                 而目标条只会安静地读成 0——与 ms / quiz.at 是同一个坑。
+                 键必须是该模块的合法步下标（声明了 total 的模块还要小于 total），
+                 值是整数时间戳。 */
+              if (!v || typeof v !== 'object' || Array.isArray(v)) { okShape = false; return; }
+              var sa = {};
+              Object.keys(v).forEach(function (sk) {
+                var si = Number(sk);
+                if (!/^\d+$/.test(sk) || si % 1 !== 0 || si < 0 ||
+                    (known[key] !== null && si >= known[key]) ||
+                    typeof v[sk] !== 'number' || v[sk] % 1 !== 0 || v[sk] < 0) {
+                  okShape = false;
+                  return;
+                }
+                sa[sk] = v[sk];
+              });
+              if (okShape) out.stepAt = sa;
             } else if (field === 'done') {
               if (typeof v !== 'boolean') okShape = false; else out.done = v;
             }
             /* 其它字段：壳层不读，丢掉 */
           });
           if (!okShape) { dropped.push(key); return; }
+          /* stepAt 只对"当前仍在 steps 里的下标"有意义：导入一份被手工拼过的
+             备份时，多出来的时间戳会让今日目标凭空回涨。孤儿时间戳直接丢掉。 */
+          if (out.stepAt) {
+            var unlocked = {};
+            (out.steps || []).forEach(function (i) { unlocked[i] = true; });
+            Object.keys(out.stepAt).forEach(function (i) {
+              if (!unlocked[i]) delete out.stepAt[i];
+            });
+            if (!Object.keys(out.stepAt).length) delete out.stepAt;
+          }
           clean[key] = out; kept++;
         });
         return { value: clean, kept: kept, dropped: dropped };
@@ -3145,6 +3233,20 @@
               (unknown.length ? '（丢弃 ' + unknown.length + ' 项）' : ''));
             return;
           }
+          /* 完整档案是快照，不是合并：档案里没有的已登记键 = 导出时本来就没有，
+             导入后应删除；否则"恢复旧备份"会留下导出之后才产生的数据（比如
+             il_time 还在、il_progress 已回到过去，两本账当场对不上）。
+             旧版扁平备份（顶层就是进度）只含 il_progress，保持合并语义——读者
+             手里的旧文件不是垃圾，但它也不能冒充一份完整快照去删别的档案。 */
+          var removals = [];
+          if (isArchive) {
+            IL_BACKUP_KEYS.forEach(function (b) {
+              if (Object.prototype.hasOwnProperty.call(payload, b.key)) return;
+              var had = null;
+              try { had = localStorage.getItem(b.key); } catch (e) { had = null; }
+              if (had !== null && had !== '') removals.push(b);
+            });
+          }
           /* 覆盖之前把两边都念一遍：旧的"覆盖 N 个进度"只说得清 il_progress，
              而现在会被动到的是整个学习档案。 */
           var cur = [], inc = [];
@@ -3155,10 +3257,17 @@
             if (had !== null && had !== '') cur.push(describeBackup(w.b, decodeBackup(w.b, had)));
           });
           var ignored = unknown.length ? '\n  忽略文件里 ' + unknown.length + ' 项不认的数据' : '';
-          if (cur.length && !confirm('导入会覆盖当前本地数据：\n  现有：' + cur.join('；') +
-              '\n  读入：' + inc.join('；') + ignored + '\n继续？')) return;
+          var lost = removals.length ? '\n  档案未包含这些本地数据，导入后将删除：' +
+            removals.map(function (b) { return b.label; }).join(' / ') : '';
+          var mergeNote = isArchive ? '' : '\n  旧版进度备份：只覆盖学习进度，其它本地档案保留';
+          if ((cur.length || removals.length) &&
+              !confirm('导入会覆盖当前本地数据：\n  现有：' + cur.join('；') +
+                '\n  读入：' + inc.join('；') + lost + mergeNote + ignored + '\n继续？')) return;
           write.forEach(function (w) {
             try { localStorage.setItem(w.key, w.raw); } catch (e) { /* storage unavailable */ }
+          });
+          removals.forEach(function (b) {
+            try { localStorage.removeItem(b.key); } catch (e) { /* storage unavailable */ }
           });
           location.reload();
         };
@@ -3588,6 +3697,8 @@
         /* 计时以"模块容器被回收"为结算点：这里之后 moduleRoot 已经不再是
            读者看到的那个模块，再算下去就是把导航页的时间记到上一个模块头上。 */
         stopStudyTime();
+        /* 离开前把本次会话新增的里程碑盖好时间戳——今日目标只认它。 */
+        endStepSession();
         if (window.ILContrast) ILContrast.unwatch(moduleRoot);
         modEpoch++;               // 让任何仍在队列里的旧模块回调失效
         releaseModule();
@@ -3633,6 +3744,8 @@
         /* 访问时间戳由壳层统一记录：没有里程碑体系的早期模块（17 个）也能
            进入连续学习 / 热力图 / 到期复习，不必逐个改造模块内部代码。 */
         if (window.IL) IL.touch(key);
+        /* 先记下进门时的 steps，模块脚本随后解锁的才算"今天新增"。 */
+        beginStepSession(key);
         /* 把当前模块 key 挂到容器上：skin 里少数"只有某个模块这么写"的规则
            （plc 的 .simulator 深底、n8n 的翻转卡片…）可以精确点名，
            不必用一条通用规则去盖住其它模块的同名类。 */
@@ -3729,13 +3842,20 @@
       });
 
       /* 重置全部进度（confirm 保护，清空后重载）
-         学习时长也是进度的一部分：只清 il_progress 会留下一个"重置过、但今天
-         已学 40 分钟"的总览，读者会以为按钮没生效。 */
+         清哪些、留哪些由 IL_BACKUP_KEYS 的 clearOnReset 决定，不再手写两个键：
+         Round 26 之前它只清 il_progress / il_time，建站仿真进度、成就、今日目标
+         都留在浏览器里——按钮说"清空全部学习进度"，实际留下半个档案。收藏与主题
+         是偏好而不是进度，明确保留；两条清单都写进 confirm，读者点之前就知道。 */
       document.getElementById('btnReset').addEventListener('click', function () {
-        if (!window.confirm('确定要清空全部模块的学习进度与学习时长吗？此操作不可撤销，可先导出备份。')) return;
+        var clear = [], keep = [];
+        IL_BACKUP_KEYS.forEach(function (b) { (b.clearOnReset ? clear : keep).push(b); });
+        var msg = '确定要清空全部学习进度吗？\n将清空：' +
+          clear.map(function (b) { return b.label; }).join(' / ') +
+          '\n保留：' + keep.map(function (b) { return b.label; }).join(' / ') +
+          '\n此操作不可撤销，可先导出备份。';
+        if (!window.confirm(msg)) return;
         try {
-          localStorage.removeItem('il_progress');
-          localStorage.removeItem('il_time');
+          clear.forEach(function (b) { localStorage.removeItem(b.key); });
           location.reload();
         } catch (e) { /* storage unavailable */ }
       });

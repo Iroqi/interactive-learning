@@ -275,6 +275,8 @@ else {
  *   两张表不能重叠（一边说要备一边说不备，等于没人负责）
  *   走变量取键的读写必须能顺着同文件 `var X = 'il_...'` 解析出来，解析不出来说明
  *     这条写入路径连对账都看不见 → 红
+ *   每个备份键必须写明 clearOnReset（重置时清空还是保留），并且代码里真的按它
+ *     分流；重置另抄一份键清单 = 下一轮"清空了但没全清"的种子 → 红
  * `localStorage.getItem(b.key)` 这类成员表达式不在扫描范围里：它不引入新键，
  * 键本身由 IL_BACKUP_KEYS 决定，而那张表正是这里对账的对象。
  * 行为侧（导出的文件真包含这些键、清库后逐字节回来）由 tools/check-behavior.js 钉。 */
@@ -309,6 +311,24 @@ function declaredList(name) {
 }
 const backupKeys = declaredList('IL_BACKUP_KEYS') || [];
 const noBackupKeys = declaredList('IL_NOBACKUP_KEYS') || [];
+/* Round 26：重置要清哪些键，必须由同一张表签字（clearOnReset），不能另抄一份
+   键清单——旧实现手写 il_progress / il_time，于是建站仿真进度、成就、今日目标
+   在"清空全部学习进度"之后仍然活着。每条都要有 true/false，且至少有一处代码
+   真的按它分流（否则旗子是死声明）。 */
+const backupBlock = (stripComments(shell).match(/var IL_BACKUP_KEYS\s*=\s*\[([\s\S]*?)\]\s*;/) || [])[1] || '';
+const backupEntries = backupBlock.split(/\{\s*key:/).slice(1);
+backupEntries.forEach((entry) => {
+  const km = entry.match(/^\s*'([^']+)'/);
+  const k = km ? km[1] : '?';
+  if (!/clearOnReset\s*:\s*(true|false)/.test(entry)) {
+    note(`index.html: 备份键 ${k} 没有 clearOnReset 决定——重置时它属于清空还是保留，必须有人签字`);
+  }
+});
+const flagsInTable = (backupBlock.match(/clearOnReset/g) || []).length;
+const resetFlags = (stripComments(shell).match(/clearOnReset/g) || []).length;
+if (resetFlags - flagsInTable < 1) {
+  note('index.html: clearOnReset 只出现在备份表里，没有任何代码按它分流——重置仍在手写键清单');
+}
 backupKeys.forEach((k) => {
   if (noBackupKeys.indexOf(k) >= 0) note(`index.html: ${k} 同时在备份表和不备份表里（两张表必须互斥）`);
 });
